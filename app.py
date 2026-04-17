@@ -235,17 +235,30 @@ with tab4:
     rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
     if st.button("📂 Generate & Download"):
         with st.spinner("Processing SQL..."):
+            with st.spinner("Calculating Financial Summary..."):
             if rep_v == "Accounting Summary":
+                # SQL Query المحدثة لربط بيانات الطالب بالمعاملات المالية
                 sql = text("""
-                    SELECT s.id AS "ID", s.college AS "College", SUM(t.debit) AS "Invoices",
-                           SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END) AS "Discounts",
-                           SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END) AS "Payments",
-                           SUM(t.debit) - SUM(t.credit) AS "Balance"
-                    FROM students s LEFT JOIN transactions t ON s.id = t.student_id
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) GROUP BY s.id, s.college ORDER BY s.id
+                    SELECT 
+                        s.id AS "ID", 
+                        s.name AS "Student Name",
+                        s.college AS "College",
+                        s.email AS "Email",
+                        COALESCE(SUM(t.debit), 0) AS "Invoices",
+                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END), 0) AS "Discounts",
+                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments",
+                        COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance"
+                    FROM students s 
+                    LEFT JOIN transactions t ON s.id = t.student_id
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                    GROUP BY s.id, s.name, s.college, s.email
+                    ORDER BY s.id
                 """)
+                
                 res = session.execute(sql, {"c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',)}).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "College", "Invoices", "Discounts", "Payments", "Balance"])
+                
+                # تحديث أسماء الأعمدة في الـ DataFrame لتطابق الـ SQL
+                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Invoices", "Discounts", "Payments", "Balance"])
             else:
                 sql = text("""
                     SELECT t.student_id, s.college, t.reference_no, t.entry_date, t.description, t.debit, t.credit
