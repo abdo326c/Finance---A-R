@@ -66,6 +66,7 @@ class Transaction(Base):
     scholarship_type_id = Column(Integer, ForeignKey('scholarship_types.id'), nullable=True)
     transaction_type = Column(String, nullable=False) 
     description = Column(String)
+    hours_change = Column(Float, default=0.0) # <--- العمود الجديد لتسجيل الساعات
     debit = Column(Float, default=0)
     credit = Column(Float, default=0)
     entry_date = Column(Date, nullable=False)
@@ -143,7 +144,7 @@ with tab1:
     a_t = st.selectbox("Action", ["Payment Receipt", "Apply Scholarship", "Credit Hours Adjustment", "Other Fees"], index=1)
     c1, c2, c3 = st.columns(3); ed = c1.date_input("Date"); et = c2.selectbox("Term", ["Fall", "Spring", "Summer"]); ey = c3.number_input("Year", value=ed.year)
     
-    dr, cr, dsc, sch_id, pfx = 0.0, 0.0, "", None, "TX"
+    dr, cr, dsc, sch_id, pfx, h_change = 0.0, 0.0, "", None, "TX", 0.0 # <--- إضافة متغير الساعات
     if a_t == "Payment Receipt":
         pfx = "PAY"; b_n = st.text_input("Bank Name"); b_r = st.text_input("Ref No"); amt = st.number_input("Amount Paid", min_value=0.0)
         dsc, cr = f"Bank: {b_n} | Ref: {b_r}", amt
@@ -154,6 +155,7 @@ with tab1:
     elif a_t == "Credit Hours Adjustment":
         pfx = "ADJ"; h = st.number_input("Hours Delta (+/-)"); s_d = session.query(Student).filter_by(id=sid).first(); rate = s_d.price_per_hr if s_d else 0
         val = abs(h * rate); dr = val if h > 0 else 0; cr = val if h < 0 else 0; dsc = f"Adj: {h} CH @ {rate:,.2f}"
+        h_change = h # <--- تسجيل الساعات المعدلة
     elif a_t == "Other Fees":
         pfx = "INV"; amt = st.number_input("Fee Amount"); dsc = st.text_input("Description"); dr = amt
 
@@ -163,7 +165,7 @@ with tab1:
             s_d = session.query(Student).filter_by(id=sid).first()
             if not s_d: st.error("Student ID not found!"); st.stop()
             m_id = session.query(func.max(Transaction.id)).scalar() or 0
-            new_tx = Transaction(reference_no=f"{pfx}-{m_id+1:06d}", student_id=sid, scholarship_type_id=sch_id, transaction_type=a_t, description=dsc, debit=dr, credit=cr, entry_date=ed, term=et, academic_year=ey)
+            new_tx = Transaction(reference_no=f"{pfx}-{m_id+1:06d}", student_id=sid, scholarship_type_id=sch_id, transaction_type=a_t, description=dsc, debit=dr, credit=cr, hours_change=h_change, entry_date=ed, term=et, academic_year=ey)
             session.add(new_tx); session.commit(); st.success("Successfully Posted!"); st.rerun()
 
 # --- Tab 2: Individual Statement ---
@@ -232,55 +234,100 @@ with tab3:
                     for i, r in df_b.iterrows():
                         sid = int(r['ID']) if pd.notnull(r.get('ID')) else 0
                         if sid == 0 or sid not in rts: continue
-                        rt, dr, cr, pfx, s_id = rts[sid], 0.0, 0.0, "TX", None
+                        rt, dr, cr, pfx, s_id, h_change = rts[sid], 0.0, 0.0, "TX", None, 0.0 # <--- إضافة متغير الساعات
                         raw = str(r.get('Description', '')).strip(); dsc = b_t if not raw or raw in ['0', '0.0', 'nan'] else raw
+                        
                         if b_t == "Bulk Payments":
                             pfx, cr, dsc = "PAY", float(r.get('Amount', 0)), f"Bank: {r.get('Bank Name')} | Ref: {r.get('Bank Ref')}"
                         elif b_t == "Bulk Scholarships":
                             pfx, s_n = "SCH", str(r.get('Scholarship Name', '')); s_id = sch_map.get(s_n); cr = (15 * rt * (float(r.get('Percentage', 0))/100)); dsc = f"Sch: {s_n}"
                         elif b_t == "Bulk Invoices (Tuition)":
-                            pfx, dr, dsc = "INV", (float(r.get('Hours', 15)) * rt), f"Tuition Invoice ({r.get('Hours')} CH)"
+                            h = float(r.get('Hours', 15))
+                            pfx, dr, dsc, h_change = "INV", (h * rt), f"Tuition Invoice ({h} CH)", h # <--- تسجيل الساعات
                         elif b_t == "Credit Hours Adjustments":
-                            pfx, h = "ADJ", float(r.get('Hours_Delta', 0)); v = abs(h * rt); dr, cr = (v if h > 0 else 0), (v if h < 0 else 0); dsc = f"Adj {h} CH"
+                            h = float(r.get('Hours_Delta', 0)); v = abs(h * rt); dr, cr = (v if h > 0 else 0), (v if h < 0 else 0); dsc = f"Adj {h} CH"
+                            h_change = h # <--- تسجيل الساعات المعدلة
                         elif b_t == "General Adjustments":
                             pfx, dr, cr = "TXN", float(r.get('Debit', 0)), float(r.get('Credit', 0))
-                        bulk_l.append(Transaction(reference_no=f"{pfx}-{m_id+i+1:06d}", student_id=sid, scholarship_type_id=s_id, transaction_type=b_t, description=dsc, debit=dr, credit=cr, entry_date=pd.to_datetime(r.get('Date')).date(), term=str(r.get('Term')), academic_year=int(r.get('Year'))))
+                            
+                        bulk_l.append(Transaction(reference_no=f"{pfx}-{m_id+i+1:06d}", student_id=sid, scholarship_type_id=s_id, transaction_type=b_t, description=dsc, debit=dr, credit=cr, hours_change=h_change, entry_date=pd.to_datetime(r.get('Date')).date(), term=str(r.get('Term')), academic_year=int(r.get('Year'))))
                     session.bulk_save_objects(bulk_l); session.commit(); st.success("Bulk Success!"); st.rerun()
 
-# --- Tab 4: Management Reports ---
+# --- Tab 4: Management Reports (With New Filters) ---
 with tab4:
     st.subheader("📈 Financial Management Reports")
-    sel_col = st.multiselect("Filter by College", all_colleges)
+    
+    # 3 فلاتر جنب بعض لسهولة الاستخدام
+    col_f1, col_f2, col_f3 = st.columns(3)
+    sel_col = col_f1.multiselect("Filter by College", all_colleges)
+    sel_term = col_f2.multiselect("Filter by Term", ["Fall", "Spring", "Summer"])
+    sel_year = col_f3.multiselect("Filter by Year", available_years)
+
     rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
+    
     if st.button("📂 Generate & Download"):
-        with st.spinner("Processing SQL..."):
+        with st.spinner("Processing Data..."):
             if rep_v == "Accounting Summary":
+                # الـ SQL دي دلوقتي بتجمع من عمود الساعات مباشرة
                 sql = text("""
                     SELECT 
                         s.id AS "ID", 
                         s.name AS "Student Name",
                         s.college AS "College",
                         s.email AS "Email",
-                        COALESCE(SUM(t.debit), 0) AS "Invoices",
+                        s.price_per_hr AS "Price/Hr",
+                        COALESCE(SUM(t.hours_change), 0) AS "Reg. Hours",
+                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'INV-%' THEN t.debit ELSE 0 END), 0) AS "Invoices",
                         COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END), 0) AS "Discounts",
                         COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments",
                         COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance"
                     FROM students s 
-                    LEFT JOIN transactions t ON s.id = t.student_id
+                    LEFT JOIN transactions t ON s.id = t.student_id 
+                        AND (:t_cnt = 0 OR t.term IN :trms)
+                        AND (:y_cnt = 0 OR t.academic_year IN :yrs)
                     WHERE (:c_cnt = 0 OR s.college IN :cls) 
-                    GROUP BY s.id, s.name, s.college, s.email
+                    GROUP BY s.id, s.name, s.college, s.email, s.price_per_hr
                     ORDER BY s.id
                 """)
-                res = session.execute(sql, {"c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',)}).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Invoices", "Discounts", "Payments", "Balance"])
+                
+                params = {
+                    "c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',),
+                    "t_cnt": len(sel_term), "trms": tuple(sel_term) if sel_term else ('',),
+                    "y_cnt": len(sel_year), "yrs": tuple(sel_year) if sel_year else (-1,)
+                }
+                res = session.execute(sql, params).fetchall()
+                
+                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Price/Hr", "Reg. Hours", "Invoices", "Discounts", "Payments", "Balance"])
+                
+                # تنسيق الأرقام عشان تظهر بفاصلة الألف، والساعات برقم عشري واحد
+                st.dataframe(df.style.format({
+                    "Price/Hr": "{:,.2f}", 
+                    "Reg. Hours": "{:,.1f}", 
+                    "Invoices": "{:,.2f}", 
+                    "Discounts": "{:,.2f}", 
+                    "Payments": "{:,.2f}", 
+                    "Balance": "{:,.2f}"
+                }), use_container_width=True)
+
             else:
+                # تحديث التقرير التفصيلي عشان يقبل فلاتر التيرم والسنة
                 sql = text("""
-                    SELECT t.student_id, s.name, s.college, t.reference_no, t.entry_date, t.description, t.debit, t.credit
+                    SELECT t.student_id, s.name, s.college, t.reference_no, t.entry_date, t.term, t.academic_year, t.description, t.debit, t.credit
                     FROM transactions t JOIN students s ON t.student_id = s.id
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) ORDER BY t.student_id, t.entry_date DESC
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                      AND (:t_cnt = 0 OR t.term IN :trms)
+                      AND (:y_cnt = 0 OR t.academic_year IN :yrs)
+                    ORDER BY t.student_id, t.entry_date DESC
                 """)
-                res = session.execute(sql, {"c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',)}).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "Name", "College", "Ref", "Date", "Description", "Debit", "Credit"])
+                params = {
+                    "c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',),
+                    "t_cnt": len(sel_term), "trms": tuple(sel_term) if sel_term else ('',),
+                    "y_cnt": len(sel_year), "yrs": tuple(sel_year) if sel_year else (-1,)
+                }
+                res = session.execute(sql, params).fetchall()
+                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Ref No", "Date", "Term", "Year", "Description", "Debit", "Credit"])
+                st.dataframe(df.style.format({"Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
             
             buf = io.BytesIO(); df.to_excel(buf, index=False)
-            st.success("Report Ready!"); st.download_button("📗 Download Excel Report", buf.getvalue(), "AR_Management_Report.xlsx")
+            st.success("Report Ready!")
+            st.download_button("📗 Download Excel Report", buf.getvalue(), "AR_Management_Report.xlsx", use_container_width=True)
