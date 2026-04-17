@@ -7,6 +7,30 @@ from datetime import datetime
 from fpdf import FPDF
 import io
 
+# --- Authentication Logic ---
+USERS = {
+    "abdo_finance": "Finance2026",
+    "nile_admin": "NU_Secure_789"
+}
+
+if 'authenticated' not in st.session_state:
+    st.session_state['authenticated'] = False
+
+def login_form():
+    st.markdown("<h2 style='text-align: center;'>🔒 Nile University Finance Login</h2>", unsafe_allow_html=True)
+    with st.form("login_form"):
+        user = st.text_input("Username")
+        pwd = st.text_input("Password", type="password")
+        submit = st.form_submit_button("Login")
+        
+        if submit:
+            if user in USERS and USERS[user] == pwd:
+                st.session_state['authenticated'] = True
+                st.success(f"Welcome back, {user}!")
+                st.rerun()
+            else:
+                st.error("Invalid Username or Password")
+
 # =======================================================
 # 1. Database Connection & Models
 # =======================================================
@@ -43,10 +67,15 @@ class Transaction(Base):
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# جلب البيانات المساعدة
-sch_map = {sch.name: sch.id for sch in session.query(ScholarshipType).all()}
-all_colleges = [c[0] for c in session.query(Student.college).distinct().all() if c[0]]
-available_years = [y[0] for y in session.query(Transaction.academic_year).distinct().all() if y[0]] or [2026]
+# جلب البيانات المساعدة (تأكد من وجود بيانات في قاعدة البيانات أولاً)
+try:
+    sch_map = {sch.name: sch.id for sch in session.query(ScholarshipType).all()}
+    all_colleges = [c[0] for c in session.query(Student.college).distinct().all() if c[0]]
+    available_years = [y[0] for y in session.query(Transaction.academic_year).distinct().all() if y[0]] or [2026]
+except:
+    sch_map = {}
+    all_colleges = []
+    available_years = [2026]
 
 # =======================================================
 # 2. PDF Generator (Landscape)
@@ -76,11 +105,28 @@ def create_pdf(sid, df, net_balance):
 # 3. UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
-st.title("🏦 Nile University - Finance A/R System")
+
+# --- Authentication Check ---
+if not st.session_state['authenticated']:
+    login_form()
+    st.stop()
+
+# --- NEW HEADER: Title & Logout in ONE Row ---
+col_title, col_logout = st.columns([0.8, 0.2], vertical_alignment="center")
+
+with col_title:
+    st.title("🏦 Nile University - Finance A/R System")
+
+with col_logout:
+    if st.button("🚪 Log out", use_container_width=True, key="main_logout"):
+        st.session_state['authenticated'] = False
+        st.rerun()
+
 st.markdown("---")
+
 tab1, tab2, tab3, tab4 = st.tabs(["📊 Operations", "📜 Statement", "📤 Bulk", "📈 Management Reports"])
 
-# --- Tab 1: Manual Operations (COMPLETE) ---
+# --- Tab 1: Manual Operations ---
 with tab1:
     st.subheader("Post Manual Transaction")
     sid_raw = st.text_input("Student ID", placeholder="Enter ID (e.g., 18100523)...", key="manual_id")
@@ -111,7 +157,7 @@ with tab1:
             new_tx = Transaction(reference_no=f"{pfx}-{m_id+1:06d}", student_id=sid, scholarship_type_id=sch_id, transaction_type=a_t, description=dsc, debit=dr, credit=cr, entry_date=ed, term=et, academic_year=ey)
             session.add(new_tx); session.commit(); st.success("Successfully Posted!"); st.rerun()
 
-# --- Tab 2: Individual Statement (COMPLETE) ---
+# --- Tab 2: Individual Statement ---
 with tab2:
     st.subheader("Student Statement of Account")
     search_r = st.text_input("Search Student ID", placeholder="Search ID...", key="s_search")
@@ -131,7 +177,7 @@ with tab2:
             st.table(df); net = sum(r.debit for r in res) - sum(r.credit for r in res); st.metric("Net Balance Due", f"{net:,.2f} EGP")
             st.download_button("📄 Download PDF Statement", create_pdf(search_id, df, net), f"SOA_{search_id}.pdf")
 
-# --- Tab 3: Bulk Operations (COMPLETE) ---
+# --- Tab 3: Bulk Operations ---
 with tab3:
     st.subheader("Bulk Operations Management")
     b_t = st.radio("Type:", ["Bulk Payments", "Bulk Scholarships", "Bulk Invoices (Tuition)", "Credit Hours Adjustments", "Update Student Rates", "General Adjustments"], horizontal=True)
@@ -175,7 +221,7 @@ with tab3:
                         bulk_l.append(Transaction(reference_no=f"{pfx}-{m_id+i+1:06d}", student_id=sid, scholarship_type_id=s_id, transaction_type=b_t, description=dsc, debit=dr, credit=cr, entry_date=pd.to_datetime(r.get('Date')).date(), term=str(r.get('Term')), academic_year=int(r.get('Year'))))
                     session.bulk_save_objects(bulk_l); session.commit(); st.success("Bulk Success!"); st.rerun()
 
-# --- Tab 4: Management Reports (OPTIMIZED) ---
+# --- Tab 4: Management Reports ---
 with tab4:
     st.subheader("📈 Financial Management Reports")
     sel_col = st.multiselect("Filter by College", all_colleges)
