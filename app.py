@@ -10,7 +10,7 @@ import io
 # --- Authentication Logic ---
 USERS = {
     "abdo_finance": "Finance2026",
-    "nile_admin": "NU_Secure_789"
+    "fin_admin": "NU_2026"
 }
 
 if 'authenticated' not in st.session_state:
@@ -41,7 +41,16 @@ Base = declarative_base()
 class Student(Base):
     __tablename__ = 'students'
     id = Column(Integer, primary_key=True)
+    name = Column(String)
     college = Column(String)
+    program = Column(String)
+    birth_date = Column(Date)
+    email = Column(String)
+    mobile = Column(String)
+    national_id = Column(String)
+    nationality = Column(String)
+    college_short = Column(String)
+    admit_year = Column(Integer)
     price_per_hr = Column(Float)
 
 class ScholarshipType(Base):
@@ -80,13 +89,13 @@ except:
 # =======================================================
 # 2. PDF Generator (Landscape)
 # =======================================================
-def create_pdf(sid, df, net_balance):
+def create_pdf(sid, student_name, df, net_balance):
     pdf = FPDF(orientation='L', unit='mm', format='A4')
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 16)
     pdf.cell(0, 15, "Nile University - Official Statement of Account", ln=True, align='C')
     pdf.set_font("helvetica", '', 11)
-    pdf.cell(0, 7, f"Student ID: {sid}", ln=True, align='L')
+    pdf.cell(0, 7, f"Student: {student_name} ({sid})", ln=True, align='L')
     pdf.cell(0, 7, f"Report Date: {datetime.now().strftime('%d-%b-%Y')}", ln=True, align='L')
     pdf.ln(5)
     pdf.set_fill_color(52, 73, 94); pdf.set_text_color(255, 255, 255); pdf.set_font("helvetica", 'B', 10)
@@ -162,23 +171,31 @@ with tab2:
     st.subheader("Student Statement of Account")
     search_r = st.text_input("Search Student ID", placeholder="Search ID...", key="s_search")
     search_id = int(search_r) if search_r.strip().isdigit() else 0
+    
     f1, f2, f3, f4 = st.columns(4); df_r = f1.date_input("Date Range", []); s_t = f2.multiselect("Terms", ["Fall", "Spring", "Summer"]); s_y = f3.multiselect("Years", available_years); s_ref = f4.text_input("Ref No Filter")
+    
     if search_id > 0:
+        s_obj = session.query(Student).filter_by(id=search_id).first()
+        student_name = s_obj.name if s_obj else "Unknown"
+        
         q = session.query(Transaction).filter(Transaction.student_id == search_id)
         if len(df_r) == 2: q = q.filter(Transaction.entry_date.between(df_r[0], df_r[1]))
         if s_t: q = q.filter(Transaction.term.in_(s_t))
         if s_y: q = q.filter(Transaction.academic_year.in_(s_y))
         if s_ref: q = q.filter(Transaction.reference_no.ilike(f"%{s_ref}%"))
         res = q.order_by(Transaction.entry_date.desc()).all()
+        
         if res:
             df = pd.DataFrame([{"Ref No": r.reference_no, "Date": r.entry_date, "Term": r.term, "Year": r.academic_year, "Type": r.transaction_type, "Description": r.description, "Debit": f"{r.debit:,.2f}", "Credit": f"{r.credit:,.2f}"} for r in res])
+            
             dupes = df[df.duplicated(subset=['Credit', 'Description'], keep=False) & (df['Credit'] != "0.00")]
             if not dupes.empty: st.warning("⚠️ Duplicate Payment Alert"); st.dataframe(dupes.style.apply(lambda x: ['background-color: #ff4b4b' for i in x], axis=1))
+            
             st.table(df); net = sum(r.debit for r in res) - sum(r.credit for r in res); st.metric("Net Balance Due", f"{net:,.2f} EGP")
-           # --- إضافة زرار الإكسيل والـ PDF في سطر واحد ---
+            
             b1, b2 = st.columns(2)
             with b1:
-                st.download_button("📄 Download PDF Statement", create_pdf(search_id, df, net), f"SOA_{search_id}.pdf", use_container_width=True)
+                st.download_button("📄 Download PDF Statement", create_pdf(search_id, student_name, df, net), f"SOA_{search_id}.pdf", use_container_width=True)
             with b2:
                 excel_buf = io.BytesIO()
                 df.to_excel(excel_buf, index=False)
@@ -190,6 +207,7 @@ with tab3:
     b_t = st.radio("Type:", ["Bulk Payments", "Bulk Scholarships", "Bulk Invoices (Tuition)", "Credit Hours Adjustments", "Update Student Rates", "General Adjustments"], horizontal=True)
     st.warning("⚠️ **IMPORTANT:** DELETE the Example Row (ID: 0) before uploading.")
     if b_t == "Update Student Rates": st.info("ℹ️ Note: Use this for updating the Price/Hour every new academic year only.")
+    
     ex = {
         "Bulk Payments": {"ID": 0, "Bank Name": "Bank", "Bank Ref": "REF123", "Amount": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
         "Bulk Scholarships": {"ID": 0, "Scholarship Name": "Name", "Percentage": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
@@ -199,6 +217,7 @@ with tab3:
         "General Adjustments": {"ID": 0, "Debit": 0.0, "Credit": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026, "Description": "DELETE"}
     }
     buf_t = io.BytesIO(); pd.DataFrame([ex[b_t]]).to_excel(buf_t, index=False); st.download_button("📥 Download Template", buf_t.getvalue(), f"Tpl_{b_t}.xlsx")
+    
     u_f = st.file_uploader("Upload Excel File", type=['xlsx'])
     if u_f:
         df_b = pd.read_excel(u_f)
@@ -237,22 +256,31 @@ with tab4:
         with st.spinner("Processing SQL..."):
             if rep_v == "Accounting Summary":
                 sql = text("""
-                    SELECT s.id AS "ID", s.college AS "College", SUM(t.debit) AS "Invoices",
-                           SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END) AS "Discounts",
-                           SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END) AS "Payments",
-                           SUM(t.debit) - SUM(t.credit) AS "Balance"
-                    FROM students s LEFT JOIN transactions t ON s.id = t.student_id
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) GROUP BY s.id, s.college ORDER BY s.id
+                    SELECT 
+                        s.id AS "ID", 
+                        s.name AS "Student Name",
+                        s.college AS "College",
+                        s.email AS "Email",
+                        COALESCE(SUM(t.debit), 0) AS "Invoices",
+                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END), 0) AS "Discounts",
+                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments",
+                        COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance"
+                    FROM students s 
+                    LEFT JOIN transactions t ON s.id = t.student_id
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                    GROUP BY s.id, s.name, s.college, s.email
+                    ORDER BY s.id
                 """)
                 res = session.execute(sql, {"c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',)}).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "College", "Invoices", "Discounts", "Payments", "Balance"])
+                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Invoices", "Discounts", "Payments", "Balance"])
             else:
                 sql = text("""
-                    SELECT t.student_id, s.college, t.reference_no, t.entry_date, t.description, t.debit, t.credit
+                    SELECT t.student_id, s.name, s.college, t.reference_no, t.entry_date, t.description, t.debit, t.credit
                     FROM transactions t JOIN students s ON t.student_id = s.id
                     WHERE (:c_cnt = 0 OR s.college IN :cls) ORDER BY t.student_id, t.entry_date DESC
                 """)
                 res = session.execute(sql, {"c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',)}).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "College", "Ref", "Date", "Description", "Debit", "Credit"])
+                df = pd.DataFrame(res, columns=["ID", "Name", "College", "Ref", "Date", "Description", "Debit", "Credit"])
+            
             buf = io.BytesIO(); df.to_excel(buf, index=False)
             st.success("Report Ready!"); st.download_button("📗 Download Excel Report", buf.getvalue(), "AR_Management_Report.xlsx")
