@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.sql import func
+from sqlalchemy.sql import func, text
 from datetime import datetime
 from fpdf import FPDF
 import io
@@ -10,6 +10,7 @@ import io
 # =======================================================
 # 1. Database Connection & Models
 # =======================================================
+# ملاحظة: يفضل استخدام st.secrets["db_url"] عند الرفع على السيرفر
 DB_URL = "postgresql://postgres.njqjgvfvxtdxrabidkje:Finance01017043056@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 engine = create_engine(DB_URL)
 Base = declarative_base()
@@ -17,7 +18,8 @@ Base = declarative_base()
 class Student(Base):
     __tablename__ = 'students'
     id = Column(Integer, primary_key=True)
-    college = Column(String); price_per_hr = Column(Float)
+    college = Column(String)
+    price_per_hr = Column(Float)
 
 class ScholarshipType(Base):
     __tablename__ = 'scholarship_types'
@@ -32,7 +34,8 @@ class Transaction(Base):
     scholarship_type_id = Column(Integer, ForeignKey('scholarship_types.id'), nullable=True)
     transaction_type = Column(String, nullable=False) 
     description = Column(String)
-    debit = Column(Float, default=0); credit = Column(Float, default=0)
+    debit = Column(Float, default=0)
+    credit = Column(Float, default=0)
     entry_date = Column(Date, nullable=False)
     term = Column(String, nullable=False)
     academic_year = Column(Integer, nullable=False)
@@ -41,10 +44,10 @@ class Transaction(Base):
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# جلب البيانات المساعدة
+# جلب البيانات المساعدة للواجهة
 sch_map = {sch.name: sch.id for sch in session.query(ScholarshipType).all()}
 distinct_years = session.query(Transaction.academic_year).distinct().order_by(Transaction.academic_year.desc()).all()
-available_years = [y[0] for y in distinct_years if y[0] is not None] or [datetime.now().year]
+available_years = [y[0] for y in distinct_years if y[0] is not None] or [2026]
 
 # =======================================================
 # 2. PDF Generator (Landscape)
@@ -60,20 +63,23 @@ def create_pdf(sid, df, net_balance):
     pdf.ln(5)
 
     pdf.set_fill_color(52, 73, 94); pdf.set_text_color(255, 255, 255); pdf.set_font("helvetica", 'B', 10)
-    w = {'Ref': 30, 'Date': 25, 'Term': 20, 'Year': 15, 'Type': 35, 'Desc': 90, 'Debit': 30, 'Credit': 30}
-    for label, width in w.items(): pdf.cell(width, 10, label, 1, 0, 'C', True)
+    headers = ["Ref No", "Date", "Term", "Year", "Type", "Description", "Debit", "Credit"]
+    widths = [30, 25, 20, 15, 35, 90, 30, 30]
+    
+    for header, width in zip(headers, widths):
+        pdf.cell(width, 10, header, 1, 0, 'C', True)
     pdf.ln()
 
     pdf.set_text_color(0, 0, 0); pdf.set_font("helvetica", '', 9)
     for _, row in df.iterrows():
-        pdf.cell(w['Ref'], 8, str(row['Ref No']), 1)
-        pdf.cell(w['Date'], 8, str(row['Date']), 1)
-        pdf.cell(w['Term'], 8, str(row['Term']), 1)
-        pdf.cell(w['Year'], 8, str(row['Year']), 1)
-        pdf.cell(w['Type'], 8, str(row['Type'])[:18], 1)
-        pdf.cell(w['Desc'], 8, str(row['Description'])[:50], 1)
-        pdf.cell(w['Debit'], 8, str(row['Debit']), 1, 0, 'R')
-        pdf.cell(w['Credit'], 8, str(row['Credit']), 1, 1, 'R')
+        pdf.cell(30, 8, str(row['Ref No']), 1)
+        pdf.cell(25, 8, str(row['Date']), 1)
+        pdf.cell(20, 8, str(row['Term']), 1)
+        pdf.cell(15, 8, str(row['Year']), 1)
+        pdf.cell(35, 8, str(row['Type'])[:18], 1)
+        pdf.cell(90, 8, str(row['Description'])[:55], 1)
+        pdf.cell(30, 8, str(row['Debit']), 1, 0, 'R')
+        pdf.cell(30, 8, str(row['Credit']), 1, 1, 'R')
 
     pdf.ln(8); pdf.set_font("helvetica", 'B', 14)
     pdf.cell(0, 10, f"NET BALANCE DUE: {net_balance:,.2f} EGP", ln=True, align='R')
@@ -96,7 +102,6 @@ with tab1:
         stu_id_raw = st.text_input("Student ID", placeholder="Enter ID (e.g., 18100523)...", key="manual_id")
         stu_id = int(stu_id_raw) if stu_id_raw.strip().isdigit() else 0
         
-        # Default: Apply Scholarship (Index 1)
         a_type = st.selectbox("Action", ["Payment Receipt", "Apply Scholarship", "Credit Hours Adjustment", "Other Fees"], index=1)
         
         c1, c2, c3 = st.columns(3)
@@ -132,9 +137,9 @@ with tab1:
             else:
                 max_id = session.query(func.max(Transaction.id)).scalar() or 0
                 new_tx = Transaction(reference_no=f"{pfx}-{max_id+1:06d}", student_id=stu_id, scholarship_type_id=f_sch_id, transaction_type=a_type, description=f_dsc, debit=f_dr, credit=f_cr, entry_date=ed, term=et, academic_year=ey)
-                session.add(new_tx); session.commit(); st.success("Posted!"); st.rerun()
+                session.add(new_tx); session.commit(); st.success("Posted Successfully!"); st.rerun()
 
-# --- Tab 2: Statement & Full Filters ---
+# --- Tab 2: Statement & Audit ---
 with tab2:
     st.subheader("Statement of Account Search")
     search_sid_raw = st.text_input("Search Student ID", placeholder="Search by Student ID...", key="s_search")
@@ -142,111 +147,146 @@ with tab2:
     
     st.markdown("#### 🔍 Advanced Filters")
     f1, f2, f3, f4 = st.columns(4)
-    with f1: dr = st.date_input("Date Range", [])
-    with f2: ft = st.multiselect("Terms", ["Fall", "Spring", "Summer"])
-    with f3: fy = st.multiselect("Years", options=available_years)
-    with f4: fr = st.text_input("Ref No Filter")
+    with f1: dr_filter = st.date_input("Date Range", [])
+    with f2: ft_filter = st.multiselect("Terms", ["Fall", "Spring", "Summer"])
+    with f3: fy_filter = st.multiselect("Years", options=available_years)
+    with f4: fr_filter = st.text_input("Ref No Filter")
 
     if search_sid > 0:
-        q = session.query(Transaction).filter(Transaction.student_id == search_sid)
-        if len(dr) == 2: q = q.filter(Transaction.entry_date.between(dr[0], dr[1]))
-        if ft: q = q.filter(Transaction.term.in_(ft))
-        if fy: q = q.filter(Transaction.academic_year.in_(fy))
-        if fr: q = q.filter(Transaction.reference_no.ilike(f"%{fr}%"))
+        query = session.query(Transaction).filter(Transaction.student_id == search_sid)
+        if len(dr_filter) == 2: query = query.filter(Transaction.entry_date.between(dr_filter[0], dr_filter[1]))
+        if ft_filter: query = query.filter(Transaction.term.in_(ft_filter))
+        if fy_filter: query = query.filter(Transaction.academic_year.in_(fy_filter))
+        if fr_filter: query = query.filter(Transaction.reference_no.ilike(f"%{fr_filter}%"))
         
-        res = q.order_by(Transaction.entry_date.desc()).all()
-        if res:
-            df = pd.DataFrame([{
-                "Ref No": r.reference_no, "Date": r.entry_date, "Term": r.term, "Year": r.academic_year, 
-                "Type": r.transaction_type, "Description": r.description, 
-                "Debit": f"{float(r.debit):,.2f}", "Credit": f"{float(r.credit):,.2f}"
-            } for r in res])
+        results = query.order_by(Transaction.entry_date.desc()).all()
+        if results:
+            data_list = []
+            for r in results:
+                data_list.append({
+                    "Ref No": r.reference_no, "Date": r.entry_date, "Term": r.term, "Year": r.academic_year, 
+                    "Type": r.transaction_type, "Description": r.description, 
+                    "Debit": f"{float(r.debit):,.2f}", "Credit": f"{float(r.credit):,.2f}"
+                })
+            df = pd.DataFrame(data_list)
             
+            # كشف الحركات المكررة
             duplicates = df[df.duplicated(subset=['Credit', 'Description'], keep=False) & (df['Credit'] != "0.00")]
             if not duplicates.empty:
-                st.warning("⚠️ **Duplicate Payment Alert:** Potential duplicate entries found.")
+                st.warning("⚠️ **Duplicate Payment Alert:** Potential duplicate entries found (Same Amount & Reference).")
                 st.dataframe(duplicates.style.apply(lambda x: ['background-color: #ff4b4b' for i in x], axis=1))
 
             st.table(df)
-            net = sum(r.debit for r in res) - sum(r.credit for r in res)
-            st.metric("Net Balance Due", f"{net:,.2f} EGP")
+            net_bal = sum(r.debit for r in results) - sum(r.credit for r in results)
+            st.metric("Net Balance Due", f"{net_bal:,.2f} EGP")
             
             st.markdown("---")
             b1, b2 = st.columns(2)
             with b1:
-                pdf_b = create_pdf(search_sid, df, net)
-                st.download_button("📄 Download PDF Statement", pdf_b, f"Statement_{search_sid}.pdf", "application/pdf", use_container_width=True)
+                pdf_bytes = create_pdf(search_sid, df, net_bal)
+                st.download_button("📄 Download PDF Statement", pdf_bytes, f"SOA_{search_sid}.pdf", "application/pdf", use_container_width=True)
             with b2:
-                buf = io.BytesIO()
-                with pd.ExcelWriter(buf, engine='openpyxl') as wr: df.to_excel(wr, index=False)
-                st.download_button("📗 Download Excel Sheet", buf.getvalue(), f"Statement_{search_sid}.xlsx", use_container_width=True)
+                excel_buf = io.BytesIO()
+                df.to_excel(excel_buf, index=False)
+                st.download_button("📗 Download Excel Sheet", excel_buf.getvalue(), f"SOA_{search_sid}.xlsx", use_container_width=True)
+        else:
+            st.info("No records match the selected criteria.")
 
-# --- Tab 3: Bulk Operations (No nan, No double-entry) ---
+# --- Tab 3: Bulk Operations ---
 with tab3:
     st.subheader("Bulk Operations Management")
     with st.expander("📖 Scholarship Names Reference"):
         for name in sch_map.keys(): st.code(name)
 
-    b_type = st.radio("Bulk Type:", ["Bulk Payments", "Bulk Scholarships", "Credit Hours Adjustments", "General Adjustments"], horizontal=True)
+    b_type = st.radio("Bulk Type:", ["Bulk Payments", "Bulk Scholarships", "Bulk Invoices (Tuition)", "Credit Hours Adjustments", "Update Student Rates", "General Adjustments"], horizontal=True)
     
-    tmpls = {
-        "Bulk Payments": ["ID", "Bank Name", "Bank Ref", "Amount", "Date", "Term", "Year"],
-        "Bulk Scholarships": ["ID", "Scholarship Name", "Percentage", "Date", "Term", "Year"],
-        "Credit Hours Adjustments": ["ID", "Hours_Delta", "Date", "Term", "Year"],
-        "General Adjustments": ["ID", "Debit", "Credit", "Date", "Term", "Year", "Description"]
+    # ملحوظة واضحة في البرنامج
+    st.warning("⚠️ **IMPORTANT:** Please **DELETE** the first row (Example Row) from the template before uploading your final file.")
+    if b_type == "Update Student Rates":
+        st.info("ℹ️ **Note:** Use this for updating the Price/Hour every new academic year only.")
+
+    # نماذج البيانات (Example Data)
+    example_data = {
+        "Bulk Payments": {"ID": 00000000, "Bank Name": "Example Bank", "Bank Ref": "EXAMPLE_REF", "Amount": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
+        "Bulk Scholarships": {"ID": 00000000, "Scholarship Name": "Choose from list above", "Percentage": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
+        "Bulk Invoices (Tuition)": {"ID": 00000000, "Hours": 15.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
+        "Credit Hours Adjustments": {"ID": 00000000, "Hours_Delta": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026},
+        "Update Student Rates": {"ID": 00000000, "New_Price_Per_Hr": 5000.0},
+        "General Adjustments": {"ID": 00000000, "Debit": 0.0, "Credit": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": 2026, "Description": "DELETE THIS EXAMPLE ROW"}
     }
     
-    buf_t = io.BytesIO()
-    pd.DataFrame(columns=tmpls[b_type]).to_excel(buf_t, index=False)
-    st.download_button(f"📥 Download Template", buf_t.getvalue(), f"Template_{b_type.replace(' ','_')}.xlsx")
+    template_buf = io.BytesIO()
+    pd.DataFrame([example_data[b_type]]).to_excel(template_buf, index=False)
+    st.download_button(f"📥 Download Template", template_buf.getvalue(), f"Template_{b_type.replace(' ','_')}.xlsx")
     
     u_file = st.file_uploader("Upload Sheet", type=['xlsx'])
     if u_file:
-        df_b = pd.read_excel(u_file)
-        st.dataframe(df_b.head())
+        df_bulk = pd.read_excel(u_file)
+        st.dataframe(df_bulk.head())
         
-        if st.button("🚀 Execute Bulk Post"):
+        if st.button("🚀 Execute Bulk Process"):
             with st.spinner("Processing..."):
-                m_id = session.query(func.max(Transaction.id)).scalar() or 0
-                rates = {s.id: s.price_per_hr for s in session.query(Student).all()}
-                bulk_tx = []; errors = []
-                
-                for i, row in df_b.iterrows():
-                    sid = int(row['ID']) if pd.notnull(row.get('ID')) else 0
-                    if sid not in rates:
-                        errors.append(f"Row {i+2}: ID {sid} not found."); continue
+                if b_type == "Update Student Rates":
+                    count = 0
+                    for _, row in df_bulk.iterrows():
+                        if int(row['ID']) != 0:
+                            session.query(Student).filter(Student.id == int(row['ID'])).update({"price_per_hr": float(row['New_Price_Per_Hr'])})
+                            count += 1
+                    session.commit(); st.success(f"✅ Successfully updated rates for {count} students!"); st.rerun()
+                else:
+                    max_tx_id = session.query(func.max(Transaction.id)).scalar() or 0
+                    student_rates = {s.id: s.price_per_hr for s in session.query(Student).all()}
+                    bulk_list = []; errors_list = []
                     
-                    rate, dr, cr, s_id, pfx = rates[sid], 0.0, 0.0, None, "TX"
-                    raw_dsc = str(row.get('Description', '')).strip()
-                    # Smart Description: Fallback to Op Type if empty
-                    if not raw_dsc or raw_dsc in ['0', '0.0', 'nan', 'NaN']:
-                        final_dsc = b_type
-                    else:
-                        final_dsc = raw_dsc
+                    for i, row in df_bulk.iterrows():
+                        target_sid = int(row['ID']) if pd.notnull(row.get('ID')) else 0
+                        # تجاهل سطر المثال أو الطلاب غير الموجودين
+                        if target_sid == 0 or target_sid not in student_rates:
+                            if target_sid != 0: errors_list.append(f"Row {i+2}: ID {target_sid} not found.")
+                            continue
+                        
+                        s_rate, dr, cr, s_type_id, p_fix = student_rates[target_sid], 0.0, 0.0, None, "TX"
+                        r_dsc = str(row.get('Description', '')).strip()
+                        f_dsc = b_type if not r_dsc or r_dsc in ['0', '0.0', 'nan', 'NaN'] else r_dsc
 
-                    if b_type == "Bulk Payments":
-                        pfx = "PAY"; cr = float(row.get('Amount', 0))
-                        final_dsc = f"Bank: {row.get('Bank Name', 'N/A')} | Ref: {row.get('Bank Ref', 'N/A')}"
-                    elif b_type == "Bulk Scholarships":
-                        pfx = "SCH"; s_n = str(row.get('Scholarship Name', '')); s_id = sch_map.get(s_n)
-                        pct = float(row.get('Percentage', 0)); cr = (15 * rate) * (pct/100)
-                        final_dsc = f"Scholarship: {s_n} ({pct}%)"
-                    elif b_type == "Credit Hours Adjustments":
-                        pfx = "ADJ"; h = float(row.get('Hours_Delta', 0)); v = abs(h * rate)
-                        dr = v if h > 0 else 0; cr = v if h < 0 else 0
-                        final_dsc = f"Credit Hours Adj: {h} CH @ {rate:,.2f}"
-                    elif b_type == "General Adjustments":
-                        pfx = "TXN"
-                        dr = float(row.get('Debit', 0)) if pd.notnull(row.get('Debit')) else 0.0
-                        cr = float(row.get('Credit', 0)) if pd.notnull(row.get('Credit')) else 0.0
-                        # Prevent double-entry in one row
-                        if dr > 0 and cr > 0:
-                            errors.append(f"Row {i+2}: Debit and Credit in one row skipped."); continue
+                        if b_type == "Bulk Payments":
+                            p_fix, cr = "PAY", float(row.get('Amount', 0))
+                            f_dsc = f"Bank: {row.get('Bank Name', 'N/A')} | Ref: {row.get('Bank Ref', 'N/A')}"
+                        elif b_type == "Bulk Scholarships":
+                            p_fix, s_name = "SCH", str(row.get('Scholarship Name', ''))
+                            s_type_id = sch_map.get(s_name)
+                            s_pct = float(row.get('Percentage', 0))
+                            cr = (15 * s_rate) * (s_pct / 100)
+                            f_dsc = f"Scholarship: {s_name} ({s_pct}%)"
+                        elif b_type == "Bulk Invoices (Tuition)":
+                            p_fix, h_val = "INV", float(row.get('Hours', 15))
+                            dr = h_val * s_rate
+                            f_dsc = f"Tuition Invoice ({h_val} CH @ {s_rate:,.2f} EGP/Hr)"
+                        elif b_type == "Credit Hours Adjustments":
+                            p_fix, h_delta = "ADJ", float(row.get('Hours_Delta', 0))
+                            val = abs(h_delta * s_rate)
+                            dr = val if h_delta > 0 else 0
+                            cr = val if h_delta < 0 else 0
+                            f_dsc = f"Credit Hours Adj: {h_delta} CH @ {s_rate:,.2f}"
+                        elif b_type == "General Adjustments":
+                            p_fix, dr, cr = "TXN", float(row.get('Debit', 0)), float(row.get('Credit', 0))
+                            if dr > 0 and cr > 0:
+                                errors_list.append(f"Row {i+2}: Debit and Credit in one row skipped."); continue
 
-                    bulk_tx.append(Transaction(reference_no=f"{pfx}-{m_id+i+1:06d}", student_id=sid, scholarship_type_id=s_id, transaction_type=b_type, description=final_dsc, debit=dr, credit=cr, entry_date=pd.to_datetime(row.get('Date', datetime.now())).date(), term=str(row.get('Term', 'Spring')), academic_year=int(row.get('Year', 2026))))
-                
-                if bulk_tx:
-                    session.bulk_save_objects(bulk_tx); session.commit()
-                    st.success(f"✅ Posted {len(bulk_tx)} entries."); st.rerun()
-                if errors:
-                    for e in errors: st.error(e)
+                        bulk_list.append(Transaction(
+                            reference_no=f"{p_fix}-{max_tx_id+i+1:06d}", 
+                            student_id=target_sid, 
+                            scholarship_type_id=s_type_id, 
+                            transaction_type=b_type, 
+                            description=f_dsc, 
+                            debit=dr, credit=cr, 
+                            entry_date=pd.to_datetime(row.get('Date', datetime.now())).date(), 
+                            term=str(row.get('Term', 'Spring')), 
+                            academic_year=int(row.get('Year', 2026))
+                        ))
+                    
+                    if bulk_list:
+                        session.bulk_save_objects(bulk_list); session.commit()
+                        st.success(f"✅ Successfully posted {len(bulk_list)} entries."); st.rerun()
+                    if errors_list:
+                        for e in errors_list: st.error(e)
