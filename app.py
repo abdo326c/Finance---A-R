@@ -175,7 +175,14 @@ with tab2:
             dupes = df[df.duplicated(subset=['Credit', 'Description'], keep=False) & (df['Credit'] != "0.00")]
             if not dupes.empty: st.warning("⚠️ Duplicate Payment Alert"); st.dataframe(dupes.style.apply(lambda x: ['background-color: #ff4b4b' for i in x], axis=1))
             st.table(df); net = sum(r.debit for r in res) - sum(r.credit for r in res); st.metric("Net Balance Due", f"{net:,.2f} EGP")
-            st.download_button("📄 Download PDF Statement", create_pdf(search_id, df, net), f"SOA_{search_id}.pdf")
+            # --- إضافة زرار الإكسيل والـ PDF في سطر واحد ---
+            b1, b2 = st.columns(2)
+            with b1:
+                st.download_button("📄 Download PDF Statement", create_pdf(search_id, df, net), f"SOA_{search_id}.pdf", use_container_width=True)
+            with b2:
+                excel_buf = io.BytesIO()
+                df.to_excel(excel_buf, index=False)
+                st.download_button("📗 Download Excel Sheet", excel_buf.getvalue(), f"SOA_{search_id}.xlsx", use_container_width=True)
 
 # --- Tab 3: Bulk Operations ---
 with tab3:
