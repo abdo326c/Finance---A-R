@@ -9,8 +9,8 @@ import io
 
 # --- Authentication Logic ---
 USERS = {
-    "abdo_finance": "Finance2026",
-    "fin_admin": "NU_2026"
+    "abdo_finance": "Finance2026",
+    "fin_admin": "NU_2026"
 }
 
 if 'authenticated' not in st.session_state:
