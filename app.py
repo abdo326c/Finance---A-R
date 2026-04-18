@@ -14,6 +14,7 @@ import io
 # =======================================================
 DB_URL = "postgresql://postgres.njqjgvfvxtdxrabidkje:Finance01017043056@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 DEFAULT_YEAR = 2026
+STANDARD_CH = 18.0
 
 engine = create_engine(DB_URL)
 Base = declarative_base()
@@ -185,7 +186,7 @@ tab_search, tab_reg, tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # -------------------------------------------------------
-# TAB 0: Student Lookup & Export (Live / No Form)
+# TAB 0: Student Lookup & Export (Live)
 # -------------------------------------------------------
 with tab_search:
     st.subheader("🔍 Student Data Explorer")
@@ -215,7 +216,7 @@ with tab_search:
             
             st.markdown("---")
             
-            # قفل أمان للتعديل (هنا محتاجين فورم عشان التعديل ميحصلش غير بضغطة زرار)
+            # قفل أمان للتعديل
             edit_mode = st.toggle("🔓 Unlock Edit Mode")
             if edit_mode:
                 st.warning("⚠️ **CRITICAL WARNING:** You are modifying Master Data.")
@@ -280,7 +281,7 @@ with tab_search:
         )
 
 # -------------------------------------------------------
-# TAB 0.5: Registration (With Form for Clear Cache)
+# TAB 0.5: Registration
 # -------------------------------------------------------
 with tab_reg:
     st.subheader("👤 New Student Registration")
@@ -405,7 +406,7 @@ with tab_reg:
                     st.warning("⚠️ No new students added. Ensure the IDs are correct and not already registered.")
 
 # -------------------------------------------------------
-# TAB 1: Manual Operations (With Form for Clear Cache)
+# TAB 1: Manual Operations
 # -------------------------------------------------------
 with tab1:
     st.subheader("Post Manual Transaction")
@@ -537,7 +538,7 @@ with tab1:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 2: Transaction Search & Statement (Live / No Form)
+# TAB 2: Transaction Search & Statement (Live)
 # -------------------------------------------------------
 with tab2:
     st.subheader("Transaction Search & Statement of Account")
@@ -698,6 +699,8 @@ with tab3:
                 bulk_l = []
                 term_pct_cache = {}
                 
+                tx_counter = 1  # 💡 العداد الذكي لحل مشكلة تكرار Reference No
+                
                 for i, r in df_b.iterrows():
                     sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
                     if sid == 0 or sid not in rts: 
@@ -787,7 +790,7 @@ with tab3:
                         cr = float(str(r.get('Credit', 0)).replace(',', '').strip() or 0.0)
                     
                     new_bulk_tx = Transaction(
-                        reference_no=f"{pfx}-{m_id+i+1:06d}", 
+                        reference_no=f"{pfx}-{m_id+tx_counter:06d}", 
                         student_id=sid, 
                         scholarship_type_id=s_id, 
                         transaction_type=b_t, 
@@ -800,6 +803,7 @@ with tab3:
                         academic_year=int(r.get('Year'))
                     )
                     bulk_l.append(new_bulk_tx)
+                    tx_counter += 1  # زيادة العداد مع كل صف سليم فقط
                     
                 if bulk_l:
                     session.bulk_save_objects(bulk_l)
@@ -808,7 +812,7 @@ with tab3:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 4: Management Reports (Live / No Form)
+# TAB 4: Management Reports (Live)
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
@@ -820,7 +824,6 @@ with tab4:
 
     rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
     
-    # الزرار ده دلوقتي بيطلع النتيجة لايف بدون ما يمسح أو يرجعك
     if st.button("📂 Generate Report Data"):
         with st.spinner("Processing Data..."):
             if rep_v == "Accounting Summary":
