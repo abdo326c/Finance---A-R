@@ -173,7 +173,7 @@ with tab_std:
 
             submitted = st.form_submit_button("💾 Save Student Record")
             if submitted:
-                if not n_name or not n_college or n_id <= 0:
+                if n_id is None or not n_name or not n_college:
                     st.error("⚠️ Student ID, Name, and College are required fields!")
                 else:
                     exists = session.query(Student).filter_by(id=n_id).first()
