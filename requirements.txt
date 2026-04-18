@@ -4,3 +4,4 @@ sqlalchemy
 fpdf2
 openpyxl
 psycopg2-binary
+python-dotenv
