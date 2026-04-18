@@ -14,7 +14,6 @@ import io
 # =======================================================
 DB_URL = "postgresql://postgres.njqjgvfvxtdxrabidkje:Finance01017043056@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 DEFAULT_YEAR = 2026
-STANDARD_CH = 18.0  # الساعات القياسية لحساب الخصومات
 
 engine = create_engine(DB_URL)
 Base = declarative_base()
@@ -102,6 +101,7 @@ def login_form():
 def create_pdf(sid, student_name, df, net_balance):
     pdf = FPDF(orientation='L', unit='mm', format='A4')
     pdf.add_page()
+    
     pdf.set_font("helvetica", 'B', 16)
     pdf.cell(0, 15, "Nile University - Official Statement of Account", ln=True, align='C')
     
@@ -142,6 +142,7 @@ def create_pdf(sid, student_name, df, net_balance):
     pdf.ln(8)
     pdf.set_font("helvetica", 'B', 14)
     pdf.cell(0, 10, f"NET BALANCE: {net_balance:,.2f} EGP", ln=True, align='R')
+    
     return bytes(pdf.output())
 
 # =======================================================
@@ -157,6 +158,7 @@ if not st.session_state['authenticated']:
 if 'flash_msg' not in st.session_state:
     st.session_state['flash_msg'] = None
 
+# Header Area
 col_title, col_logout = st.columns([0.8, 0.2], vertical_alignment="center")
 with col_title:
     st.title("🏦 Nile University - Finance A/R System")
@@ -183,22 +185,13 @@ tab_search, tab_reg, tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # -------------------------------------------------------
-# TAB 0: Student Lookup & Export
+# TAB 0: Student Lookup & Export (Live / No Form)
 # -------------------------------------------------------
 with tab_search:
     st.subheader("🔍 Student Data Explorer")
     
-    with st.form("lookup_search_form"):
-        search_id_raw = st.text_input("Enter Student ID to lookup profile:", placeholder="e.g. 26100123")
-        lookup_submitted = st.form_submit_button("🔍 Lookup Profile")
-    
-    if 'current_lookup_id' not in st.session_state:
-        st.session_state['current_lookup_id'] = 0
-
-    if lookup_submitted:
-        st.session_state['current_lookup_id'] = int(search_id_raw) if search_id_raw.strip().isdigit() else 0
-
-    search_lookup_id = st.session_state['current_lookup_id']
+    search_id_raw = st.text_input("Enter Student ID to lookup profile:", placeholder="e.g. 26100123")
+    search_lookup_id = int(search_id_raw) if search_id_raw.strip().isdigit() else 0
 
     if search_lookup_id > 0:
         student = session.query(Student).filter_by(id=search_lookup_id).first()
@@ -215,12 +208,14 @@ with tab_search:
                 info_col1.write(f"**Email:** {student.email}")
                 info_col1.write(f"**Mobile:** {student.mobile}")
                 info_col1.write(f"**Admit Year:** {student.admit_year}")
+                
                 info_col2.write(f"**National ID:** {student.national_id}")
                 info_col2.write(f"**Nationality:** {student.nationality}")
                 info_col2.write(f"**Birth Date:** {student.birth_date}")
             
             st.markdown("---")
             
+            # قفل أمان للتعديل (هنا محتاجين فورم عشان التعديل ميحصلش غير بضغطة زرار)
             edit_mode = st.toggle("🔓 Unlock Edit Mode")
             if edit_mode:
                 st.warning("⚠️ **CRITICAL WARNING:** You are modifying Master Data.")
@@ -275,6 +270,7 @@ with tab_search:
         
         buf_all = io.BytesIO()
         df_all_students.to_excel(buf_all, index=False)
+        
         st.download_button(
             label="📥 Export All Students to Excel", 
             data=buf_all.getvalue(), 
@@ -284,7 +280,7 @@ with tab_search:
         )
 
 # -------------------------------------------------------
-# TAB 0.5: Registration
+# TAB 0.5: Registration (With Form for Clear Cache)
 # -------------------------------------------------------
 with tab_reg:
     st.subheader("👤 New Student Registration")
@@ -325,10 +321,17 @@ with tab_reg:
                     else:
                         try:
                             new_s = Student(
-                                id=n_id, name=n_name, college=n_college.upper(), program=n_program, 
-                                price_per_hr=n_price, email=n_email, mobile=n_mobile, 
-                                national_id=n_nat_id, nationality=n_nationality, 
-                                admit_year=n_admit, birth_date=n_dob
+                                id=n_id, 
+                                name=n_name, 
+                                college=n_college.upper(), 
+                                program=n_program, 
+                                price_per_hr=n_price, 
+                                email=n_email, 
+                                mobile=n_mobile, 
+                                national_id=n_nat_id, 
+                                nationality=n_nationality, 
+                                admit_year=n_admit, 
+                                birth_date=n_dob
                             )
                             session.add(new_s)
                             session.commit()
@@ -338,17 +341,31 @@ with tab_reg:
                             session.rollback()
                             st.error(f"❌ Error: {e}")
     else:
+        # Bulk Registration Template
         std_ex = {
-            "ID": 26100123, "Name": "Ahmed Ali", "College": "ENG", "Program": "Computer Eng", 
-            "Price Per Hr": 4600.0, "Email": "ahmed@nu.edu.eg", "Mobile": "01000000000", 
-            "National ID": "29901010000000", "Nationality": "Egyptian", 
-            "Admit Year": DEFAULT_YEAR, "Birth Date": "2005-01-01"
+            "ID": 26100123, 
+            "Name": "Ahmed Ali", 
+            "College": "ENG", 
+            "Program": "Computer Eng", 
+            "Price Per Hr": 4600.0, 
+            "Email": "ahmed@nu.edu.eg", 
+            "Mobile": "01000000000", 
+            "National ID": "29901010000000", 
+            "Nationality": "Egyptian", 
+            "Admit Year": DEFAULT_YEAR, 
+            "Birth Date": "2005-01-01"
         }
         buf_std = io.BytesIO()
         pd.DataFrame([std_ex]).to_excel(buf_std, index=False)
-        st.download_button("📥 Download Students Template", buf_std.getvalue(), "Template_Bulk_Students.xlsx")
+        
+        st.download_button(
+            label="📥 Download Students Template", 
+            data=buf_std.getvalue(), 
+            file_name="Template_Bulk_Students.xlsx"
+        )
         
         u_std = st.file_uploader("Upload Students Excel", type=['xlsx'])
+        
         if u_std and st.button("🚀 Process Bulk Registration"):
             with st.spinner("Registering students..."):
                 df_std = pd.read_excel(u_std)
@@ -374,6 +391,7 @@ with tab_reg:
                             admit_year=int(r.get('Admit Year', DEFAULT_YEAR)), 
                             birth_date=bd_clean
                         ))
+                
                 if new_students:
                     try:
                         session.add_all(new_students)
@@ -387,12 +405,16 @@ with tab_reg:
                     st.warning("⚠️ No new students added. Ensure the IDs are correct and not already registered.")
 
 # -------------------------------------------------------
-# TAB 1: Manual Operations
+# TAB 1: Manual Operations (With Form for Clear Cache)
 # -------------------------------------------------------
 with tab1:
     st.subheader("Post Manual Transaction")
     
-    a_t = st.selectbox("Select Action Type", ["Payment Receipt", "Apply Scholarship", "Credit Hours Adjustment", "Other Fees"], index=0)
+    a_t = st.selectbox(
+        "Select Action Type", 
+        ["Payment Receipt", "Apply Scholarship", "Credit Hours Adjustment", "Other Fees"], 
+        index=0
+    )
     
     with st.form(f"manual_tx_form_{a_t}", clear_on_submit=True):
         sid_raw = st.text_input("Student ID", placeholder="Enter ID (e.g., 18100523)...")
@@ -446,18 +468,26 @@ with tab1:
                         pfx = "SCH"
                         sch_id = sch_map.get(s_n)
                         
+                        # الساعات الفعلية من الداتا بيز
                         registered_hours = session.query(func.sum(Transaction.hours_change)).filter(
-                            Transaction.student_id == sid, Transaction.term == et, Transaction.academic_year == ey
+                            Transaction.student_id == sid, 
+                            Transaction.term == et, 
+                            Transaction.academic_year == ey
                         ).scalar() or 0.0
                         
                         if registered_hours <= 0:
                             st.error(f"⚠️ Cannot apply scholarship! {s_d.name} has NO registered hours for {et} {ey}. Post Tuition Invoice first.")
                             st.stop()
 
+                        # نظام الـ Smart Cap
                         existing_pct = 0.0
                         existing_txs = session.query(Transaction.description).filter(
-                            Transaction.student_id == sid, Transaction.term == et, Transaction.academic_year == ey, Transaction.reference_no.like('SCH-%')
+                            Transaction.student_id == sid, 
+                            Transaction.term == et, 
+                            Transaction.academic_year == ey, 
+                            Transaction.reference_no.like('SCH-%')
                         ).all()
+                        
                         for tx in existing_txs:
                             m = re.search(r'\((\d+(\.\d+)?)%\)', tx[0])
                             if m: 
@@ -485,6 +515,7 @@ with tab1:
                         dsc = dsc_input
 
                     m_id = session.query(func.max(Transaction.id)).scalar() or 0
+                    
                     new_tx = Transaction(
                         reference_no=f"{pfx}-{m_id+1:06d}", 
                         student_id=sid, 
@@ -498,6 +529,7 @@ with tab1:
                         term=et, 
                         academic_year=ey
                     )
+                    
                     session.add(new_tx)
                     session.commit()
                     
@@ -505,63 +537,64 @@ with tab1:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 2: Transaction Search & Statement (Global Search)
+# TAB 2: Transaction Search & Statement (Live / No Form)
 # -------------------------------------------------------
 with tab2:
     st.subheader("Transaction Search & Statement of Account")
+    st.markdown("💡 *Leave Student ID blank and enter a Bank Ref or System Ref to search globally.*")
     
-    with st.form("stmt_search_form"):
-        st.markdown("💡 *Leave Student ID blank and enter a Bank Ref or System Ref to search globally.*")
-        
-        col_t1, col_t2, col_t3 = st.columns(3)
-        search_r = col_t1.text_input("Student ID", placeholder="e.g., 25100120")
-        sys_ref_search = col_t2.text_input("System Ref No", placeholder="e.g., INV-004751")
-        bank_ref_search = col_t3.text_input("Bank Ref / Description", placeholder="e.g., 12345 or CIB")
-        
-        f1, f2, f3 = st.columns(3)
-        df_r = f1.date_input("Date Range", [])
-        s_t = f2.multiselect("Terms", ["Fall", "Spring", "Summer"])
-        s_y = f3.multiselect("Years", available_years)
-        
-        search_btn = st.form_submit_button("🔍 Search Transactions")
+    col_t1, col_t2, col_t3 = st.columns(3)
+    search_r = col_t1.text_input("Student ID", placeholder="e.g., 25100120")
+    sys_ref_search = col_t2.text_input("System Ref No", placeholder="e.g., INV-004751")
+    bank_ref_search = col_t3.text_input("Bank Ref / Description", placeholder="e.g., 12345 or CIB")
+    
+    f1, f2, f3 = st.columns(3)
+    df_r = f1.date_input("Date Range", [])
+    s_t = f2.multiselect("Terms", ["Fall", "Spring", "Summer"])
+    s_y = f3.multiselect("Years", available_years)
+    
+    search_id = int(search_r) if search_r.strip().isdigit() else 0
 
-    if 'stmt_search_params' not in st.session_state:
-        st.session_state['stmt_search_params'] = None
-
-    if search_btn:
-        st.session_state['stmt_search_params'] = {
-            'sid': int(search_r) if search_r.strip().isdigit() else 0,
-            'sys': sys_ref_search,
-            'bank': bank_ref_search,
-            'dates': df_r,
-            'terms': s_t,
-            'years': s_y
-        }
-
-    if st.session_state['stmt_search_params']:
-        p = st.session_state['stmt_search_params']
-        if p['sid'] > 0 or p['sys'] or p['bank'] or len(p['dates']) == 2 or p['terms'] or p['years']:
-            q = session.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
+    # البحث بيشتغل لايف بمجرد وجود أي داتا في الفلاتر
+    if search_id > 0 or sys_ref_search or bank_ref_search or len(df_r) == 2 or s_t or s_y:
+        q = session.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
+        
+        if search_id > 0:
+            q = q.filter(Transaction.student_id == search_id)
+        if sys_ref_search:
+            q = q.filter(Transaction.reference_no.ilike(f"%{sys_ref_search}%"))
+        if bank_ref_search:
+            q = q.filter(Transaction.description.ilike(f"%{bank_ref_search}%"))
+        if len(df_r) == 2:
+            q = q.filter(Transaction.entry_date.between(df_r[0], df_r[1]))
+        if s_t:
+            q = q.filter(Transaction.term.in_(s_t))
+        if s_y:
+            q = q.filter(Transaction.academic_year.in_(s_y))
             
-            if p['sid'] > 0:
-                q = q.filter(Transaction.student_id == p['sid'])
-            if p['sys']:
-                q = q.filter(Transaction.reference_no.ilike(f"%{p['sys']}%"))
-            if p['bank']:
-                q = q.filter(Transaction.description.ilike(f"%{p['bank']}%"))
-            if len(p['dates']) == 2:
-                q = q.filter(Transaction.entry_date.between(p['dates'][0], p['dates'][1]))
-            if p['terms']:
-                q = q.filter(Transaction.term.in_(p['terms']))
-            if p['years']:
-                q = q.filter(Transaction.academic_year.in_(p['years']))
+        res = q.order_by(Transaction.entry_date.desc()).all()
+        
+        if res:
+            df_display = pd.DataFrame([{
+                "Student ID": s.id, 
+                "Name": s.name, 
+                "Ref No": t.reference_no, 
+                "Date": t.entry_date, 
+                "Term": t.term, 
+                "Year": t.academic_year, 
+                "Type": t.transaction_type, 
+                "Description": t.description, 
+                "Debit": f"{t.debit:,.2f}", 
+                "Credit": f"{t.credit:,.2f}"
+            } for t, s in res])
+            
+            st.table(df_display)
+            
+            if search_id > 0:
+                net = sum(t.debit for t, s in res) - sum(t.credit for t, s in res)
+                st.metric("Net Balance Due", f"{net:,.2f} EGP")
                 
-            res = q.order_by(Transaction.entry_date.desc()).all()
-            
-            if res:
-                df_display = pd.DataFrame([{
-                    "Student ID": s.id, 
-                    "Name": s.name, 
+                df_pdf = pd.DataFrame([{
                     "Ref No": t.reference_no, 
                     "Date": t.entry_date, 
                     "Term": t.term, 
@@ -572,35 +605,37 @@ with tab2:
                     "Credit": f"{t.credit:,.2f}"
                 } for t, s in res])
                 
-                st.table(df_display)
-                
-                if p['sid'] > 0:
-                    net = sum(t.debit for t, s in res) - sum(t.credit for t, s in res)
-                    st.metric("Net Balance Due", f"{net:,.2f} EGP")
-                    
-                    df_pdf = pd.DataFrame([{
-                        "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, 
-                        "Year": t.academic_year, "Type": t.transaction_type, 
-                        "Description": t.description, "Debit": f"{t.debit:,.2f}", 
-                        "Credit": f"{t.credit:,.2f}"
-                    } for t, s in res])
-                    
-                    b1, b2 = st.columns(2)
-                    with b1:
-                        student_name = res[0][1].name
-                        pdf_data = create_pdf(p['sid'], student_name, df_pdf, net)
-                        st.download_button("📄 Download PDF Statement", pdf_data, f"SOA_{p['sid']}.pdf", use_container_width=True)
-                    with b2:
-                        excel_buf = io.BytesIO()
-                        df_display.to_excel(excel_buf, index=False)
-                        st.download_button("📗 Download Excel Sheet", excel_buf.getvalue(), f"SOA_{p['sid']}.xlsx", use_container_width=True)
-                else:
-                    st.info("💡 You are viewing global search results. To generate a PDF Statement with Balance, please search using a specific Student ID.")
+                b1, b2 = st.columns(2)
+                with b1:
+                    student_name = res[0][1].name
+                    pdf_data = create_pdf(search_id, student_name, df_pdf, net)
+                    st.download_button(
+                        label="📄 Download PDF Statement", 
+                        data=pdf_data, 
+                        file_name=f"SOA_{search_id}.pdf", 
+                        use_container_width=True
+                    )
+                with b2:
                     excel_buf = io.BytesIO()
                     df_display.to_excel(excel_buf, index=False)
-                    st.download_button("📗 Download Search Results (Excel)", excel_buf.getvalue(), "Transaction_Search.xlsx", use_container_width=True)
+                    st.download_button(
+                        label="📗 Download Excel Sheet", 
+                        data=excel_buf.getvalue(), 
+                        file_name=f"SOA_{search_id}.xlsx", 
+                        use_container_width=True
+                    )
             else:
-                st.warning("⚠️ No transactions found matching these criteria.")
+                st.info("💡 You are viewing global search results. To generate a PDF Statement with Balance, please search using a specific Student ID.")
+                excel_buf = io.BytesIO()
+                df_display.to_excel(excel_buf, index=False)
+                st.download_button(
+                    label="📗 Download Search Results (Excel)", 
+                    data=excel_buf.getvalue(), 
+                    file_name="Transaction_Search.xlsx", 
+                    use_container_width=True
+                )
+        else:
+            st.warning("⚠️ No transactions found matching these criteria.")
 
 # -------------------------------------------------------
 # TAB 3: Bulk Financial Operations
@@ -608,18 +643,19 @@ with tab2:
 with tab3:
     st.subheader("Bulk Financial Operations")
     
-    # 💡 إضافة "Bulk Other Fees" لخيارات الرفع المجمع
-    b_t = st.radio("Type:", ["Bulk Payments", "Bulk Scholarships", "Bulk Invoices (Tuition)", "Bulk Other Fees", "Credit Hours Adjustments", "Update Student Rates", "General Adjustments"], horizontal=True)
+    b_t = st.radio(
+        "Type:", 
+        ["Bulk Payments", "Bulk Scholarships", "Bulk Invoices (Tuition)", "Bulk Other Fees", "Credit Hours Adjustments", "Update Student Rates", "General Adjustments"], 
+        horizontal=True
+    )
+    
     st.warning("⚠️ **IMPORTANT:** DELETE the Example Row (ID: 0) before uploading.")
     
     ex = {
         "Bulk Payments": {"ID": 0, "Bank Name": "Bank", "Bank Ref": "REF123", "Amount": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR},
         "Bulk Scholarships": {"ID": 0, "Scholarship Name": "Name", "Percentage": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR},
         "Bulk Invoices (Tuition)": {"ID": 0, "Hours": 15.0, "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR},
-        
-        # 💡 تمبلت الرسوم الإضافية
         "Bulk Other Fees": {"ID": 0, "Fee Amount": 1500.0, "Description": "Bus Subscription", "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR},
-        
         "Credit Hours Adjustments": {"ID": 0, "Hours_Delta": 3.0, "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR},
         "Update Student Rates": {"ID": 0, "New_Price_Per_Hr": 5500.0},
         "General Adjustments": {"ID": 0, "Debit": 0.0, "Credit": 0.0, "Date": "2026-04-17", "Term": "Spring", "Year": DEFAULT_YEAR, "Description": "DELETE"}
@@ -627,7 +663,11 @@ with tab3:
     
     buf_t = io.BytesIO()
     pd.DataFrame([ex[b_t]]).to_excel(buf_t, index=False)
-    st.download_button("📥 Download Template", buf_t.getvalue(), f"Tpl_{b_t}.xlsx")
+    st.download_button(
+        label="📥 Download Template", 
+        data=buf_t.getvalue(), 
+        file_name=f"Tpl_{b_t}.xlsx"
+    )
     
     u_f = st.file_uploader("Upload Excel File", type=['xlsx'])
     
@@ -635,6 +675,15 @@ with tab3:
         with st.spinner("Processing..."):
             df_b = pd.read_excel(u_f)
             
+            # تنظيف مسافات أسماء العواميد
+            df_b.columns = [str(c).strip() for c in df_b.columns]
+            
+            # تنظيف الـ NULL والفواصل
+            numeric_columns = ['Amount', 'Percentage', 'Hours', 'Hours_Delta', 'Fee Amount', 'Debit', 'Credit', 'New_Price_Per_Hr']
+            for col in numeric_columns:
+                if col in df_b.columns:
+                    df_b[col] = pd.to_numeric(df_b[col].astype(str).str.replace(',', '').str.replace('%', '').str.strip(), errors='coerce').fillna(0.0)
+
             if b_t == "Update Student Rates":
                 for _, r in df_b.iterrows():
                     r_id = int(r.get('ID', 0))
@@ -666,7 +715,7 @@ with tab3:
                     
                     if b_t == "Bulk Payments":
                         pfx = "PAY"
-                        cr = float(r.get('Amount', 0))
+                        cr = float(str(r.get('Amount', 0)).replace(',', '').strip() or 0.0)
                         dsc = f"Bank: {r.get('Bank Name')} | Ref: {r.get('Bank Ref')}"
                         
                     elif b_t == "Bulk Scholarships":
@@ -678,7 +727,9 @@ with tab3:
                         year_val = int(r.get('Year'))
                         
                         registered_hours = session.query(func.sum(Transaction.hours_change)).filter(
-                            Transaction.student_id == sid, Transaction.term == term_val, Transaction.academic_year == year_val
+                            Transaction.student_id == sid, 
+                            Transaction.term == term_val, 
+                            Transaction.academic_year == year_val
                         ).scalar() or 0.0
                         
                         if registered_hours <= 0:
@@ -687,12 +738,19 @@ with tab3:
                         cache_key = (sid, term_val, year_val)
                         if cache_key not in term_pct_cache:
                             epct = 0.0
-                            for tx in session.query(Transaction.description).filter(Transaction.student_id == sid, Transaction.term == term_val, Transaction.academic_year == year_val, Transaction.reference_no.like('SCH-%')).all():
+                            existing_txs = session.query(Transaction.description).filter(
+                                Transaction.student_id == sid, 
+                                Transaction.term == term_val, 
+                                Transaction.academic_year == year_val, 
+                                Transaction.reference_no.like('SCH-%')
+                            ).all()
+                            for tx in existing_txs:
                                 m = re.search(r'\((\d+(\.\d+)?)%\)', tx[0])
-                                if m: epct += float(m.group(1))
+                                if m: 
+                                    epct += float(m.group(1))
                             term_pct_cache[cache_key] = epct
                             
-                        requested_pct = float(r.get('Percentage', 0))
+                        requested_pct = float(str(r.get('Percentage', 0)).replace(',', '').strip() or 0.0)
                         available_pct = max(0.0, 100.0 - term_pct_cache[cache_key])
                         actual_pct = min(requested_pct, available_pct)
                         term_pct_cache[cache_key] += actual_pct
@@ -703,20 +761,19 @@ with tab3:
                             dsc += f" (Capped from {requested_pct}%)"
                             
                     elif b_t == "Bulk Invoices (Tuition)":
-                        h = float(r.get('Hours', 15.0))
+                        h = float(str(r.get('Hours', 15.0)).replace(',', '').strip() or 0.0)
                         pfx = "INV"
                         dr = (h * rt)
                         dsc = f"Tuition Invoice ({h} CH)"
                         h_change = h 
                     
-                    # 💡 لوجيك الرسوم الإضافية المجمعة
                     elif b_t == "Bulk Other Fees":
                         pfx = "INV"
-                        dr = float(r.get('Fee Amount', 0))
+                        dr = float(str(r.get('Fee Amount', 0)).replace(',', '').strip() or 0.0)
                         dsc = raw_desc if raw_desc and raw_desc not in ['0', '0.0', 'nan'] else "Other Fee"
                         
                     elif b_t == "Credit Hours Adjustments":
-                        h = float(r.get('Hours_Delta', 0))
+                        h = float(str(r.get('Hours_Delta', 0)).replace(',', '').strip() or 0.0)
                         pfx = "ADJ"
                         v = abs(h * rt)
                         dr = v if h > 0 else 0
@@ -726,8 +783,8 @@ with tab3:
                         
                     elif b_t == "General Adjustments":
                         pfx = "TXN"
-                        dr = float(r.get('Debit', 0))
-                        cr = float(r.get('Credit', 0))
+                        dr = float(str(r.get('Debit', 0)).replace(',', '').strip() or 0.0)
+                        cr = float(str(r.get('Credit', 0)).replace(',', '').strip() or 0.0)
                     
                     new_bulk_tx = Transaction(
                         reference_no=f"{pfx}-{m_id+i+1:06d}", 
@@ -751,35 +808,22 @@ with tab3:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 4: Management Reports
+# TAB 4: Management Reports (Live / No Form)
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
     
-    with st.form("reports_filter_form"):
-        col_f1, col_f2, col_f3 = st.columns(3)
-        sel_col = col_f1.multiselect("Filter by College", all_colleges)
-        sel_term = col_f2.multiselect("Filter by Term", ["Fall", "Spring", "Summer"])
-        sel_year = col_f3.multiselect("Filter by Year", available_years)
+    col_f1, col_f2, col_f3 = st.columns(3)
+    sel_col = col_f1.multiselect("Filter by College", all_colleges)
+    sel_term = col_f2.multiselect("Filter by Term", ["Fall", "Spring", "Summer"])
+    sel_year = col_f3.multiselect("Filter by Year", available_years)
 
-        rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
-        gen_btn = st.form_submit_button("📂 Generate Report Data")
-
-    if 'report_params' not in st.session_state:
-        st.session_state['report_params'] = None
-
-    if gen_btn:
-        st.session_state['report_params'] = {
-            'col': sel_col,
-            'term': sel_term,
-            'year': sel_year,
-            'format': rep_v
-        }
-
-    if st.session_state['report_params']:
-        p = st.session_state['report_params']
+    rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
+    
+    # الزرار ده دلوقتي بيطلع النتيجة لايف بدون ما يمسح أو يرجعك
+    if st.button("📂 Generate Report Data"):
         with st.spinner("Processing Data..."):
-            if p['format'] == "Accounting Summary":
+            if rep_v == "Accounting Summary":
                 sql = text("""
                     SELECT 
                         s.id AS "ID", 
@@ -803,9 +847,9 @@ with tab4:
                 """)
                 
                 params = {
-                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,)
+                    "c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',), 
+                    "t_cnt": len(sel_term), "trms": tuple(sel_term) if sel_term else ('',), 
+                    "y_cnt": len(sel_year), "yrs": tuple(sel_year) if sel_year else (-1,)
                 }
                 
                 res = session.execute(sql, params).fetchall()
@@ -844,9 +888,9 @@ with tab4:
                 """)
                 
                 params = {
-                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,)
+                    "c_cnt": len(sel_col), "cls": tuple(sel_col) if sel_col else ('',), 
+                    "t_cnt": len(sel_term), "trms": tuple(sel_term) if sel_term else ('',), 
+                    "y_cnt": len(sel_year), "yrs": tuple(sel_year) if sel_year else (-1,)
                 }
                 
                 res = session.execute(sql, params).fetchall()
@@ -860,4 +904,9 @@ with tab4:
             
             buf = io.BytesIO()
             df.to_excel(buf, index=False)
-            st.download_button("📗 Download Excel Report", buf.getvalue(), "AR_Management_Report.xlsx", use_container_width=True)
+            st.download_button(
+                label="📗 Download Excel Report", 
+                data=buf.getvalue(), 
+                file_name="AR_Management_Report.xlsx", 
+                use_container_width=True
+            )
