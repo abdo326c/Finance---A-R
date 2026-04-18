@@ -148,7 +148,7 @@ with tab_std:
     std_mode = st.radio("Select Registration Mode:", ["Single Student Entry", "Bulk Upload Students"], horizontal=True)
     
     if std_mode == "Single Student Entry":
-        st.info("Use this form to manually add a single new student. (Note: Only the Price/Hr is needed here and can be changed later every Academic Year).")
+        st.info("Use this form to manually add a single new student. (Note: The #Price/Hr is needed here and can be changed later every Academic Year).")
         with st.form("new_student_form", clear_on_submit=True):
             col_s1, col_s2, col_s3 = st.columns(3)
             n_id = col_s1.number_input("Student ID", value=None, placeholder="(e.g., 26100123)", step=1, format="%d")
