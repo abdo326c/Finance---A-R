@@ -117,7 +117,7 @@ def get_next_ref_sequence(db_session):
     return max_seq
 
 # =======================================================
-# 4. PDF Generator (Landscape Statement with Footer)
+# 4. PDF Generator (Landscape Statement with Footer & Totals)
 # =======================================================
 class PDFStatement(FPDF):
     def footer(self):
@@ -127,7 +127,8 @@ class PDFStatement(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, "Finance Department  ||  A/R Team", 0, 0, 'C')
 
-def create_pdf(sid, student_name, df, net_balance):
+# 💡 إضافة متغيرات total_debit و total_credit
+def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
     pdf = PDFStatement(orientation='L', unit='mm', format='A4')
     pdf.add_page()
     
@@ -167,6 +168,14 @@ def create_pdf(sid, student_name, df, net_balance):
         
         pdf.cell(30, 8, debit_val, 1, 0, 'R')
         pdf.cell(30, 8, credit_val, 1, 1, 'R')
+    
+    # 💡 سطر الإجماليات (Totals Row)
+    pdf.set_font("helvetica", 'B', 9)
+    pdf.set_fill_color(230, 230, 230)  # لون رمادي فاتح
+    # 215 = مجموع العرض لأول 6 عواميد
+    pdf.cell(215, 8, "TOTALS", 1, 0, 'R', True)
+    pdf.cell(30, 8, f"{total_debit:,.2f}", 1, 0, 'R', True)
+    pdf.cell(30, 8, f"{total_credit:,.2f}", 1, 1, 'R', True)
         
     pdf.ln(8)
     pdf.set_font("helvetica", 'B', 14)
@@ -638,8 +647,15 @@ with tab2:
                 st.table(df_display)
                 
                 if p['sid'] > 0:
-                    net = sum(t.debit for t, s in res) - sum(t.credit for t, s in res)
-                    st.metric("Net Balance Due", f"{net:,.2f} EGP")
+                    # 💡 حساب المجاميع وعرضها في مربعات الشاشة
+                    total_debit = sum(t.debit for t, s in res)
+                    total_credit = sum(t.credit for t, s in res)
+                    net = total_debit - total_credit
+                    
+                    m1, m2, m3 = st.columns(3)
+                    m1.metric("Total Debit", f"{total_debit:,.2f} EGP")
+                    m2.metric("Total Credit", f"{total_credit:,.2f} EGP")
+                    m3.metric("Net Balance Due", f"{net:,.2f} EGP")
                     
                     df_pdf = pd.DataFrame([{
                         "Ref No": t.reference_no, 
@@ -655,7 +671,8 @@ with tab2:
                     b1, b2 = st.columns(2)
                     with b1:
                         student_name = res[0][1].name
-                        pdf_data = create_pdf(p['sid'], student_name, df_pdf, net)
+                        # 💡 إرسال الأرقام لدالة الـ PDF
+                        pdf_data = create_pdf(p['sid'], student_name, df_pdf, net, total_debit, total_credit)
                         st.download_button(
                             label="📄 Download PDF Statement", 
                             data=pdf_data, 
@@ -663,8 +680,16 @@ with tab2:
                             use_container_width=True
                         )
                     with b2:
+                        # 💡 إضافة سطر الـ TOTALS في الإكسيل
+                        df_export = df_display.copy()
+                        df_export.loc[len(df_export)] = {
+                            "Student ID": "", "Name": "", "Ref No": "", "Date": "", "Term": "", "Year": "",
+                            "Type": "", "Description": "TOTALS", 
+                            "Debit": f"{total_debit:,.2f}", "Credit": f"{total_credit:,.2f}"
+                        }
+                        
                         excel_buf = io.BytesIO()
-                        df_display.to_excel(excel_buf, index=False)
+                        df_export.to_excel(excel_buf, index=False)
                         st.download_button(
                             label="📗 Download Excel Sheet", 
                             data=excel_buf.getvalue(), 
@@ -731,7 +756,6 @@ with tab3:
     
     if u_f and st.button("🚀 Run Bulk Process"):
         with st.spinner("Processing..."):
-            # 💡 توليد رقم الباتش الجديد
             current_batch_id = f"BCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
             
             df_b = pd.read_excel(u_f)
@@ -848,7 +872,7 @@ with tab3:
                     
                     new_bulk_tx = Transaction(
                         reference_no=f"{pfx}-{m_id+tx_counter:06d}", 
-                        batch_id=current_batch_id,  # 💡 تخزين رقم الباتش
+                        batch_id=current_batch_id,
                         student_id=sid, 
                         scholarship_type_id=s_id, 
                         transaction_type=b_t, 
@@ -870,13 +894,12 @@ with tab3:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 5: Batch Management (🗑️ نظام إدارة الباتشات الجديد)
+# TAB 5: Batch Management 
 # -------------------------------------------------------
 with tab_batch:
     st.subheader("🗑️ Batch Management & Rollback")
     st.markdown("💡 *Here you can view all uploaded batches and safely delete an entire batch if an error occurred.*")
     
-    # استخراج ملخص الباتشات من الداتا بيز
     batch_summary = session.query(
         Transaction.batch_id,
         Transaction.transaction_type,
@@ -891,7 +914,6 @@ with tab_batch:
     if not batch_summary:
         st.info("No batches found in the system.")
     else:
-        # عرض الباتشات في جدول شيك
         df_batches = pd.DataFrame([{
             "Batch ID": b.batch_id,
             "Type": b.transaction_type,
@@ -906,7 +928,6 @@ with tab_batch:
         st.markdown("---")
         st.error("🛑 **DANGER ZONE: Batch Deletion**")
         
-        # فورم المسح مع حماية التأكيد الإجباري
         with st.form("delete_batch_form"):
             batch_to_delete = st.selectbox("Select Batch ID to Delete:", [b.batch_id for b in batch_summary])
             confirm_delete = st.checkbox(f"⚠️ I confirm that I want to permanently delete all records in '{batch_to_delete}'")
@@ -925,7 +946,7 @@ with tab_batch:
                     st.warning("⚠️ You must check the confirmation box to delete the batch.")
 
 # -------------------------------------------------------
-# TAB 6: Management Reports (Live)
+# TAB 6: Management Reports 
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
