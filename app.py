@@ -44,6 +44,7 @@ class Transaction(Base):
     __tablename__ = 'transactions'
     id = Column(Integer, primary_key=True, autoincrement=True)
     reference_no = Column(String, unique=True)
+    batch_id = Column(String, nullable=True)  # 💡 عمود الباتش الجديد
     student_id = Column(Integer, ForeignKey('students.id'))
     scholarship_type_id = Column(Integer, ForeignKey('scholarship_types.id'), nullable=True)
     transaction_type = Column(String, nullable=False) 
@@ -58,6 +59,14 @@ class Transaction(Base):
 
 Session = sessionmaker(bind=engine)
 session = Session()
+
+# 💡 إضافة Nu Share أوتوماتيك لو مش موجودة
+try:
+    if not session.query(ScholarshipType).filter_by(name="Nu Share").first():
+        session.add(ScholarshipType(name="Nu Share"))
+        session.commit()
+except Exception:
+    session.rollback()
 
 # جلب البيانات المساعدة لملء الفلاتر والاختيارات
 try:
@@ -108,20 +117,29 @@ def get_next_ref_sequence(db_session):
     return max_seq
 
 # =======================================================
-# 4. PDF Generator (Landscape Statement)
+# 4. PDF Generator (Landscape Statement with Footer)
 # =======================================================
+class PDFStatement(FPDF):
+    def footer(self):
+        # 💡 الفوتر الجديد: يظهر أسفل كل صفحة
+        self.set_y(-15)
+        self.set_font("helvetica", "I", 10)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 10, "Finance Department  ||  A/R Team", 0, 0, 'C')
+
 def create_pdf(sid, student_name, df, net_balance):
-    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf = PDFStatement(orientation='L', unit='mm', format='A4')
     pdf.add_page()
     
     pdf.set_font("helvetica", 'B', 16)
-    pdf.cell(0, 15, "Nile University - Official Statement of Account", ln=True, align='C')
+    pdf.cell(0, 15, "Nile University - Student Statement of Account", ln=True, align='C')
     
     pdf.set_font("helvetica", '', 11)
     pdf.cell(0, 7, f"Student: {student_name} ({sid})", ln=True, align='L')
     pdf.cell(0, 7, f"Report Date: {datetime.now().strftime('%d-%b-%Y')}", ln=True, align='L')
     pdf.ln(5)
     
+    # Table Header
     pdf.set_fill_color(52, 73, 94)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("helvetica", 'B', 10)
@@ -133,6 +151,7 @@ def create_pdf(sid, student_name, df, net_balance):
         pdf.cell(width, 10, head, 1, 0, 'C', True)
     pdf.ln()
     
+    # Table Rows
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("helvetica", '', 9)
     for _, row in df.iterrows():
@@ -182,26 +201,25 @@ if st.session_state['flash_msg']:
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_search, tab_reg, tab1, tab2, tab3, tab4 = st.tabs([
+tab_search, tab_reg, tab1, tab2, tab3, tab_batch, tab4 = st.tabs([
     "🔍 Student Lookup", 
     "👤 Registration", 
     "📊 Operations", 
     "📜 Statement & Search", 
-    "📤 Bulk Financials", 
+    "📤 Bulk Financials",
+    "🗑️ Batch Management", 
     "📈 Management Reports"
 ])
 
 # -------------------------------------------------------
-# TAB 0: Student Lookup & Export (With Memory Cache)
+# TAB 0: Student Lookup & Export (Live / No Form)
 # -------------------------------------------------------
 with tab_search:
     st.subheader("🔍 Student Data Explorer")
     
-    # تهيئة الذاكرة للبحث
     if 'lookup_id' not in st.session_state:
         st.session_state['lookup_id'] = 0
 
-    # فورم بدون مسح تلقائي عشان الداتا تفضل موجودة
     with st.form("lookup_search_form", clear_on_submit=False):
         search_id_raw = st.text_input("Enter Student ID to lookup profile:", placeholder="e.g. 26100123")
         lookup_submitted = st.form_submit_button("🔍 Lookup Profile")
@@ -550,7 +568,7 @@ with tab1:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 2: Transaction Search & Statement (With Memory Cache)
+# TAB 2: Transaction Search & Statement (Live)
 # -------------------------------------------------------
 with tab2:
     st.subheader("Transaction Search & Statement of Account")
@@ -559,7 +577,6 @@ with tab2:
     if 'stmt_search_params' not in st.session_state:
         st.session_state['stmt_search_params'] = None
 
-    # فورم بدون مسح تلقائي لحفظ الفلاتر
     with st.form("stmt_search_form", clear_on_submit=False):
         col_t1, col_t2, col_t3 = st.columns(3)
         search_r = col_t1.text_input("Student ID", placeholder="e.g., 25100120")
@@ -583,7 +600,6 @@ with tab2:
             'years': s_y
         }
 
-    # تحميل الداتا من الذاكرة لو موجودة
     if st.session_state.get('stmt_search_params'):
         p = st.session_state['stmt_search_params']
         if p['sid'] > 0 or p['sys'] or p['bank'] or len(p['dates']) == 2 or p['terms'] or p['years']:
@@ -603,7 +619,8 @@ with tab2:
                 q = q.filter(Transaction.academic_year.in_(p['years']))
                 
             res = q.order_by(Transaction.entry_date.desc()).all()
-            df_display = None  # 💡 السطر ده ضفناه عشان نسكت الـ Pylance والخط الأصفر يختفي
+            
+            df_display = None 
             if res:
                 df_display = pd.DataFrame([{
                     "Student ID": s.id, 
@@ -656,20 +673,18 @@ with tab2:
                         )
             else:
                 st.info("💡 You are viewing global search results. To generate a PDF Statement with Balance, please search using a specific Student ID.")
-                excel_buf = io.BytesIO()
-                df_display.to_excel(excel_buf, index=False)
-                st.download_button(
-                    label="📗 Download Search Results (Excel)", 
-                    data=excel_buf.getvalue(), 
-                    file_name="Transaction_Search.xlsx", 
-                    use_container_width=True
-                )
+                if df_display is not None:
+                    excel_buf = io.BytesIO()
+                    df_display.to_excel(excel_buf, index=False)
+                    st.download_button(
+                        label="📗 Download Search Results (Excel)", 
+                        data=excel_buf.getvalue(), 
+                        file_name="Transaction_Search.xlsx", 
+                        use_container_width=True
+                    )
         else:
             st.warning("⚠️ No transactions found matching these criteria.")
 
-# -------------------------------------------------------
-# TAB 3: Bulk Financial Operations
-# -------------------------------------------------------
 # -------------------------------------------------------
 # TAB 3: Bulk Financial Operations
 # -------------------------------------------------------
@@ -682,12 +697,10 @@ with tab3:
         horizontal=True
     )
     
-    # 💡 التعديل الجديد: تحذير صارم وشكل احترافي لأسماء الخصومات
     if b_t == "Bulk Scholarships":
         st.error("🛑 **CRITICAL WARNING:** The 'Scholarship Name' in your Excel file MUST MATCH EXACTLY as written below (including spaces, caps, and the '%' sign). Any typo will cause the system to skip the discount.")
         st.markdown("📋 **Available Scholarships (Hover over any name and click the 📋 Copy icon on the right):**")
         
-        # تقسيم الخصومات لـ 3 عواميد لشكل أنيق وموفر للمساحة
         sch_names = list(sch_map.keys())
         cols = st.columns(3)
         for i, name in enumerate(sch_names):
@@ -718,6 +731,9 @@ with tab3:
     
     if u_f and st.button("🚀 Run Bulk Process"):
         with st.spinner("Processing..."):
+            # 💡 توليد رقم الباتش الجديد
+            current_batch_id = f"BCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
+            
             df_b = pd.read_excel(u_f)
             
             df_b.columns = [str(c).strip() for c in df_b.columns]
@@ -832,6 +848,7 @@ with tab3:
                     
                     new_bulk_tx = Transaction(
                         reference_no=f"{pfx}-{m_id+tx_counter:06d}", 
+                        batch_id=current_batch_id,  # 💡 تخزين رقم الباتش
                         student_id=sid, 
                         scholarship_type_id=s_id, 
                         transaction_type=b_t, 
@@ -849,11 +866,66 @@ with tab3:
                 if bulk_l:
                     session.bulk_save_objects(bulk_l)
                     session.commit()
-                    st.session_state['flash_msg'] = "✅ Bulk Operations Successfully Posted!"
+                    st.session_state['flash_msg'] = f"✅ Batch {current_batch_id} Successfully Posted!"
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB 4: Management Reports (With Memory Cache)
+# TAB 5: Batch Management (🗑️ نظام إدارة الباتشات الجديد)
+# -------------------------------------------------------
+with tab_batch:
+    st.subheader("🗑️ Batch Management & Rollback")
+    st.markdown("💡 *Here you can view all uploaded batches and safely delete an entire batch if an error occurred.*")
+    
+    # استخراج ملخص الباتشات من الداتا بيز
+    batch_summary = session.query(
+        Transaction.batch_id,
+        Transaction.transaction_type,
+        func.count(Transaction.id).label("record_count"),
+        func.sum(Transaction.debit).label("total_debit"),
+        func.sum(Transaction.credit).label("total_credit"),
+        func.max(Transaction.created_at).label("upload_date")
+    ).filter(Transaction.batch_id.isnot(None)).group_by(
+        Transaction.batch_id, Transaction.transaction_type
+    ).order_by(func.max(Transaction.created_at).desc()).all()
+    
+    if not batch_summary:
+        st.info("No batches found in the system.")
+    else:
+        # عرض الباتشات في جدول شيك
+        df_batches = pd.DataFrame([{
+            "Batch ID": b.batch_id,
+            "Type": b.transaction_type,
+            "Records": b.record_count,
+            "Total Debit": f"{b.total_debit:,.2f}",
+            "Total Credit": f"{b.total_credit:,.2f}",
+            "Uploaded At": b.upload_date.strftime('%Y-%m-%d %H:%M:%S') if b.upload_date else "N/A"
+        } for b in batch_summary])
+        
+        st.dataframe(df_batches, use_container_width=True)
+        
+        st.markdown("---")
+        st.error("🛑 **DANGER ZONE: Batch Deletion**")
+        
+        # فورم المسح مع حماية التأكيد الإجباري
+        with st.form("delete_batch_form"):
+            batch_to_delete = st.selectbox("Select Batch ID to Delete:", [b.batch_id for b in batch_summary])
+            confirm_delete = st.checkbox(f"⚠️ I confirm that I want to permanently delete all records in '{batch_to_delete}'")
+            
+            if st.form_submit_button("🗑️ Delete Batch"):
+                if confirm_delete:
+                    try:
+                        deleted_count = session.query(Transaction).filter(Transaction.batch_id == batch_to_delete).delete()
+                        session.commit()
+                        st.session_state['flash_msg'] = f"✅ Successfully deleted {deleted_count} records from batch {batch_to_delete}."
+                        st.rerun()
+                    except Exception as e:
+                        session.rollback()
+                        st.error(f"❌ Error deleting batch: {e}")
+                else:
+                    st.warning("⚠️ You must check the confirmation box to delete the batch.")
+
+# -------------------------------------------------------
+# TAB 6: Management Reports (Live)
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
@@ -861,7 +933,6 @@ with tab4:
     if 'report_params' not in st.session_state:
         st.session_state['report_params'] = None
 
-    # فورم بدون مسح تلقائي لحفظ الفلاتر
     with st.form("reports_filter_form", clear_on_submit=False):
         col_f1, col_f2, col_f3 = st.columns(3)
         sel_col = col_f1.multiselect("Filter by College", all_colleges)
@@ -880,7 +951,6 @@ with tab4:
             'format': rep_v
         }
 
-    # تحميل الداتا من الذاكرة لو موجودة
     if st.session_state.get('report_params'):
         p = st.session_state['report_params']
         with st.spinner("Processing Data..."):
