@@ -12,10 +12,7 @@ import io
 # =======================================================
 # 1. Database Configuration
 # =======================================================
-# امسح السطر القديم ده تماماً:
-# DB_URL = "postgresql://postgres.njqjgvfvxtdxrabidkje:Finance01017043056@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 
-# وحط السطر ده مكانه:
 DB_URL = st.secrets["DB_URL"]
 
 DEFAULT_YEAR = 2026
