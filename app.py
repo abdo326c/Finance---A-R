@@ -83,7 +83,6 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-
 try:
     sch_map = {sch.name: sch.id for sch in session.query(ScholarshipType).all()}
     all_colleges = [c[0] for c in session.query(Student.college).distinct().all() if c[0]]
@@ -164,11 +163,76 @@ def build_auto_discount_transactions(student_id, gross_amount, term, academic_ye
 
     return discount_txs
 
+def get_retroactive_scholarship_tx(db_session, student_id, term, academic_year, sch_type_id, sch_name, requested_pct, current_counter, batch_id=None):
+    tuition_types = ['Invoice', 'Bulk Invoices (Tuition)', 'Credit Hours Adjustment', 'Credit Hours Adjustments']
+    
+    net_billed = db_session.query(func.sum(Transaction.debit - Transaction.credit)).filter(
+        Transaction.student_id == student_id,
+        Transaction.term == term,
+        Transaction.academic_year == academic_year,
+        Transaction.transaction_type.in_(tuition_types)
+    ).scalar() or 0.0
+
+    if net_billed <= 0:
+        return None, current_counter
+
+    existing_other_txs = db_session.query(Transaction.description).filter(
+        Transaction.student_id == student_id,
+        Transaction.term == term,
+        Transaction.academic_year == academic_year,
+        Transaction.reference_no.like('SCH-%'),
+        Transaction.scholarship_type_id != sch_type_id
+    ).all()
+    
+    other_pct = 0.0
+    for tx in existing_other_txs:
+        m = re.search(r'\((\d+(\.\d+)?)%\)', tx[0])
+        if m:
+            other_pct += float(m.group(1))
+            
+    available_pct = max(0.0, 100.0 - other_pct)
+    actual_pct = min(requested_pct, available_pct)
+
+    target_discount = net_billed * (actual_pct / 100.0)
+    
+    existing_discount = db_session.query(func.sum(Transaction.credit - Transaction.debit)).filter(
+        Transaction.student_id == student_id,
+        Transaction.term == term,
+        Transaction.academic_year == academic_year,
+        Transaction.scholarship_type_id == sch_type_id,
+        Transaction.reference_no.like('SCH-%')
+    ).scalar() or 0.0
+
+    diff = target_discount - existing_discount
+
+    if abs(diff) > 0.01:
+        desc = f"Retroactive: {sch_name} ({actual_pct}%)"
+        if actual_pct < requested_pct:
+            desc += f" (Capped from {requested_pct}%)"
+
+        tx = Transaction(
+            reference_no=f"SCH-{current_counter:06d}",
+            batch_id=batch_id,
+            student_id=student_id,
+            scholarship_type_id=sch_type_id,
+            transaction_type='Discount',
+            description=desc,
+            debit=abs(diff) if diff < 0 else 0.0,
+            credit=diff if diff > 0 else 0.0,
+            hours_change=0.0,
+            entry_date=datetime.now().date(),
+            term=term,
+            academic_year=academic_year
+        )
+        return tx, current_counter + 1
+
+    return None, current_counter
+
 # =======================================================
 # 4. Authentication & Helper Functions
 # =======================================================
 USERS = {
-    "abdo": "abdo2026",
+    "abdo_finance": "Finance2026",
     "fin_admin": "NU_2026"
 }
 
@@ -864,9 +928,23 @@ with tab_sch:
                         status = "✅ Active" if ss.is_active else "🔴 Inactive"
                         c_3.write(status)
                         toggle_key = f"toggle_{ss.id}"
+                        
                         if st.button("Deactivate" if ss.is_active else "Activate", key=toggle_key):
                             ss.is_active = not ss.is_active
                             session.commit()
+                            
+                            m_id = get_next_ref_sequence(session)
+                            effective_pct = ss.percentage * 100 if ss.is_active else 0.0
+                            if ss.percentage <= 1.0 and ss.is_active:
+                                effective_pct = ss.percentage * 100
+                                
+                            retro_tx, _ = get_retroactive_scholarship_tx(
+                                session, sch_sid, sch_term, sch_year, ss.scholarship_type_id, st_type.name, effective_pct, m_id + 1
+                            )
+                            if retro_tx:
+                                session.add(retro_tx)
+                                session.commit()
+                                st.success("Retroactive adjustment posted due to status change!")
                             st.rerun()
                 else:
                     st.info("No scholarships found for this student in the selected term/year.")
@@ -898,7 +976,7 @@ with tab_sch:
                         existing.percentage = add_pct
                         existing.is_active = True
                         session.commit()
-                        st.session_state['flash_msg'] = f"✅ Updated scholarship '{add_type}' for {student.name}."
+                        msg = f"✅ Updated scholarship '{add_type}' for {student.name}."
                     else:
                         new_sch = StudentScholarship(
                             student_id=add_sid,
@@ -910,7 +988,18 @@ with tab_sch:
                         )
                         session.add(new_sch)
                         session.commit()
-                        st.session_state['flash_msg'] = f"✅ Added scholarship '{add_type}' ({add_pct}%) for {student.name}."
+                        msg = f"✅ Added scholarship '{add_type}' ({add_pct}%) for {student.name}."
+
+                    m_id = get_next_ref_sequence(session)
+                    retro_tx, _ = get_retroactive_scholarship_tx(
+                        session, add_sid, add_term, add_year, sch_map[add_type], add_type, add_pct, m_id + 1
+                    )
+                    if retro_tx:
+                        session.add(retro_tx)
+                        session.commit()
+                        msg += " (Retroactive discount automatically applied to existing invoices!)"
+                    
+                    st.session_state['flash_msg'] = msg
                     st.rerun()
 
     elif sch_action == "Bulk Upload Scholarships":
@@ -937,10 +1026,13 @@ with tab_sch:
 
         u_sch = st.file_uploader("Upload Scholarships Excel", type=['xlsx'])
         if u_sch and st.button("🚀 Upload Scholarships"):
-            with st.spinner("Processing..."):
+            with st.spinner("Processing & applying retroactive discounts..."):
                 df_sch = pd.read_excel(u_sch)
                 df_sch.columns = [str(c).strip() for c in df_sch.columns]
+                
+                uploaded_data = []
                 added, updated, skipped = 0, 0, 0
+                
                 for _, r in df_sch.iterrows():
                     sid = int(r.get('Student ID', 0)) if pd.notnull(r.get('Student ID')) else 0
                     s_name = str(r.get('Scholarship Name', '')).strip()
@@ -967,9 +1059,30 @@ with tab_sch:
                             percentage=pct, term=trm, academic_year=yr, is_active=True
                         ))
                         added += 1
+                        
+                    uploaded_data.append((sid, s_type_id, s_name, pct, trm, yr))
 
                 session.commit()
-                st.session_state['flash_msg'] = f"✅ Done! Added: {added} | Updated: {updated} | Skipped: {skipped}"
+                
+                m_id = get_next_ref_sequence(session)
+                curr_c = m_id + 1
+                retro_txs = []
+                batch_id = f"BCH-SCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
+                
+                for sid, s_type_id, s_name, pct, trm, yr in uploaded_data:
+                    r_tx, curr_c = get_retroactive_scholarship_tx(
+                        session, sid, trm, yr, s_type_id, s_name, pct, curr_c, batch_id
+                    )
+                    if r_tx:
+                        retro_txs.append(r_tx)
+                
+                retro_msg = ""
+                if retro_txs:
+                    session.bulk_save_objects(retro_txs)
+                    session.commit()
+                    retro_msg = f" | Applied {len(retro_txs)} retroactive discount entries to existing invoices."
+                
+                st.session_state['flash_msg'] = f"✅ Done! Added: {added} | Updated: {updated} | Skipped: {skipped}{retro_msg}"
                 st.rerun()
                 
     elif sch_action == "📊 Scholarships Report":
@@ -988,11 +1101,11 @@ with tab_sch:
                         ss.percentage AS "Configured %",
                         CASE WHEN ss.is_active THEN 'Active' ELSE 'Inactive' END AS "Status",
                         COALESCE((
-                            SELECT SUM(t.debit) 
+                            SELECT SUM(t.debit - t.credit) 
                             FROM transactions t 
                             WHERE t.student_id = s.id AND t.term = ss.term AND t.academic_year = ss.academic_year 
-                            AND (t.reference_no LIKE 'INV-%' OR t.reference_no LIKE 'ADJ-%')
-                        ), 0) AS "Total Invoiced (EGP)",
+                            AND t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)', 'Credit Hours Adjustment', 'Credit Hours Adjustments')
+                        ), 0) AS "Total Tuition Billed (EGP)",
                         COALESCE((
                             SELECT SUM(t.credit - t.debit) 
                             FROM transactions t 
@@ -1006,11 +1119,11 @@ with tab_sch:
                 
                 res = session.execute(sql).fetchall()
                 if res:
-                    df_rep = pd.DataFrame(res, columns=["Student ID", "Student Name", "College", "Term", "Year", "Scholarship Name", "Configured %", "Status", "Total Invoiced (EGP)", "Actual Discount Applied (EGP)"])
+                    df_rep = pd.DataFrame(res, columns=["Student ID", "Student Name", "College", "Term", "Year", "Scholarship Name", "Configured %", "Status", "Total Tuition Billed (EGP)", "Actual Discount Applied (EGP)"])
                     
                     st.dataframe(df_rep.style.format({
                         "Configured %": "{:.1f}", 
-                        "Total Invoiced (EGP)": "{:,.2f}", 
+                        "Total Tuition Billed (EGP)": "{:,.2f}", 
                         "Actual Discount Applied (EGP)": "{:,.2f}"
                     }), use_container_width=True)
                     
@@ -1026,7 +1139,7 @@ with tab_sch:
                     st.info("⚠️ No scholarships configured in the system yet.")
 
 # -------------------------------------------------------
-# 💡 التعديل الجديد بالكامل لـ TAB 5: Batch Management
+# TAB 5: Batch Management (مع التعديل الجديد للتصدير)
 # -------------------------------------------------------
 with tab_batch:
     st.subheader("🗑️ Batch Management")
@@ -1034,7 +1147,7 @@ with tab_batch:
 
     batch_action = st.radio(
         "Action:",
-        ["📂 View Active Batches", "🗑️ Delete Batch (Admin Only)", "📜 Deleted Batches History"],
+        ["📂 View Active Batches", "📥 Export Batch Details", "🗑️ Delete Batch (Admin Only)", "📜 Deleted Batches History"],
         horizontal=True
     )
 
@@ -1061,6 +1174,57 @@ with tab_batch:
             } for b in batch_summary])
             st.dataframe(df_batches, use_container_width=True)
 
+    # 💡 التعديل الجديد: استخراج تفاصيل باتش معين للإكسيل
+    elif batch_action == "📥 Export Batch Details":
+        if not batch_summary:
+            st.info("No active batches available to export.")
+        else:
+            st.markdown("💡 **Select a batch to download all its detailed transactions in an Excel file.**")
+            unique_batches = list(pd.Series([b.batch_id for b in batch_summary]).unique())
+            
+            selected_export_batch = st.selectbox("Select Batch ID to Export:", unique_batches)
+            
+            if selected_export_batch:
+                with st.spinner("Preparing batch data..."):
+                    sql = text("""
+                        SELECT 
+                            t.reference_no AS "Ref No",
+                            s.id AS "Student ID",
+                            s.name AS "Student Name",
+                            t.transaction_type AS "Type",
+                            t.description AS "Description",
+                            t.entry_date AS "Date",
+                            t.term AS "Term",
+                            t.academic_year AS "Year",
+                            t.hours_change AS "Hours",
+                            t.debit AS "Debit",
+                            t.credit AS "Credit"
+                        FROM transactions t
+                        JOIN students s ON t.student_id = s.id
+                        WHERE t.batch_id = :b_id
+                        ORDER BY t.id ASC
+                    """)
+                    res = session.execute(sql, {"b_id": selected_export_batch}).fetchall()
+                    
+                    if res:
+                        df_export = pd.DataFrame(res, columns=["Ref No", "Student ID", "Student Name", "Type", "Description", "Date", "Term", "Year", "Hours", "Debit", "Credit"])
+                        
+                        st.dataframe(df_export.style.format({
+                            "Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"
+                        }), use_container_width=True)
+                        
+                        buf = io.BytesIO()
+                        df_export.to_excel(buf, index=False)
+                        
+                        st.download_button(
+                            label="📗 Download Batch Excel File",
+                            data=buf.getvalue(),
+                            file_name=f"Batch_Export_{selected_export_batch}.xlsx",
+                            use_container_width=True
+                        )
+                    else:
+                        st.warning("No records found for this batch.")
+
     elif batch_action == "🗑️ Delete Batch (Admin Only)":
         if st.session_state.get('logged_in_user') == 'fin_admin':
             if not batch_summary:
@@ -1078,7 +1242,6 @@ with tab_batch:
                     if st.form_submit_button("🗑️ Delete Batch"):
                         if confirm_delete:
                             try:
-                                # تجميع إحصائيات الباتش قبل المسح عشان الـ Log
                                 batch_records = [b for b in batch_summary if b.batch_id == batch_to_delete]
                                 total_recs = sum(b.record_count for b in batch_records)
                                 tot_deb = sum(b.total_debit for b in batch_records)
@@ -1137,11 +1300,18 @@ with tab4:
         sel_col = col_f1.multiselect("Filter by College", all_colleges)
         sel_term = col_f2.multiselect("Filter by Term", ["Fall", "Spring", "Summer"])
         sel_year = col_f3.multiselect("Filter by Year", available_years)
-        rep_v = st.radio("Format:", ["Accounting Summary", "Full Detailed Log"], horizontal=True)
+        
+        col_f4, col_f5 = st.columns([1, 2])
+        sel_dates = col_f4.date_input("Date Range (For Period Closing)", [])
+        rep_v = col_f5.radio("Format:", ["Accounting Summary", "Full Detailed Log", "Period Closing (Activity Summary)"], horizontal=True)
+        
         gen_btn = st.form_submit_button("📂 Generate Report Data")
 
     if gen_btn:
-        st.session_state['report_params'] = {'col': sel_col, 'term': sel_term, 'year': sel_year, 'format': rep_v}
+        st.session_state['report_params'] = {
+            'col': sel_col, 'term': sel_term, 'year': sel_year, 
+            'dates': sel_dates, 'format': rep_v
+        }
 
     if st.session_state.get('report_params'):
         p = st.session_state['report_params']
@@ -1179,6 +1349,51 @@ with tab4:
                     "Price/Hr": "{:,.2f}", "Reg. Hours": "{:,.1f}", "Invoices": "{:,.2f}",
                     "Discounts": "{:,.2f}", "Payments": "{:,.2f}", "Adjustments": "{:,.2f}", "Balance": "{:,.2f}"
                 }), use_container_width=True)
+
+            elif p['format'] == "Period Closing (Activity Summary)":
+                if len(p['dates']) != 2:
+                    st.warning("⚠️ Please select a Date Range (Start Date & End Date) to generate the Period Closing report.")
+                else:
+                    st.info(f"💡 Showing NET ACTIVITIES strictly occurring between **{p['dates'][0]}** and **{p['dates'][1]}**.")
+                    sql = text("""
+                        SELECT
+                            s.id AS "ID",
+                            s.name AS "Student Name",
+                            s.college AS "College",
+                            COALESCE(SUM(t.hours_change), 0) AS "CH Changed",
+                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'INV-%' THEN t.debit ELSE 0 END), 0) AS "New Invoices",
+                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit - t.debit ELSE 0 END), 0) AS "New Discounts",
+                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments Received",
+                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'ADJ-%' OR t.reference_no LIKE 'TXN-%' THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments",
+                            COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Net Period Change"
+                        FROM transactions t
+                        JOIN students s ON t.student_id = s.id
+                        WHERE (:c_cnt = 0 OR s.college IN :cls)
+                          AND (:t_cnt = 0 OR t.term IN :trms)
+                          AND (:y_cnt = 0 OR t.academic_year IN :yrs)
+                          AND t.entry_date >= :s_date AND t.entry_date <= :e_date
+                        GROUP BY s.id, s.name, s.college
+                        HAVING COALESCE(SUM(t.debit), 0) > 0 OR COALESCE(SUM(t.credit), 0) > 0
+                        ORDER BY s.id
+                    """)
+                    params = {
+                        "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',),
+                        "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',),
+                        "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,),
+                        "s_date": p['dates'][0], "e_date": p['dates'][1]
+                    }
+                    res = session.execute(sql, params).fetchall()
+                    if res:
+                        df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "CH Changed", "New Invoices", "New Discounts", "Payments Received", "Adjustments", "Net Period Change"])
+                        st.dataframe(df.style.format({
+                            "CH Changed": "{:,.1f}", "New Invoices": "{:,.2f}",
+                            "New Discounts": "{:,.2f}", "Payments Received": "{:,.2f}", 
+                            "Adjustments": "{:,.2f}", "Net Period Change": "{:,.2f}"
+                        }), use_container_width=True)
+                    else:
+                        df = pd.DataFrame()
+                        st.warning("No financial activity found in the selected date range.")
+
             else:
                 sql = text("""
                     SELECT t.student_id, s.name, s.college, t.reference_no, t.entry_date,
@@ -1189,20 +1404,25 @@ with tab4:
                     WHERE (:c_cnt = 0 OR s.college IN :cls)
                       AND (:t_cnt = 0 OR t.term IN :trms)
                       AND (:y_cnt = 0 OR t.academic_year IN :yrs)
+                      AND (:has_dates = 0 OR (t.entry_date >= :s_date AND t.entry_date <= :e_date))
                     ORDER BY t.student_id, t.entry_date DESC
                 """)
                 params = {
                     "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',),
                     "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',),
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,)
+                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,),
+                    "has_dates": 1 if len(p['dates']) == 2 else 0,
+                    "s_date": p['dates'][0] if len(p['dates']) == 2 else None,
+                    "e_date": p['dates'][1] if len(p['dates']) == 2 else None
                 }
                 res = session.execute(sql, params).fetchall()
                 df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Ref No", "Date", "Term", "Year", "Description", "Hours", "Debit", "Credit"])
                 st.dataframe(df.style.format({"Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
 
-            buf = io.BytesIO()
-            df.to_excel(buf, index=False)
-            st.download_button(
-                label="📗 Download Excel Report", data=buf.getvalue(),
-                file_name="AR_Management_Report.xlsx", use_container_width=True
-            )
+            if not df.empty:
+                buf = io.BytesIO()
+                df.to_excel(buf, index=False)
+                st.download_button(
+                    label="📗 Download Excel Report", data=buf.getvalue(),
+                    file_name=f"Management_Report_{p['format'].replace(' ', '_')}.xlsx", use_container_width=True
+                )
