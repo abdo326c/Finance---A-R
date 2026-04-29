@@ -335,6 +335,15 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # 6. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
+# إخفاء قوائم وعلامات Streamlit المائية
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 if not st.session_state['authenticated']:
     login_form()
