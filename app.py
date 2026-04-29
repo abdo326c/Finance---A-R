@@ -335,17 +335,18 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # 6. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
-# 💡 الكود السحري لإخفاء علامات وقوائم Streamlit
+# 💡 الكود السحري الجديد (الأقوى) لإخفاء علامات وقوائم Streamlit
 hide_streamlit_style = """
             <style>
-            /* إخفاء القائمة العلوية */
-            #MainMenu {visibility: hidden;}
-            /* إخفاء الـ Footer اللي تحت */
-            footer {visibility: hidden;}
-            /* إخفاء الهيدر بالكامل لو حابب */
-            header {visibility: hidden;}
-            /* إخفاء زرار Deploy */
-            .stDeployButton {display:none;}
+            #MainMenu {visibility: hidden !important;}
+            footer {visibility: hidden !important;}
+            header {visibility: hidden !important;}
+            .stDeployButton {display:none !important;}
+            [data-testid="stToolbar"] {visibility: hidden !important;}
+            [data-testid="stHeader"] {visibility: hidden !important;}
+            [data-testid="stFooter"] {display: none !important;}
+            /* إخفاء أي مساحة بيضاء إضافية تحت الـ Footer */
+            .st-emotion-cache-1kyxreq {display: none !important;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
