@@ -335,7 +335,8 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # 6. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
-# 💡 الكود السحري الجديد (الأقوى) لإخفاء علامات وقوائم Streamlit
+
+# 💡 الكود السحري الأقوى لإخفاء علامات وقوائم Streamlit
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden !important;}
@@ -555,30 +556,62 @@ with tab_reg:
                 df_std = pd.read_excel(u_std)
                 existing_ids = {s[0] for s in session.query(Student.id).all()}
                 new_students = []
+                failed_records = []
+                success_count = 0
+                
                 for _, r in df_std.iterrows():
                     sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
-                    if sid > 0 and sid not in existing_ids:
-                        bd_raw = r.get('Birth Date')
-                        bd_clean = pd.to_datetime(bd_raw, errors='coerce').date() if pd.notnull(bd_raw) else None
-                        new_students.append(Student(
-                            id=sid, name=str(r.get('Name', 'Unknown')),
-                            college=str(r.get('College', 'N/A')).upper(),
-                            program=str(r.get('Program', '')), price_per_hr=float(r.get('Price Per Hr', 0.0)),
-                            email=str(r.get('Email', '')), mobile=str(r.get('Mobile', '')),
-                            national_id=str(r.get('National ID', '')), nationality=str(r.get('Nationality', 'Egyptian')),
-                            admit_year=int(r.get('Admit Year', DEFAULT_YEAR)), birth_date=bd_clean
-                        ))
+                    original_row = r.to_dict()
+                    
+                    if sid <= 0:
+                        original_row['Error Reason'] = "Invalid Student ID"
+                        failed_records.append(original_row)
+                        continue
+                    if sid in existing_ids:
+                        original_row['Error Reason'] = "Student ID already exists"
+                        failed_records.append(original_row)
+                        continue
+                        
+                    # 💡 التعديل هنا: تحويل التاريخ بطريقة آمنة تتفادى الـ NaT
+                    bd_raw = r.get('Birth Date')
+                    bd_dt = pd.to_datetime(bd_raw, errors='coerce')
+                    bd_clean = bd_dt.date() if pd.notna(bd_dt) else None
+                    
+                    new_students.append(Student(
+                        id=sid, name=str(r.get('Name', 'Unknown')),
+                        college=str(r.get('College', 'N/A')).upper(),
+                        program=str(r.get('Program', '')), price_per_hr=float(r.get('Price Per Hr', 0.0)),
+                        email=str(r.get('Email', '')), mobile=str(r.get('Mobile', '')),
+                        national_id=str(r.get('National ID', '')), nationality=str(r.get('Nationality', 'Egyptian')),
+                        admit_year=int(r.get('Admit Year', DEFAULT_YEAR)), birth_date=bd_clean
+                    ))
+                    success_count += 1
+                    
                 if new_students:
                     try:
                         session.add_all(new_students)
                         session.commit()
-                        st.session_state['flash_msg'] = f"✅ Successfully registered {len(new_students)} new students!"
-                        st.rerun()
+                        st.success(f"✅ Successfully registered {success_count} new students!")
                     except Exception as e:
                         session.rollback()
-                        st.error(f"❌ Upload failed: {e}")
-                else:
-                    st.warning("⚠️ No new students added.")
+                        st.error(f"❌ Upload failed due to Database Error: {e}")
+                        success_count = 0
+                elif success_count == 0 and not failed_records:
+                    st.warning("⚠️ No data found in the uploaded file.")
+                    
+                if failed_records:
+                    st.error(f"⚠️ {len(failed_records)} records failed or were skipped. Please review the report below.")
+                    df_failed = pd.DataFrame(failed_records)
+                    st.dataframe(df_failed, use_container_width=True)
+                    
+                    buf_err = io.BytesIO()
+                    df_failed.to_excel(buf_err, index=False)
+                    st.download_button(
+                        label="⬇️ Download Error Report",
+                        data=buf_err.getvalue(),
+                        file_name=f"Failed_Registrations_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx",
+                        use_container_width=True
+                    )
 
 # -------------------------------------------------------
 # TAB 1: Manual Operations
@@ -832,23 +865,43 @@ with tab3:
                 if col in df_b.columns:
                     df_b[col] = pd.to_numeric(df_b[col].astype(str).str.replace(',', '').str.strip(), errors='coerce').fillna(0.0)
 
+            failed_records = []
+            success_count = 0
+            rts = {s.id: s.price_per_hr for s in session.query(Student).all()}
+
             if b_t == "Update Student Rates":
                 for _, r in df_b.iterrows():
-                    r_id = int(r.get('ID', 0))
-                    if r_id != 0:
+                    r_id = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
+                    original_row = r.to_dict()
+                    if r_id <= 0:
+                        original_row['Error Reason'] = "Invalid Student ID"
+                        failed_records.append(original_row)
+                    elif r_id not in rts:
+                        original_row['Error Reason'] = "Student ID not registered"
+                        failed_records.append(original_row)
+                    else:
                         session.query(Student).filter(Student.id == r_id).update({"price_per_hr": float(r['New_Price_Per_Hr'])})
-                session.commit()
-                st.session_state['flash_msg'] = "✅ Rates Updated!"
-                st.rerun()
+                        success_count += 1
+                
+                if success_count > 0:
+                    session.commit()
+                    st.success(f"✅ Successfully updated rates for {success_count} students!")
             else:
                 m_id = get_next_ref_sequence(session)
-                rts = {s.id: s.price_per_hr for s in session.query(Student).all()}
                 bulk_l = []
                 tx_counter = 1
 
                 for i, r in df_b.iterrows():
                     sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
-                    if sid == 0 or sid not in rts:
+                    original_row = r.to_dict()
+                    
+                    if sid <= 0:
+                        original_row['Error Reason'] = "Invalid Student ID"
+                        failed_records.append(original_row)
+                        continue
+                    if sid not in rts:
+                        original_row['Error Reason'] = "Student ID not registered"
+                        failed_records.append(original_row)
                         continue
 
                     rt = rts[sid]
@@ -901,6 +954,7 @@ with tab3:
                         term=term_val, academic_year=year_val
                     )
                     bulk_l.append(new_bulk_tx)
+                    success_count += 1
                     tx_counter += 1
 
                     if b_t in ["Bulk Invoices (Tuition)", "Credit Hours Adjustments"]:
@@ -924,8 +978,22 @@ with tab3:
                 if bulk_l:
                     session.bulk_save_objects(bulk_l)
                     session.commit()
-                    st.session_state['flash_msg'] = f"✅ Batch {current_batch_id} Successfully Posted!"
-                    st.rerun()
+                    st.success(f"✅ Batch {current_batch_id} Successfully Posted! ({success_count} transactions)")
+
+            # 💡 عرض الأخطاء وتقارير الرفض
+            if failed_records:
+                st.error(f"⚠️ {len(failed_records)} records failed or were skipped. Please review the report below.")
+                df_failed = pd.DataFrame(failed_records)
+                st.dataframe(df_failed, use_container_width=True)
+                
+                buf_err = io.BytesIO()
+                df_failed.to_excel(buf_err, index=False)
+                st.download_button(
+                    label="⬇️ Download Error Report",
+                    data=buf_err.getvalue(),
+                    file_name=f"Failed_Transactions_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx",
+                    use_container_width=True
+                )
 
 # -------------------------------------------------------
 # TAB: Scholarships Management
@@ -1120,7 +1188,10 @@ with tab_sch:
                 df_sch.columns = [str(c).strip() for c in df_sch.columns]
                 
                 uploaded_data = []
-                added, updated, skipped = 0, 0, 0
+                added, updated = 0, 0
+                failed_records = []
+                
+                valid_student_ids = {s[0] for s in session.query(Student.id).all()}
                 
                 for _, r in df_sch.iterrows():
                     sid = int(r.get('Student ID', 0)) if pd.notnull(r.get('Student ID')) else 0
@@ -1130,8 +1201,23 @@ with tab_sch:
                     yr = int(r.get('Academic Year', DEFAULT_YEAR))
                     s_type_id = sch_map.get(s_name)
 
-                    if sid <= 0 or not s_type_id or pct <= 0:
-                        skipped += 1
+                    original_row = r.to_dict()
+
+                    if sid <= 0:
+                        original_row['Error Reason'] = "Invalid Student ID"
+                        failed_records.append(original_row)
+                        continue
+                    if sid not in valid_student_ids:
+                        original_row['Error Reason'] = "Student ID not registered"
+                        failed_records.append(original_row)
+                        continue
+                    if not s_type_id:
+                        original_row['Error Reason'] = f"Scholarship '{s_name}' not found"
+                        failed_records.append(original_row)
+                        continue
+                    if pct <= 0:
+                        original_row['Error Reason'] = "Percentage must be > 0"
+                        failed_records.append(original_row)
                         continue
 
                     existing = session.query(StudentScholarship).filter_by(
@@ -1153,27 +1239,42 @@ with tab_sch:
 
                 session.commit()
                 
-                m_id = get_next_ref_sequence(session)
-                curr_c = m_id + 1
-                retro_txs = []
-                batch_id = f"BCH-SCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
-                
-                for sid, s_type_id, s_name, pct, trm, yr in uploaded_data:
-                    effective_pct = pct * 100.0 if pct <= 1.0 else pct
-                    r_tx, curr_c = get_retroactive_scholarship_tx(
-                        session, sid, trm, yr, s_type_id, s_name, effective_pct, curr_c, batch_id
+                if uploaded_data:
+                    m_id = get_next_ref_sequence(session)
+                    curr_c = m_id + 1
+                    retro_txs = []
+                    batch_id = f"BCH-SCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
+                    
+                    for sid, s_type_id, s_name, pct, trm, yr in uploaded_data:
+                        effective_pct = pct * 100.0 if pct <= 1.0 else pct
+                        r_tx, curr_c = get_retroactive_scholarship_tx(
+                            session, sid, trm, yr, s_type_id, s_name, effective_pct, curr_c, batch_id
+                        )
+                        if r_tx:
+                            retro_txs.append(r_tx)
+                    
+                    retro_msg = ""
+                    if retro_txs:
+                        session.bulk_save_objects(retro_txs)
+                        session.commit()
+                        retro_msg = f" | Applied {len(retro_txs)} retroactive discount entries."
+                    
+                    st.success(f"✅ Done! Added: {added} | Updated: {updated}{retro_msg}")
+
+                # 💡 عرض الأخطاء وتقارير الرفض
+                if failed_records:
+                    st.error(f"⚠️ {len(failed_records)} records failed or were skipped. Please review the report below.")
+                    df_failed = pd.DataFrame(failed_records)
+                    st.dataframe(df_failed, use_container_width=True)
+                    
+                    buf_err = io.BytesIO()
+                    df_failed.to_excel(buf_err, index=False)
+                    st.download_button(
+                        label="⬇️ Download Error Report",
+                        data=buf_err.getvalue(),
+                        file_name=f"Failed_Scholarships_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx",
+                        use_container_width=True
                     )
-                    if r_tx:
-                        retro_txs.append(r_tx)
-                
-                retro_msg = ""
-                if retro_txs:
-                    session.bulk_save_objects(retro_txs)
-                    session.commit()
-                    retro_msg = f" | Applied {len(retro_txs)} retroactive discount entries to existing invoices."
-                
-                st.session_state['flash_msg'] = f"✅ Done! Added: {added} | Updated: {updated} | Skipped: {skipped}{retro_msg}"
-                st.rerun()
                 
     elif sch_action == "📊 Scholarships Report":
         st.markdown("💡 **Comprehensive report showing configured scholarship percentages for each student and actual amounts applied in their statement.**")
