@@ -1199,7 +1199,11 @@ with tab_sch:
                         COALESCE((
                             SELECT SUM(t.credit - t.debit) 
                             FROM transactions t 
-                            WHERE t.student_id = s.id AND t.term = ss.term AND t.academic_year = ss.academic_year AND t.reference_no LIKE 'SCH-%'
+                            WHERE t.student_id = s.id 
+                            AND t.term = ss.term 
+                            AND t.academic_year = ss.academic_year 
+                            AND t.reference_no LIKE 'SCH-%'
+                            AND t.scholarship_type_id = ss.scholarship_type_id -- 💡 التعديل هنا لربط نوع الخصم ببعضه
                         ), 0) AS "Actual Discount Applied (EGP)"
                     FROM student_scholarships ss
                     JOIN students s ON ss.student_id = s.id
@@ -1436,7 +1440,6 @@ with tab_docs:
 
         st.markdown("---")
 
-        # 💡 عرض التفريغ الرقمي (Digital Extraction) ثانياً
         st.markdown("### 📊 Extracted Digital Policy")
         if sel_doc_year == "2022/2023":
             st.success("✨ Digital extraction available for this academic year based on the official policy document.")
