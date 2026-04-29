@@ -12,12 +12,10 @@ import io
 # =======================================================
 # 1. Database Configuration
 # =======================================================
-
 DB_URL = st.secrets["DB_URL"]
-
 DEFAULT_YEAR = 2026
 
-engine = create_engine(DB_URL)
+engine = create_engine(DB_URL, pool_size=5, max_overflow=10, pool_pre_ping=True)
 Base = declarative_base()
 
 # =======================================================
@@ -242,6 +240,8 @@ if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
 if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
+if 'sch_lookup_params' not in st.session_state:
+    st.session_state['sch_lookup_params'] = None
 
 def login_form():
     st.markdown("<h2 style='text-align: center;'>🔒 Nile University Finance Login</h2>", unsafe_allow_html=True)
@@ -327,9 +327,6 @@ if not st.session_state['authenticated']:
     login_form()
     st.stop()
 
-if 'flash_msg' not in st.session_state:
-    st.session_state['flash_msg'] = None
-
 col_title, col_logout = st.columns([0.8, 0.2], vertical_alignment="center")
 with col_title:
     st.title("🏦 Nile University - Finance A/R System")
@@ -341,7 +338,7 @@ with col_logout:
 
 st.markdown("---")
 
-if st.session_state['flash_msg']:
+if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
@@ -562,7 +559,7 @@ with tab1:
 
     a_t = st.selectbox(
         "Select Action Type",
-        ["Payment Receipt", "Credit Hours Adjustment", "Other Fees"],
+        ["Payment Receipt", "Credit Hours Adjustment", "Other Fees", "General Adjustment"],
         index=0
     )
 
@@ -584,6 +581,12 @@ with tab1:
 
         elif a_t == "Other Fees":
             amt = st.number_input("Fee Amount")
+            dsc_input = st.text_input("Description")
+            
+        elif a_t == "General Adjustment":
+            col_ga1, col_ga2 = st.columns(2)
+            dr_input = col_ga1.number_input("Debit Amount (EGP)", min_value=0.0)
+            cr_input = col_ga2.number_input("Credit Amount (EGP)", min_value=0.0)
             dsc_input = st.text_input("Description")
 
         submitted_tx = st.form_submit_button("🚀 Process Transaction")
@@ -635,6 +638,12 @@ with tab1:
                     elif a_t == "Other Fees":
                         pfx = "INV"
                         dr = amt
+                        dsc = dsc_input
+                        
+                    elif a_t == "General Adjustment":
+                        pfx = "TXN"
+                        dr = dr_input
+                        cr = cr_input
                         dsc = dsc_input
 
                     new_tx = Transaction(
@@ -890,7 +899,7 @@ with tab3:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB: Scholarships Management
+# TAB: Scholarships Management (مع التعديلات الجديدة)
 # -------------------------------------------------------
 with tab_sch:
     st.subheader("🎓 Student Scholarships Management")
@@ -906,8 +915,23 @@ with tab_sch:
             sch_year = col_b.number_input("Academic Year:", value=DEFAULT_YEAR, step=1)
             sch_search_btn = st.form_submit_button("🔍 Load Scholarships")
 
-        if sch_search_btn and sch_sid_raw.strip().isdigit():
-            sch_sid = int(sch_sid_raw)
+        if sch_search_btn:
+            if sch_sid_raw.strip().isdigit():
+                st.session_state['sch_lookup_params'] = {
+                    'sid': int(sch_sid_raw),
+                    'term': sch_term,
+                    'year': int(sch_year)
+                }
+            else:
+                st.session_state['sch_lookup_params'] = None
+                st.warning("⚠️ Invalid Student ID.")
+
+        if st.session_state.get('sch_lookup_params'):
+            p = st.session_state['sch_lookup_params']
+            sch_sid = p['sid']
+            sch_term = p['term']
+            sch_year = p['year']
+            
             student = session.query(Student).filter_by(id=sch_sid).first()
             if not student:
                 st.warning("⚠️ Student not found.")
@@ -924,30 +948,64 @@ with tab_sch:
                 if student_schs:
                     for ss, st_type in student_schs:
                         pct_display = ss.percentage * 100 if ss.percentage <= 1.0 else ss.percentage
-                        c_1, c_2, c_3 = st.columns([3, 2, 1])
+                        c_1, c_2, c_3 = st.columns([4, 2, 2])
                         c_1.write(f"**{st_type.name}**")
                         c_2.write(f"{pct_display:.1f}%")
                         status = "✅ Active" if ss.is_active else "🔴 Inactive"
                         c_3.write(status)
-                        toggle_key = f"toggle_{ss.id}"
                         
-                        if st.button("Deactivate" if ss.is_active else "Activate", key=toggle_key):
-                            ss.is_active = not ss.is_active
-                            session.commit()
-                            
-                            m_id = get_next_ref_sequence(session)
-                            effective_pct = ss.percentage * 100 if ss.is_active else 0.0
-                            if ss.percentage <= 1.0 and ss.is_active:
-                                effective_pct = ss.percentage * 100
+                        # 💡 النظام الجديد المنفصل (إيقاف مستقبلي فقط VS إلغاء بأثر رجعي للمدير)
+                        with st.expander(f"⚙️ Manage '{st_type.name}' Mode"):
+                            if ss.is_active:
+                                st.info("⏸️ **Option 1: Stop Future Discounts Only** \n Prevents this discount on future invoices. Past invoices remain unchanged.")
+                                if st.button("Stop Future Only", key=f"stop_fut_{ss.id}"):
+                                    ss.is_active = False
+                                    session.commit()
+                                    st.session_state['flash_msg'] = "✅ Scholarship stopped for future transactions."
+                                    st.rerun()
                                 
-                            retro_tx, _ = get_retroactive_scholarship_tx(
-                                session, sch_sid, sch_term, sch_year, ss.scholarship_type_id, st_type.name, effective_pct, m_id + 1
-                            )
-                            if retro_tx:
-                                session.add(retro_tx)
-                                session.commit()
-                                st.success("Retroactive adjustment posted due to status change!")
-                            st.rerun()
+                                st.markdown("---")
+                                if st.session_state.get('logged_in_user') == 'fin_admin':
+                                    st.error("🛑 **Option 2: Stop & Reverse Past (Admin Only)** \n Stops future discounts AND reverses past discounts by posting a debit adjustment to the student's account.")
+                                    confirm_rev = st.checkbox(f"⚠️ I understand this alters previous financial balances for this term.", key=f"chk_rev_{ss.id}")
+                                    if st.button("Stop & Reverse Past", key=f"stop_rev_{ss.id}"):
+                                        if confirm_rev:
+                                            ss.is_active = False
+                                            session.commit()
+                                            m_id = get_next_ref_sequence(session)
+                                            # نبعت 0.0 عشان يسحب الفلوس كلها كمديونية
+                                            retro_tx, _ = get_retroactive_scholarship_tx(
+                                                session, sch_sid, sch_term, sch_year, ss.scholarship_type_id, st_type.name, 0.0, m_id + 1
+                                            )
+                                            if retro_tx:
+                                                session.add(retro_tx)
+                                                session.commit()
+                                                st.session_state['flash_msg'] = "✅ Scholarship stopped AND past discounts reversed successfully!"
+                                            else:
+                                                st.session_state['flash_msg'] = "✅ Scholarship stopped (No past transactions found to reverse)."
+                                            st.rerun()
+                                        else:
+                                            st.warning("⚠️ You must check the confirmation box.")
+                                else:
+                                    st.error("🔒 **Admin Access Required:** Only 'fin_admin' can reverse past discounts.")
+                            else:
+                                st.info("▶️ **Activate Scholarship** \n Enables discount and retroactively applies it to existing invoices in this term.")
+                                if st.button("Activate Scholarship", key=f"act_{ss.id}"):
+                                    ss.is_active = True
+                                    session.commit()
+                                    m_id = get_next_ref_sequence(session)
+                                    effective_pct = ss.percentage * 100.0 if ss.percentage <= 1.0 else ss.percentage
+                                    retro_tx, _ = get_retroactive_scholarship_tx(
+                                        session, sch_sid, sch_term, sch_year, ss.scholarship_type_id, st_type.name, effective_pct, m_id + 1
+                                    )
+                                    if retro_tx:
+                                        session.add(retro_tx)
+                                        session.commit()
+                                        st.session_state['flash_msg'] = "✅ Scholarship Activated & retroactively applied to invoices."
+                                    else:
+                                        st.session_state['flash_msg'] = "✅ Scholarship Activated successfully."
+                                    st.rerun()
+                        st.write("")
                 else:
                     st.info("No scholarships found for this student in the selected term/year.")
 
@@ -993,8 +1051,10 @@ with tab_sch:
                         msg = f"✅ Added scholarship '{add_type}' ({add_pct}%) for {student.name}."
 
                     m_id = get_next_ref_sequence(session)
+                    effective_pct = add_pct * 100.0 if add_pct <= 1.0 else add_pct
+                    
                     retro_tx, _ = get_retroactive_scholarship_tx(
-                        session, add_sid, add_term, add_year, sch_map[add_type], add_type, add_pct, m_id + 1
+                        session, add_sid, add_term, add_year, sch_map[add_type], add_type, effective_pct, m_id + 1
                     )
                     if retro_tx:
                         session.add(retro_tx)
@@ -1072,8 +1132,9 @@ with tab_sch:
                 batch_id = f"BCH-SCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
                 
                 for sid, s_type_id, s_name, pct, trm, yr in uploaded_data:
+                    effective_pct = pct * 100.0 if pct <= 1.0 else pct
                     r_tx, curr_c = get_retroactive_scholarship_tx(
-                        session, sid, trm, yr, s_type_id, s_name, pct, curr_c, batch_id
+                        session, sid, trm, yr, s_type_id, s_name, effective_pct, curr_c, batch_id
                     )
                     if r_tx:
                         retro_txs.append(r_tx)
@@ -1141,7 +1202,7 @@ with tab_sch:
                     st.info("⚠️ No scholarships configured in the system yet.")
 
 # -------------------------------------------------------
-# TAB 5: Batch Management (مع التعديل الجديد للتصدير)
+# TAB 5: Batch Management
 # -------------------------------------------------------
 with tab_batch:
     st.subheader("🗑️ Batch Management")
@@ -1176,7 +1237,6 @@ with tab_batch:
             } for b in batch_summary])
             st.dataframe(df_batches, use_container_width=True)
 
-    # 💡 التعديل الجديد: استخراج تفاصيل باتش معين للإكسيل
     elif batch_action == "📥 Export Batch Details":
         if not batch_summary:
             st.info("No active batches available to export.")
@@ -1327,10 +1387,11 @@ with tab4:
                         s.email AS "Email",
                         s.price_per_hr AS "Price/Hr",
                         COALESCE(SUM(t.hours_change), 0) AS "Reg. Hours",
-                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'INV-%' THEN t.debit ELSE 0 END), 0) AS "Invoices",
-                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit ELSE 0 END), 0) AS "Discounts",
-                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments",
-                        COALESCE(SUM(CASE WHEN t.reference_no LIKE 'ADJ-%' OR t.reference_no LIKE 'TXN-%' THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments",
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed",
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees",
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "Discounts",
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments",
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments",
                         COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance"
                     FROM students s
                     LEFT JOIN transactions t ON s.id = t.student_id
@@ -1346,9 +1407,9 @@ with tab4:
                     "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,)
                 }
                 res = session.execute(sql, params).fetchall()
-                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Price/Hr", "Reg. Hours", "Invoices", "Discounts", "Payments", "Adjustments", "Balance"])
+                df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "Email", "Price/Hr", "Reg. Hours", "Tuition Billed", "Other Fees", "Discounts", "Payments", "Adjustments", "Balance"])
                 st.dataframe(df.style.format({
-                    "Price/Hr": "{:,.2f}", "Reg. Hours": "{:,.1f}", "Invoices": "{:,.2f}",
+                    "Price/Hr": "{:,.2f}", "Reg. Hours": "{:,.1f}", "Tuition Billed": "{:,.2f}", "Other Fees": "{:,.2f}",
                     "Discounts": "{:,.2f}", "Payments": "{:,.2f}", "Adjustments": "{:,.2f}", "Balance": "{:,.2f}"
                 }), use_container_width=True)
 
@@ -1363,10 +1424,11 @@ with tab4:
                             s.name AS "Student Name",
                             s.college AS "College",
                             COALESCE(SUM(t.hours_change), 0) AS "CH Changed",
-                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'INV-%' THEN t.debit ELSE 0 END), 0) AS "New Invoices",
-                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'SCH-%' THEN t.credit - t.debit ELSE 0 END), 0) AS "New Discounts",
-                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'PAY-%' THEN t.credit ELSE 0 END), 0) AS "Payments Received",
-                            COALESCE(SUM(CASE WHEN t.reference_no LIKE 'ADJ-%' OR t.reference_no LIKE 'TXN-%' THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments",
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed",
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees",
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "New Discounts",
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments Received",
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments",
                             COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Net Period Change"
                         FROM transactions t
                         JOIN students s ON t.student_id = s.id
@@ -1386,9 +1448,9 @@ with tab4:
                     }
                     res = session.execute(sql, params).fetchall()
                     if res:
-                        df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "CH Changed", "New Invoices", "New Discounts", "Payments Received", "Adjustments", "Net Period Change"])
+                        df = pd.DataFrame(res, columns=["ID", "Student Name", "College", "CH Changed", "Tuition Billed", "Other Fees", "New Discounts", "Payments Received", "Adjustments", "Net Period Change"])
                         st.dataframe(df.style.format({
-                            "CH Changed": "{:,.1f}", "New Invoices": "{:,.2f}",
+                            "CH Changed": "{:,.1f}", "Tuition Billed": "{:,.2f}", "Other Fees": "{:,.2f}",
                             "New Discounts": "{:,.2f}", "Payments Received": "{:,.2f}", 
                             "Adjustments": "{:,.2f}", "Net Period Change": "{:,.2f}"
                         }), use_container_width=True)
