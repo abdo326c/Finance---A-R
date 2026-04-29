@@ -335,15 +335,20 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # 6. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
-# إخفاء قوائم وعلامات Streamlit المائية
-hide_st_style = """
+# 💡 الكود السحري لإخفاء علامات وقوائم Streamlit
+hide_streamlit_style = """
             <style>
+            /* إخفاء القائمة العلوية */
             #MainMenu {visibility: hidden;}
+            /* إخفاء الـ Footer اللي تحت */
             footer {visibility: hidden;}
+            /* إخفاء الهيدر بالكامل لو حابب */
             header {visibility: hidden;}
+            /* إخفاء زرار Deploy */
+            .stDeployButton {display:none;}
             </style>
             """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 if not st.session_state['authenticated']:
     login_form()
