@@ -1,8 +1,9 @@
 import os
 import re
+import base64
 import streamlit as st
 import pandas as pd
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Boolean, LargeBinary
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func, text
 from datetime import datetime
@@ -77,6 +78,16 @@ class DeletedBatchLog(Base):
     total_credit = Column(Float)
     deleted_by = Column(String)
     deleted_at = Column(DateTime, server_default=func.now())
+
+class PolicyDocument(Base):
+    __tablename__ = 'policy_documents'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=False)
+    academic_year = Column(String, nullable=False)
+    file_name = Column(String, nullable=False)
+    file_data = Column(LargeBinary, nullable=False)
+    uploaded_by = Column(String)
+    uploaded_at = Column(DateTime, server_default=func.now())
 
 Base.metadata.create_all(engine)
 
@@ -242,6 +253,8 @@ if 'logged_in_user' not in st.session_state:
     st.session_state['logged_in_user'] = None
 if 'sch_lookup_params' not in st.session_state:
     st.session_state['sch_lookup_params'] = None
+if 'view_doc_id' not in st.session_state:
+    st.session_state['view_doc_id'] = None
 
 def login_form():
     st.markdown("<h2 style='text-align: center;'>🔒 Nile University Finance Login</h2>", unsafe_allow_html=True)
@@ -342,7 +355,7 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab4 = st.tabs([
+tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4 = st.tabs([
     "🔍 Student Lookup",
     "👤 Registration",
     "📊 Operations",
@@ -350,6 +363,7 @@ tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab4 = st.tabs([
     "📤 Bulk Financials",
     "🎓 Scholarships",
     "🗑️ Batch Management",
+    "📚 Policies & Docs",
     "📈 Management Reports"
 ])
 
@@ -899,7 +913,7 @@ with tab3:
                     st.rerun()
 
 # -------------------------------------------------------
-# TAB: Scholarships Management (مع التعديلات الجديدة)
+# TAB: Scholarships Management
 # -------------------------------------------------------
 with tab_sch:
     st.subheader("🎓 Student Scholarships Management")
@@ -954,7 +968,6 @@ with tab_sch:
                         status = "✅ Active" if ss.is_active else "🔴 Inactive"
                         c_3.write(status)
                         
-                        # 💡 النظام الجديد المنفصل (إيقاف مستقبلي فقط VS إلغاء بأثر رجعي للمدير)
                         with st.expander(f"⚙️ Manage '{st_type.name}' Mode"):
                             if ss.is_active:
                                 st.info("⏸️ **Option 1: Stop Future Discounts Only** \n Prevents this discount on future invoices. Past invoices remain unchanged.")
@@ -973,7 +986,6 @@ with tab_sch:
                                             ss.is_active = False
                                             session.commit()
                                             m_id = get_next_ref_sequence(session)
-                                            # نبعت 0.0 عشان يسحب الفلوس كلها كمديونية
                                             retro_tx, _ = get_retroactive_scholarship_tx(
                                                 session, sch_sid, sch_term, sch_year, ss.scholarship_type_id, st_type.name, 0.0, m_id + 1
                                             )
@@ -1349,7 +1361,217 @@ with tab_batch:
             st.info("No deleted batches history found.")
 
 # -------------------------------------------------------
-# TAB 6: Management Reports
+# TAB 7: Policies & Docs
+# -------------------------------------------------------
+with tab_docs:
+    st.subheader("📚 University Financial Policies & Documents")
+    st.markdown("💡 *View, download, and manage official university financial policies and guidelines.*")
+
+    doc_action = st.radio("Action:", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
+
+    if doc_action == "📂 View & Download":
+        available_doc_years = [y[0] for y in session.query(PolicyDocument.academic_year).distinct().all()]
+        
+        if "2022/2023" not in available_doc_years: available_doc_years.append("2022/2023")
+        if "2025/2026" not in available_doc_years: available_doc_years.append("2025/2026")
+        
+        sel_doc_year = st.selectbox("Filter by Academic Year:", sorted(set(available_doc_years), reverse=True))
+        
+        # 💡 تم عكس الترتيب هنا: عرض ملفات الـ PDF الأصلية أولاً
+        st.markdown("### 🗄️ Original Uploaded PDF Files")
+        docs = session.query(PolicyDocument).filter_by(academic_year=sel_doc_year).order_by(PolicyDocument.uploaded_at.desc()).all()
+        
+        if docs:
+            for doc in docs:
+                with st.container():
+                    c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
+                    c1.markdown(f"📄 **{doc.title}**<br><small>Uploaded by {doc.uploaded_by} on {doc.uploaded_at.strftime('%Y-%m-%d')}</small>", unsafe_allow_html=True)
+                    
+                    if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
+                        st.session_state['view_doc_id'] = doc.id
+                        
+                    c3.download_button("⬇️ Download PDF", data=doc.file_data, file_name=doc.file_name, mime="application/pdf", key=f"dl_{doc.id}")
+                    
+                    if st.session_state.get('logged_in_user') == 'fin_admin':
+                        if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
+                            session.delete(doc)
+                            session.commit()
+                            st.session_state['flash_msg'] = f"✅ Document '{doc.title}' deleted successfully."
+                            if st.session_state.get('view_doc_id') == doc.id:
+                                st.session_state['view_doc_id'] = None
+                            st.rerun()
+                    else:
+                        c4.write("") 
+                        
+            st.markdown("---")
+            
+            if st.session_state.get('view_doc_id'):
+                doc_to_view = session.query(PolicyDocument).get(st.session_state['view_doc_id'])
+                if doc_to_view:
+                    st.markdown(f"### 👀 Viewing PDF: {doc_to_view.title}")
+                    if st.button("❌ Close Document Reader"):
+                        st.session_state['view_doc_id'] = None
+                        st.rerun()
+                        
+                    base64_pdf = base64.b64encode(doc_to_view.file_data).decode('utf-8')
+                    pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+                    st.markdown(pdf_display, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ No original PDF document has been uploaded for this academic year yet. Admins can upload it from the 'Upload New Document' tab.")
+
+        st.markdown("---")
+
+        # 💡 عرض التفريغ الرقمي (Digital Extraction) ثانياً
+        st.markdown("### 📊 Extracted Digital Policy")
+        if sel_doc_year == "2022/2023":
+            st.success("✨ Digital extraction available for this academic year based on the official policy document.")
+            
+            with st.expander("📌 1. Undergraduate Tuition Fees (New Students - Fall 22)", expanded=True):
+                df_new_tuition = pd.DataFrame({
+                    "College / Program": ["Engineering (ENGR)", "Computer Science (CS)", "Business (BBA)", "Biotechnology"],
+                    "Egyptian Price / Credit Hour (EGP)": ["3,450", "3,450", "3,450", "3,450"],
+                    "Total per Year (EGP) (24-36 ch)": ["95,148", "78,176", "71,600", "69,576"],
+                    "Non-Egyptian (Per Year in USD)": ["$12,018", "$9,867", "$8,982", "$8,729"]
+                })
+                st.table(df_new_tuition)
+            
+            with st.expander("📌 2. Undergraduate Tuition Fees (Continuing Students)"):
+                df_cont_tuition = pd.DataFrame({
+                    "College / Program": ["Engineering (ENGR)", "Computer Science (CS)", "Business (BBA)", "Biotechnology"],
+                    "Egyptian Price / Credit Hour (EGP)": ["3,360", "3,360", "3,360", "3,360"],
+                    "Total per Year (EGP) (24-36 ch)": ["92,666", "76,138", "69,730", "67,760"],
+                    "Non-Egyptian (Per Year in USD)": ["$11,704", "$9,610", "$8,747", "$8,500"]
+                })
+                st.table(df_cont_tuition)
+
+            with st.expander("📌 3. Freshman Merit Scholarships (High School % Requirement)"):
+                df_scholarships = pd.DataFrame({
+                    "Category": ["1st Category (30%)", "2nd Category (15%)", "3rd Category (0%)"],
+                    "ENGR": ["Above 90%", "85% to 90%", "Below 85%"],
+                    "CS": ["Above 85%", "75% to 85%", "Below 75%"],
+                    "BBA": ["Above 85%", "75% to 85%", "Below 75%"],
+                    "BioTech": ["Above 85%", "75% to 85%", "Below 75%"]
+                })
+                st.table(df_scholarships)
+                st.info("💡 Note: 5% extra scholarship is granted for excellence in sports.")
+
+            with st.expander("📌 4. Maintenance of Scholarship in Subsequent Years (GPA)"):
+                df_maint_sch = pd.DataFrame({
+                    "Category": ["100% Scholarship", "1st Category (40%)", "2nd Category (20%)", "3rd Category (0%)"],
+                    "Cumulative GPA Required": ["4.0", "3.8 to less than 4.0", "3.5 to less than 3.8", "Below 3.5"]
+                })
+                st.table(df_maint_sch)
+
+            with st.expander("📌 5. Postgraduate (PG) Tuition"):
+                df_pg = pd.DataFrame({
+                    "Graduate Program": ["ITCS, EAS, MOT", "EMBA"],
+                    "Egyptian (Price / CH)": ["3,000 EGP", "3,500 EGP"],
+                    "Non-Egyptian (Price / CH)": ["6,000 EGP", "7,000 EGP"]
+                })
+                st.table(df_pg)
+            
+            st.info("💡 **Compulsory Extra Fees (All UG Students):** Activities & Student Union = 600 EGP (Annual).")
+
+        elif sel_doc_year == "2025/2026":
+            st.success("✨ Digital extraction available for this academic year based on the official policy document.")
+
+            with st.expander("📌 1. Undergraduate Tuition Fees (New Students - Fall 25)", expanded=True):
+                df_new_25 = pd.DataFrame({
+                    "College / Program": ["EAS (Engineering)", "ITCS (Computer Science)", "SBA (Business)", "STCH (Biotech)"],
+                    "Egyptian Price / Credit Hour (EGP)": ["4,600", "4,600", "3,625", "4,370"],
+                    "Total per Year (EGP)": ["165,600", "165,600", "123,250", "152,950"],
+                    "Non-Egyptian (Per Year in USD)": ["$6,646", "$6,646", "$5,133", "$6,185"]
+                })
+                st.table(df_new_25)
+
+            with st.expander("📌 2. Undergraduate Tuition Fees (Continuing Students)"):
+                st.markdown("**Joined in 2024:**")
+                df_cont_24 = pd.DataFrame({
+                    "College / Program": ["EAS (Engineering)", "ITCS (Computer Science)", "SBA (Business)", "STCH (Biotech)"],
+                    "Egyptian Price / Credit Hour (EGP)": ["4,431", "4,431", "3,623", "4,368"]
+                })
+                st.table(df_cont_24)
+
+                st.markdown("**Joined in 2023:**")
+                df_cont_23 = pd.DataFrame({
+                    "College / Program": ["EAS (Engineering)", "ITCS (Computer Science)", "SBA (Business)", "STCH (Biotech)"],
+                    "Egyptian Price / Credit Hour (EGP)": ["4,023", "3,584", "3,482", "3,518"]
+                })
+                st.table(df_cont_23)
+
+                st.markdown("**Joined in 2022 & Before:**")
+                df_cont_22 = pd.DataFrame({
+                    "College / Program": ["EAS (Engineering)", "ITCS (Computer Science)", "SBA (Business)", "STCH (Biotech)"],
+                    "Egyptian Price / Credit Hour (EGP)": ["3,848", "3,340", "3,065", "2,977"]
+                })
+                st.table(df_cont_22)
+
+            with st.expander("📌 3. Freshman Merit Scholarships (High School % Requirement)"):
+                df_scholarships_25 = pd.DataFrame({
+                    "Category": ["Special (100%)", "1st Category (50%)", "2nd Category (40%)", "3rd Category (20%)", "4th Category (0%)"],
+                    "EAS / ITCS": ["Top 500", "90% & above", "85% to 90%", "80% to 85%", "Below 80%"],
+                    "SBA / STCH": ["Top 500", "80% & above", "75% to 80%", "70% to 75%", "Below 70%"]
+                })
+                st.table(df_scholarships_25)
+                st.info("💡 Note: 100% Scholarship is also offered to 20 top STEM students. 5% extra for sports. 10% for siblings/Gov employees.")
+
+            with st.expander("📌 4. Maintenance of Scholarship in Subsequent Years (GPA)"):
+                df_maint_sch_25 = pd.DataFrame({
+                    "Category": ["100% Scholarship", "1st Category (50%)", "2nd Category (40%)", "3rd Category (20%)", "4th Category (0%)"],
+                    "Cumulative GPA Required": ["4.00", "3.90 to less than 4.00", "3.80 to less than 3.90", "3.50 to less than 3.80", "Below 3.50"]
+                })
+                st.table(df_maint_sch_25)
+
+            with st.expander("📌 5. Postgraduate (PG) Tuition"):
+                df_pg_25 = pd.DataFrame({
+                    "Graduate Program": ["ITCS, EAS, MOT, etc.", "EMBA"],
+                    "Egyptian (Price / CH)": ["3,000 EGP", "3,500 EGP"],
+                    "Non-Egyptian (Price / CH)": ["200 USD", "235 USD"]
+                })
+                st.table(df_pg_25)
+
+            st.info("💡 **Compulsory Extra Fees (All UG Students):** Activities & Student Union = 1000 EGP (Annual).")
+
+        else:
+            st.info("📌 Digital extraction is not yet available for this year. Please refer to the attached PDF above.")
+
+    elif doc_action == "📤 Upload New Document (Admin Only)":
+        if st.session_state.get('logged_in_user') == 'fin_admin':
+            with st.form("upload_doc_form", clear_on_submit=True):
+                doc_title = st.text_input("Document Title *", placeholder="e.g., Financial Policy 2025/2026")
+                
+                year_options = [f"{y}/{y+1}" for y in range(2020, 2030)]
+                doc_year = st.selectbox("Academic Year *", year_options, index=5) 
+                
+                doc_file = st.file_uploader("Select PDF File *", type=['pdf'])
+                
+                submit_doc = st.form_submit_button("📤 Upload Document")
+                
+                if submit_doc:
+                    if not doc_title or not doc_file:
+                        st.error("⚠️ Title and PDF file are required.")
+                    else:
+                        try:
+                            file_bytes = doc_file.read()
+                            new_doc = PolicyDocument(
+                                title=doc_title,
+                                academic_year=doc_year,
+                                file_name=doc_file.name,
+                                file_data=file_bytes,
+                                uploaded_by=st.session_state.get('logged_in_user')
+                            )
+                            session.add(new_doc)
+                            session.commit()
+                            st.session_state['flash_msg'] = f"✅ Document '{doc_title}' uploaded successfully!"
+                            st.rerun()
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"❌ Upload failed: {e}")
+        else:
+            st.error("🔒 **Access Denied:** Only System Administrators ('fin_admin') can upload official documents.")
+
+# -------------------------------------------------------
+# TAB 8: Management Reports
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
