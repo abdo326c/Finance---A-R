@@ -464,36 +464,63 @@ tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_a
 # TAB 0: Student Lookup
 # -------------------------------------------------------
 with tab_search:
-    # 📊 Dashboard Section
-    with get_db() as db:
-        total_students = db.query(Student).count()
-        # حساب إجمالي التحصيل (كل الكريديت في السيستم)
-        total_collected = db.query(func.sum(Transaction.credit)).scalar() or 0.0
-        # حساب الطلاب النشطين (آخر حالة مسجلة لهم هي Active)
-        active_count = db.query(StudentStatus).filter(StudentStatus.status == 'Active').distinct(StudentStatus.student_id).count()
+    # --- قسم الفلاتر العلوية للـ Dashboard ---
+    st.markdown("#### 🛠️ Dashboard Filters")
+    c_f1, c_f2 = st.columns(2)
+    filter_term = c_f1.selectbox("Filter Dashboard by Term:", ["All Terms"] + VALID_TERMS)
+    filter_year = c_f2.selectbox("Filter Dashboard by Year:", ["All Years"] + [str(y) for y in available_years])
 
+    st.markdown("---")
+    # 📊 Dynamic Dashboard Section
+    with get_db() as db:
+        # بناء الاستعلامات الأساسية
+        student_query = db.query(Student)
+        collected_query = db.query(func.sum(Transaction.credit))
+        status_query = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
+
+        # تطبيق الفلاتر لو المستخدم اختار حاجة محددة
+        if filter_term != "All Terms":
+            collected_query = collected_query.filter(Transaction.term == filter_term)
+            status_query = status_query.filter(StudentStatus.term == filter_term)
+        
+        if filter_year != "All Years":
+            collected_query = collected_query.filter(Transaction.academic_year == int(filter_year))
+            status_query = status_query.filter(StudentStatus.academic_year == int(filter_year))
+
+        # تنفيذ الاستعلامات وجلب الأرقام
+        total_students = student_query.count() # الطلاب ثابتين (Master Data)
+        total_collected = collected_query.scalar() or 0.0
+        active_count = status_query.distinct(StudentStatus.student_id).count()
+
+    # عرض الأرقام في الكروت الملونة
     dash_col1, dash_col2, dash_col3 = st.columns(3)
+    
     with dash_col1:
         st.markdown(f"""
-            <div style="background-color: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #2196f3;">
-                <p style="color: #0d47a1; margin: 0; font-weight: bold;">👥 Total Students</p>
-                <h2 style="color: #0d47a1; margin: 0;">{total_students:,}</h2>
+            <div style="background-color: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #2196f3; height: 120px;">
+                <p style="color: #0d47a1; margin: 0; font-weight: bold; font-size: 14px;">👥 Registered Students</p>
+                <h2 style="color: #0d47a1; margin: 10px 0;">{total_students:,}</h2>
             </div>
         """, unsafe_allow_html=True)
+        
     with dash_col2:
+        # تلوين كارت التحصيل حسب الفلترة (تغيير بسيط في النص)
+        card_label = f"💰 Collected ({filter_term})" if filter_term != "All Terms" else "💰 Total Collected"
         st.markdown(f"""
-            <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border-left: 5px solid #4caf50;">
-                <p style="color: #1b5e20; margin: 0; font-weight: bold;">💰 Total Collected</p>
-                <h2 style="color: #1b5e20; margin: 0;">{total_collected:,.0f} <small>EGP</small></h2>
+            <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border-left: 5px solid #4caf50; height: 120px;">
+                <p style="color: #1b5e20; margin: 0; font-weight: bold; font-size: 14px;">{card_label}</p>
+                <h2 style="color: #1b5e20; margin: 10px 0;">{total_collected:,.0f} <span style="font-size: 15px;">EGP</span></h2>
             </div>
         """, unsafe_allow_html=True)
+        
     with dash_col3:
         st.markdown(f"""
-            <div style="background-color: #fff3e0; padding: 20px; border-radius: 10px; border-left: 5px solid #ff9800;">
-                <p style="color: #e65100; margin: 0; font-weight: bold;">✅ Active Students</p>
-                <h2 style="color: #e65100; margin: 0;">{active_count:,}</h2>
+            <div style="background-color: #fff3e0; padding: 20px; border-radius: 10px; border-left: 5px solid #ff9800; height: 120px;">
+                <p style="color: #e65100; margin: 0; font-weight: bold; font-size: 14px;">✅ Active ({filter_term})</p>
+                <h2 style="color: #e65100; margin: 10px 0;">{active_count:,}</h2>
             </div>
         """, unsafe_allow_html=True)
+    
     st.markdown("<br>", unsafe_allow_html=True)
     
     st.subheader("🔍 Student Data Explorer")
