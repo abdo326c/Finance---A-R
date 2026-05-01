@@ -619,25 +619,32 @@ with tab_search:
                         st.error(f"⚠️ {len(failed_records)} records failed.")
                         st.dataframe(pd.DataFrame(failed_records), use_container_width=True)
     st.markdown("---")
-    st.subheader("📥 Export Master Data")
-    if st.button("🚀 Load Fast Export"):
-        with st.spinner("Compiling High-Speed Export..."):
-            sql_query = """
-                SELECT 
-                    id AS "Student ID", name AS "Full Name", college AS "College Code", program AS "Program", 
-                    price_per_hr AS "Price Per Hour (EGP)", email AS "University Email", mobile AS "Mobile Number", 
-                    national_id AS "National ID", nationality AS "Nationality", birth_date AS "Birth Date", admit_year AS "Admit Year" 
-                FROM students
-            """
-            df_all_students = pd.read_sql(sql_query, con=engine)
-            buf_all = io.BytesIO()
-            df_all_students.to_excel(buf_all, index=False)
-            st.download_button(
-                label="📥 Download Excel File", data=buf_all.getvalue(), 
-                file_name=f"NU_Students_MasterData_{datetime.now().strftime('%Y%m%d')}.xlsx", 
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                use_container_width=True
-            )
+    st.markdown("---")
+    # 💡 وضعنا عملية التصدير داخل Expander للحفاظ على نظافة الواجهة
+    with st.expander("📥 **Database Master Export**", expanded=False):
+        st.subheader("Export Master Data")
+        st.markdown("💡 *Generate a full Excel backup of all students currently registered in the system.*")
+        
+        if st.button("🚀 Load Fast Export", use_container_width=True):
+            with st.spinner("Compiling High-Speed Export..."):
+                sql_query = """
+                    SELECT 
+                        id AS "Student ID", name AS "Full Name", college AS "College Code", program AS "Program", 
+                        price_per_hr AS "Price Per Hour (EGP)", email AS "University Email", mobile AS "Mobile Number", 
+                        national_id AS "National ID", nationality AS "Nationality", birth_date AS "Birth Date", admit_year AS "Admit Year" 
+                    FROM students
+                """
+                df_all_students = pd.read_sql(sql_query, con=engine)
+                
+                buf_all = io.BytesIO()
+                df_all_students.to_excel(buf_all, index=False)
+                st.download_button(
+                    label="⬇️ Download Excel File", 
+                    data=buf_all.getvalue(), 
+                    file_name=f"NU_Students_MasterData_{datetime.now().strftime('%Y%m%d')}.xlsx", 
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+                    use_container_width=True
+                )
 
 # -------------------------------------------------------
 # TAB 0.5: Registration
