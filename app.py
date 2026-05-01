@@ -385,21 +385,19 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
 st.markdown("""
     <style>
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: #f8f9fa;
-        border-radius: 5px 5px 0px 0px;
-        padding: 8px 16px;
-        color: #555;
-        border: 1px solid #eee;
+        height: 45px; background-color: #f1f3f6; border-radius: 5px;
+        padding: 8px 16px; color: #444; border: none;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #3498db !important;
-        color: white !important;
-        border-bottom: 2px solid #2980b9;
+        background-color: #004a99 !important; color: white !important;
+    }
+
+    [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
+    [data-testid="stMetric"] {
+        background-color: #ffffff; padding: 25px; border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
     }
     .stButton>button {
         border-radius: 8px;
@@ -415,7 +413,6 @@ st.markdown("""
         border-radius: 10px;
         padding: 5px;
     }
-    /* Dashboard KPI Cards */
     .kpi-card {
         padding: 18px 20px;
         border-radius: 12px;
@@ -459,7 +456,6 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-# ترتيب التابات - Dashboard أول تاب
 tab_dashboard, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
     "📊 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
     "📤 Bulk Financials", "🎓 Scholarships", "🗑️ Batch Management", "📚 Policies & Docs", "📈 Reports", "⚙️ System Admin"
@@ -470,17 +466,14 @@ tab_dashboard, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_do
 # -------------------------------------------------------
 with tab_dashboard:
     
-    # --- فلاتر الداشبورد ---
-    st.markdown("#### 🛠️ Dashboard Filters")
     dash_f1, dash_f2, dash_f3 = st.columns(3)
     dash_filter_term    = dash_f1.selectbox("Filter by Term:", ["All Terms"] + VALID_TERMS, key="dash_term")
     dash_filter_year    = dash_f2.selectbox("Filter by Year:", ["All Years"] + [str(y) for y in available_years], key="dash_year")
     dash_filter_college = dash_f3.selectbox("Filter by College:", ["All Colleges"] + all_colleges, key="dash_college")
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
 
     with get_db() as db:
-        # --- بناء الاستعلامات ---
         revenue_q   = db.query(func.sum(Transaction.debit)).join(Student, Transaction.student_id == Student.id)
         discount_q  = db.query(func.sum(Transaction.credit - Transaction.debit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
         payment_q   = db.query(func.sum(Transaction.credit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments']))
@@ -488,7 +481,6 @@ with tab_dashboard:
         status_q    = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
         student_q   = db.query(Student)
 
-        # تطبيق فلتر الترم
         if dash_filter_term != "All Terms":
             revenue_q   = revenue_q.filter(Transaction.term == dash_filter_term)
             discount_q  = discount_q.filter(Transaction.term == dash_filter_term)
@@ -496,7 +488,6 @@ with tab_dashboard:
             collected_q = collected_q.filter(Transaction.term == dash_filter_term)
             status_q    = status_q.filter(StudentStatus.term == dash_filter_term)
 
-        # تطبيق فلتر السنة
         if dash_filter_year != "All Years":
             yr_int = int(dash_filter_year)
             revenue_q   = revenue_q.filter(Transaction.academic_year == yr_int)
@@ -505,31 +496,25 @@ with tab_dashboard:
             collected_q = collected_q.filter(Transaction.academic_year == yr_int)
             status_q    = status_q.filter(StudentStatus.academic_year == yr_int)
 
-        # تطبيق فلتر الكلية
         if dash_filter_college != "All Colleges":
             revenue_q   = revenue_q.filter(Student.college == dash_filter_college)
             discount_q  = discount_q.filter(Student.college == dash_filter_college)
             payment_q   = payment_q.filter(Student.college == dash_filter_college)
             collected_q = collected_q.filter(Student.college == dash_filter_college)
             student_q   = student_q.filter(Student.college == dash_filter_college)
-            # للـ active count نحتاج نفلتر بالكلية عن طريق join
-            active_ids_by_college = [s.id for s in student_q.all()]
-            if active_ids_by_college:
-                status_q = status_q.filter(StudentStatus.student_id.in_(active_ids_by_college))
-            else:
-                status_q = status_q.filter(StudentStatus.student_id == -1)  # لا نتائج
+            
+            status_q = status_q.join(Student, StudentStatus.student_id == Student.id).filter(Student.college == dash_filter_college)
 
-        # تنفيذ الاستعلامات
+
         total_revenue   = revenue_q.scalar() or 0.0
         total_discounts = discount_q.scalar() or 0.0
         total_payments  = payment_q.scalar() or 0.0
         total_collected = collected_q.scalar() or 0.0
-        net_balance     = total_revenue - total_collected   # صافي المستحق
+        net_balance     = total_revenue - total_collected   
         total_students  = student_q.count()
         active_count    = status_q.distinct(StudentStatus.student_id).count()
 
-    # --- عرض الكروت الرئيسية (صف أول) ---
-    st.markdown("### 💰 Financial Summary")
+    
     kpi1, kpi2, kpi3 = st.columns(3)
 
     with kpi1:
@@ -558,7 +543,6 @@ with tab_dashboard:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- صف ثاني من الكروت ---
     kpi4, kpi5, kpi6 = st.columns(3)
 
     with kpi4:
@@ -590,7 +574,7 @@ with tab_dashboard:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
 
-    # --- ملخص مالي تفصيلي بالجدول ---
+    
     st.markdown("### 📋 Revenue Breakdown by College")
     with get_db() as db:
         college_sql = text("""
@@ -617,7 +601,7 @@ with tab_dashboard:
         })
 
         if not df_college.empty:
-            # إضافة صف المجموع
+            
             totals_row = {
                 "College": "🔢 TOTAL",
                 "Students": df_college["Students"].sum(),
@@ -639,7 +623,7 @@ with tab_dashboard:
                 hide_index=True
             )
 
-            # زر تنزيل تقرير الكليات
+            
             buf_dash = io.BytesIO()
             df_college.to_excel(buf_dash, index=False)
             st.download_button(
@@ -653,7 +637,7 @@ with tab_dashboard:
 
     st.markdown("---")
 
-    # --- نسبة الخصومات للإيرادات ---
+    
     if total_revenue > 0:
         discount_pct = (total_discounts / total_revenue) * 100
         collection_pct = (total_payments / total_revenue) * 100 if total_revenue > 0 else 0
@@ -766,24 +750,24 @@ with tab_search:
                             st.rerun()
 
                 st.markdown("---")
-            with st.expander("🎓 Active Scholarships (All Terms)", expanded = False) 
-                student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
-                    ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
-                ).filter(
-                    StudentScholarship.student_id == search_lookup_id, 
-                    StudentScholarship.is_active == True
-                ).order_by(StudentScholarship.academic_year.desc(), StudentScholarship.term).all()
-                
-                if student_schs_all:
-                    df_schs = pd.DataFrame([{
-                        "Term": ss.term,
-                        "Year": ss.academic_year,
-                        "Scholarship": st_type.name,
-                        "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%"
-                    } for ss, st_type in student_schs_all])
-                    st.dataframe(df_schs, use_container_width=True, hide_index=True)
-                else:
-                    st.info("No active scholarships found for this student.")
+                with st.expander("🎓 Active Scholarships (All Terms)", expanded=False):
+                    student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
+                        ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
+                    ).filter(
+                        StudentScholarship.student_id == search_lookup_id, 
+                        StudentScholarship.is_active == True
+                    ).order_by(StudentScholarship.academic_year.desc(), StudentScholarship.term).all()
+                    
+                    if student_schs_all:
+                        df_schs = pd.DataFrame([{
+                            "Term": ss.term,
+                            "Year": ss.academic_year,
+                            "Scholarship": st_type.name,
+                            "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%"
+                        } for ss, st_type in student_schs_all])
+                        st.dataframe(df_schs, use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No active scholarships found for this student.")
 
                 st.markdown("---")
                 if st.session_state.get('user_role') in ['Admin', 'Editor']:
