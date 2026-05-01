@@ -455,11 +455,9 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-# ضيف tab_dash في الأول
-tab_dash, tab_search, tab_reg, tab_ops, tab_stmt, tab_bulk, tab_sch, tab_batch, tab_docs, tab_rep, tab_admin = st.tabs([
-    "🏠 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", 
-    "📜 Statement & Search", "📤 Bulk Financials", "🎓 Scholarships", 
-    "🗑️ Batches", "📚 Policies", "📈 Reports", "⚙️ Admin"
+tab_dash, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
+    "🏠 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
+    "📤 Bulk Financials", "🎓 Scholarships", "🗑️ Batch Management", "📚 Policies & Docs", "📈 Reports", "⚙️ System Admin"
 ])
 # -------------------------------------------------------
 # 🏠 NEW TAB: Dashboard (The Financial Engine)
