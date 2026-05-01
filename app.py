@@ -619,9 +619,8 @@ with tab_search:
                         st.error(f"⚠️ {len(failed_records)} records failed.")
                         st.dataframe(pd.DataFrame(failed_records), use_container_width=True)
     st.markdown("---")
-    st.markdown("---")
     # 💡 وضعنا عملية التصدير داخل Expander للحفاظ على نظافة الواجهة
-    with st.expander("📥 **Database Master Export**", expanded=False):
+    with st.expander("📥 **Student Data Export**", expanded=False):
         st.subheader("Export Master Data")
         st.markdown("💡 *Generate a full Excel backup of all students currently registered in the system.*")
         
