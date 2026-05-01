@@ -559,28 +559,31 @@ with tab_search:
                 st.warning("⚠️ No student found with this ID.")
 
     st.markdown("---")
-    st.subheader("📤 Bulk Academic Status Update")
-    st.markdown("💡 *Upload an Excel file to update the status of multiple students. Ensure Term and Year are specified for each student in the file.*")
-    
-    st.info("📌 **Important Note:** Only the following exact status values are accepted by the system. Click on any block to copy it.")
-    cols = st.columns(len(VALID_STATUSES))
-    for i, stat in enumerate(VALID_STATUSES):
-        cols[i].code(stat, language="text")
+    # 💡 وضعنا كل العملية داخل Expander رئيسي لتقليل الزحمة في الصفحة
+    with st.expander("📤 **Bulk Student Status Management**", expanded=False):
+        st.subheader("Bulk Academic Status Update")
+        st.markdown("💡 *Upload an Excel file to update the status of multiple students.*")
+        
+        st.info("📌 **Important Note:** Only the following exact status values are accepted:")
+        cols = st.columns(len(VALID_STATUSES))
+        for i, stat in enumerate(VALID_STATUSES):
+            cols[i].code(stat, language="text")
 
-    with st.expander("🛠️ Open Bulk Status Updater"):
+        # هنا يبدأ الجزء اللي كان موجود أصلاً بس بقى "محمي" جوه الـ Expander
         stat_template = {
             "Student ID": 26100123, 
             "Term": VALID_TERMS[1], 
             "Year": DEFAULT_YEAR, 
             "Status": VALID_STATUSES[-1]
         }
+        
         buf_stat = io.BytesIO()
         pd.DataFrame([stat_template]).to_excel(buf_stat, index=False)
         st.download_button(label="📥 Download Template", data=buf_stat.getvalue(), file_name="Template_Bulk_Status.xlsx")
         
         u_stat = st.file_uploader("Upload Status Excel File", type=['xlsx'], key="bulk_status_upload")
         if u_stat and st.button("🚀 Process Bulk Status Update"):
-            with st.spinner(f"Updating student statuses from file..."):
+            with st.spinner(f"Updating student statuses..."):
                 df_stat = pd.read_excel(u_stat)
                 df_stat.columns = [str(c).strip() for c in df_stat.columns]
                 status_map = {s.lower(): s for s in VALID_STATUSES}
@@ -598,47 +601,23 @@ with tab_search:
                         yr = int(r.get('Year', 0)) if pd.notnull(r.get('Year')) else 0
                         row_dict = r.to_dict()
                         
-                        if sid <= 0 or sid not in valid_ids:
-                            row_dict['Error Reason'] = "Student ID Not Registered"
-                            failed_records.append(row_dict)
-                            continue
-                        if not status_val:
-                            row_dict['Error Reason'] = f"Invalid Status. Allowed: {', '.join(VALID_STATUSES)}"
-                            failed_records.append(row_dict)
-                            continue
-                        if trm not in VALID_TERMS or yr <= 0:
-                            row_dict['Error Reason'] = f"Invalid Term or Year. Term must be {', '.join(VALID_TERMS)}."
+                        if sid <= 0 or sid not in valid_ids or not status_val or trm not in VALID_TERMS or yr <= 0:
+                            row_dict['Error Reason'] = "Invalid Data or ID"
                             failed_records.append(row_dict)
                             continue
                             
-                        existing = db.query(StudentStatus).filter_by(
-                            student_id=sid, term=trm, academic_year=yr
-                        ).first()
-                        
-                        if existing:
-                            existing.status = status_val
-                        else:
-                            db.add(StudentStatus(
-                                student_id=sid, term=trm, academic_year=yr, status=status_val
-                            ))
+                        existing = db.query(StudentStatus).filter_by(student_id=sid, term=trm, academic_year=yr).first()
+                        if existing: existing.status = status_val
+                        else: db.add(StudentStatus(student_id=sid, term=trm, academic_year=yr, status=status_val))
                         success_count += 1
                         
                     if success_count > 0:
-                        try:
-                            db.commit()
-                            st.success(f"✅ Successfully updated {success_count} student statuses!")
-                        except Exception as e:
-                            db.rollback()
-                            st.error(f"❌ Database Error: {e}")
+                        db.commit()
+                        st.success(f"✅ Successfully updated {success_count} student statuses!")
                     
                     if failed_records:
-                        st.error(f"⚠️ {len(failed_records)} records failed. See report below.")
-                        df_fail = pd.DataFrame(failed_records)
-                        st.dataframe(df_fail, use_container_width=True)
-                        buf_fail = io.BytesIO()
-                        df_fail.to_excel(buf_fail, index=False)
-                        st.download_button("⬇️ Download Error Report", data=buf_fail.getvalue(), file_name=f"Failed_Status_Updates_{datetime.now().strftime('%Y%m%d')}.xlsx")
-
+                        st.error(f"⚠️ {len(failed_records)} records failed.")
+                        st.dataframe(pd.DataFrame(failed_records), use_container_width=True)
     st.markdown("---")
     st.subheader("📥 Export Master Data")
     if st.button("🚀 Load Fast Export"):
