@@ -383,6 +383,45 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # 7. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
+st.markdown("""
+    <style>
+    /* تحسين شكل التابات */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: #f8f9fa;
+        border-radius: 5px 5px 0px 0px;
+        padding: 8px 16px;
+        color: #555;
+        border: 1px solid #eee;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #3498db !important;
+        color: white !important;
+        border-bottom: 2px solid #2980b9;
+    }
+    
+    /* تحسين شكل الأزرار */
+    .stButton>button {
+        border-radius: 8px;
+        border: none;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* تنعيم شكل الـ Expanders */
+    .styled-expander {
+        border: 1px solid #e6e9ef;
+        border-radius: 10px;
+        padding: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 hide_streamlit_style = """
 <style>
