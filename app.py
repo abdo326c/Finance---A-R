@@ -532,14 +532,33 @@ with tab_search:
                 st.markdown("---")
                 st.subheader("📌 Academic Status (Term-Based)")
                 
+                # 1. تعريف دالة التلوين (الجديدة)
+                def color_status(val):
+                    color_map = {
+                        'Active': 'background-color: #d4edda; color: #155724; font-weight: bold; border-radius: 5px;',
+                        'Semester Withdraw': 'background-color: #fff3cd; color: #856404; font-weight: bold; border-radius: 5px;',
+                        'Inactive': 'background-color: #f8d7da; color: #721c24; font-weight: bold; border-radius: 5px;',
+                        'Graduated': 'background-color: #d1ecf1; color: #0c5460; font-weight: bold; border-radius: 5px;',
+                        'Program Withdraw': 'background-color: #e2e3e5; color: #383d41; font-weight: bold; border-radius: 5px;'
+                    }
+                    return color_map.get(val, '')
+
+                # 2. جلب البيانات من الداتا بيز
                 student_statuses = db.query(StudentStatus).filter_by(student_id=search_lookup_id).order_by(StudentStatus.academic_year.desc(), StudentStatus.term).all()
+                
                 if student_statuses:
                     df_statuses = pd.DataFrame([{
                         "Term": st_stat.term,
                         "Academic Year": st_stat.academic_year,
                         "Status": st_stat.status
                     } for st_stat in student_statuses])
-                    st.dataframe(df_statuses, use_container_width=True, hide_index=True)
+                    
+                    # 3. عرض الجدول مع تطبيق الستايل الملون (تعديل بسيط هنا لضمان عملها مع النسخ الجديدة)
+                    st.dataframe(
+                        df_statuses.style.map(color_status, subset=['Status']), 
+                        use_container_width=True, 
+                        hide_index=True
+                    )
                 else:
                     st.info("No academic status history recorded for this student yet.")
                 
