@@ -523,44 +523,66 @@ with tab_search:
             edit_mode = st.toggle("🔓 Unlock Edit Mode")
             if edit_mode:
                 st.warning("⚠️ **CRITICAL WARNING:** You are modifying Master Data.")
-                with st.form("edit_form"):
-                    col_e1, col_e2, col_e3 = st.columns(3)
-                    e_name = col_e1.text_input("Full Name", value=student.name if student.name else "")
-                    e_college = col_e2.text_input("College", value=student.college if student.college else "")
-                    e_price = col_e3.number_input("Price Per Hr (EGP)", value=float(student.price_per_hr) if student.price_per_hr else 0.0, step=100.0)
-                    
-                    col_e4, col_e5, col_e6 = st.columns(3)
-                    e_email = col_e4.text_input("Email", value=student.email if student.email else "")
-                    e_mobile = col_e5.text_input("Mobile", value=student.mobile if student.mobile else "")
-                    e_program = col_e6.text_input("Program", value=student.program if student.program else "")
-                    
-                    if st.form_submit_button("💾 Save Changes"):
-                        try:
-                            student.name = e_name
-                            student.college = e_college.upper()
-                            student.price_per_hr = e_price
-                            student.email = e_email
-                            student.mobile = e_mobile
-                            student.program = e_program
-                            session.commit()
-                            st.session_state['flash_msg'] = "✅ Student master data updated successfully!"
-                            st.rerun()
-                        except Exception as e:
-                            session.rollback()
-                            st.error(f"❌ Error: {e}")
+                
+                # 💡 شيلنا الـ form عشان الشاشة تتفاعل لحظياً بمجرد ما تغير الكلية
+                col_e1, col_e2, col_e3 = st.columns(3)
+                e_name = col_e1.text_input("Full Name", value=student.name if student.name else "")
+                e_college = col_e2.text_input("College", value=student.college if student.college else "")
+                
+                # 💡 التحذير التفاعلي: بيقارن الكلية القديمة بالجديدة فوراً
+                old_college = str(student.college).strip().upper() if student.college else ""
+                new_college = str(e_college).strip().upper()
+                
+                if new_college and old_college and new_college != old_college:
+                    st.error(f"⚠️ **College Change Detected!** Moving student from **{old_college}** to **{new_college}**. Please remember to update the **Price Per Hr** to match the new college rates before saving.")
+                
+                e_price = col_e3.number_input("Price Per Hr (EGP)", value=float(student.price_per_hr) if student.price_per_hr else 0.0, step=100.0)
+                
+                col_e4, col_e5, col_e6 = st.columns(3)
+                e_email = col_e4.text_input("Email", value=student.email if student.email else "")
+                e_mobile = col_e5.text_input("Mobile", value=student.mobile if student.mobile else "")
+                e_program = col_e6.text_input("Program", value=student.program if student.program else "")
+                
+                # زرار الحفظ بقى حر ومربوط بـ st.button مباشرة
+                if st.button("💾 Save Changes", type="primary"):
+                    try:
+                        student.name = e_name
+                        student.college = e_college.upper()
+                        student.price_per_hr = e_price
+                        student.email = e_email
+                        student.mobile = e_mobile
+                        student.program = e_program
+                        session.commit()
+                        st.session_state['flash_msg'] = "✅ Student master data updated successfully!"
+                        st.rerun()
+                    except Exception as e:
+                        session.rollback()
+                        st.error(f"❌ Error: {e}")
         else:
             st.warning("⚠️ No student found with this ID.")
     # 💡 التحديث الجماعي للحالة بناءً على بيانات الشيت (الشيت فيه التيرم والسنة)
+    # -------------------------------------------------------
+    # الإضافة والمطورة: التحديث الجماعي للحالة (مع الملاحظات المخصصة للنسخ)
+    # -------------------------------------------------------
     st.markdown("---")
     st.subheader("📤 Bulk Academic Status Update")
     st.markdown("💡 *Upload an Excel file to update the status of multiple students. Ensure Term and Year are specified for each student in the file.*")
     
+    # 💡 التعديل هنا: إضافة النوت اللي فيها الحالات مع إمكانية النسخ
+    st.info("📌 **Important Note:** Only the following exact status values are accepted by the system. Click on any block to copy it.")
+    
+    col_c1, col_c2, col_c3, col_c4, col_c5 = st.columns(5)
+    col_c1.code("Active", language="text")
+    col_c2.code("Inactive", language="text")
+    col_c3.code("Graduated", language="text")
+    col_c4.code("Program Withdraw", language="text")
+    col_c5.code("Semester Withdraw", language="text")
+
     with st.expander("🛠️ Open Bulk Status Updater"):
-        # 👇 بص هنا يا هندسة: ده الشيت اللي هينزل للموظف، فيه عمود للتيرم وعمود للسنة
         stat_template = {
             "Student ID": 26100123, 
-            "Term": "Spring",       # <--- عمود التيرم جوه الشيت
-            "Year": 2026,           # <--- عمود السنة جوه الشيت
+            "Term": "Spring", 
+            "Year": 2026, 
             "Status": "Semester Withdraw"
         }
         buf_stat = io.BytesIO()
@@ -587,7 +609,6 @@ with tab_search:
                     raw_status = str(r.get('Status', '')).strip().lower()
                     status_val = status_map.get(raw_status, None)
                     
-                    # 👇 وهنا السيستم بيقرأ التيرم والسنة لكل طالب من الشيت المرفوع مش من الشاشة!
                     trm = str(r.get('Term', '')).strip().capitalize()
                     yr = int(r.get('Year', 0)) if pd.notnull(r.get('Year')) else 0
                     
@@ -634,7 +655,7 @@ with tab_search:
                     st.dataframe(df_fail, use_container_width=True)
                     buf_fail = io.BytesIO()
                     df_fail.to_excel(buf_fail, index=False)
-                    st.download_button("⬇️ Download Error Report", data=buf_fail.getvalue(), file_name=f"Failed_Status_Updates_{datetime.now().strftime('%Y%m%d')}.xlsx")       
+                    st.download_button("⬇️ Download Error Report", data=buf_fail.getvalue(), file_name=f"Failed_Status_Updates_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     st.markdown("---")
     
