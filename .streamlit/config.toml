@@ -1,6 +1,15 @@
 [theme]
-primaryColor = "#4A90E2"         # أزرق هادي للأزرار
-backgroundColor = "#F8F9FA"      # خلفية بيضاء مريحة (أو #121212 لو عايز Dark Mode)
-secondaryBackgroundColor = "#E9ECEF" # خلفية القوائم
-textColor = "#212529"            # لون الخط الأساسي
+# اللون الأساسي للأزرار والخطوط المهمة (أزرق هادي مريح)
+primaryColor = "#3498db"
+
+# خلفية الموقع (أبيض كريمي عشان ميعملش زغللة زي الأبيض الفاقع)
+backgroundColor = "#fdfdfd"
+
+# لون الخلفية الجانبية والـ Expanders (رمادي فاتح جداً)
+secondaryBackgroundColor = "#f0f2f6"
+
+# لون الخط الأساسي (أسود مائل للرمادي لتقليل التباين الحاد)
+textColor = "#2c3e50"
+
+# نوع الخط
 font = "sans serif"
