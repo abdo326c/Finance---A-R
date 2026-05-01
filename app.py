@@ -766,26 +766,26 @@ with tab_search:
                             st.rerun()
 
                 st.markdown("---")
-            with st.expander("🎓 Active Scholarships (All Terms)", expanded = False): 
-                    student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
-                        ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
-                    ).filter(
-                        StudentScholarship.student_id == search_lookup_id, 
-                        StudentScholarship.is_active == True
-                    ).order_by(StudentScholarship.academic_year.desc(), StudentScholarship.term).all()
-                    
-                    if student_schs_all:
-                        df_schs = pd.DataFrame([{
-                            "Term": ss.term,
-                            "Year": ss.academic_year,
-                            "Scholarship": st_type.name,
-                            "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%"
-                        } for ss, st_type in student_schs_all])
-                        st.dataframe(df_schs, use_container_width=True, hide_index=True)
-                    else:
-                        st.info("No active scholarships found for this student.")
+            with st.expander("🎓 Active Scholarships (All Terms)", expanded = False) 
+                student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
+                    ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
+                ).filter(
+                    StudentScholarship.student_id == search_lookup_id, 
+                    StudentScholarship.is_active == True
+                ).order_by(StudentScholarship.academic_year.desc(), StudentScholarship.term).all()
+                
+                if student_schs_all:
+                    df_schs = pd.DataFrame([{
+                        "Term": ss.term,
+                        "Year": ss.academic_year,
+                        "Scholarship": st_type.name,
+                        "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%"
+                    } for ss, st_type in student_schs_all])
+                    st.dataframe(df_schs, use_container_width=True, hide_index=True)
+                else:
+                    st.info("No active scholarships found for this student.")
 
-            st.markdown("---")
+                st.markdown("---")
                 if st.session_state.get('user_role') in ['Admin', 'Editor']:
                     edit_mode = st.toggle("🔓 Unlock Edit Mode")
                     if edit_mode:
