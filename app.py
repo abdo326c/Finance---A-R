@@ -766,7 +766,7 @@ with tab_search:
                             st.rerun()
 
                 st.markdown("---")
-        with st.expander("🎓 Active Scholarships (All Terms)", expanded = False): 
+            with st.expander("🎓 Active Scholarships (All Terms)", expanded = False): 
                 student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
                     ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
                 ).filter(
