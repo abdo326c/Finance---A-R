@@ -464,6 +464,38 @@ tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_a
 # TAB 0: Student Lookup
 # -------------------------------------------------------
 with tab_search:
+    # 📊 Dashboard Section
+    with get_db() as db:
+        total_students = db.query(Student).count()
+        # حساب إجمالي التحصيل (كل الكريديت في السيستم)
+        total_collected = db.query(func.sum(Transaction.credit)).scalar() or 0.0
+        # حساب الطلاب النشطين (آخر حالة مسجلة لهم هي Active)
+        active_count = db.query(StudentStatus).filter(StudentStatus.status == 'Active').distinct(StudentStatus.student_id).count()
+
+    dash_col1, dash_col2, dash_col3 = st.columns(3)
+    with dash_col1:
+        st.markdown(f"""
+            <div style="background-color: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #2196f3;">
+                <p style="color: #0d47a1; margin: 0; font-weight: bold;">👥 Total Students</p>
+                <h2 style="color: #0d47a1; margin: 0;">{total_students:,}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+    with dash_col2:
+        st.markdown(f"""
+            <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border-left: 5px solid #4caf50;">
+                <p style="color: #1b5e20; margin: 0; font-weight: bold;">💰 Total Collected</p>
+                <h2 style="color: #1b5e20; margin: 0;">{total_collected:,.0f} <small>EGP</small></h2>
+            </div>
+        """, unsafe_allow_html=True)
+    with dash_col3:
+        st.markdown(f"""
+            <div style="background-color: #fff3e0; padding: 20px; border-radius: 10px; border-left: 5px solid #ff9800;">
+                <p style="color: #e65100; margin: 0; font-weight: bold;">✅ Active Students</p>
+                <h2 style="color: #e65100; margin: 0;">{active_count:,}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     st.subheader("🔍 Student Data Explorer")
 
     if 'lookup_id' not in st.session_state:
