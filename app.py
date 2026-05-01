@@ -470,7 +470,6 @@ tab_dashboard, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_do
 # -------------------------------------------------------
 with tab_dashboard:
     st.markdown("## 📊 Financial Overview Dashboard")
-    st.markdown("*نظرة شاملة على الأداء المالي للجامعة*")
     
     # --- فلاتر الداشبورد ---
     st.markdown("#### 🛠️ Dashboard Filters")
@@ -537,29 +536,24 @@ with tab_dashboard:
     with kpi1:
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #1a73e8, #0d47a1); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">📈 إجمالي الإيرادات (Gross Revenue)</p>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">📈 Gross Revenue</p>
                 <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_revenue:,.0f}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi2:
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #e53935, #b71c1c); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">🎓 إجمالي الخصومات (Scholarships)</p>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">🎓 Total Scholarships</p>
                 <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_discounts:,.0f}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi3:
-        net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
-        net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">⚖️ صافي المستحق (Net Balance Due)</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{net_balance:,.0f}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            <div style="background: linear-gradient(135deg, #00897b, #004d40); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">💳 Total Payments</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_payments:,.0f}</h2>
             </div>
         """, unsafe_allow_html=True)
 
@@ -569,29 +563,28 @@ with tab_dashboard:
     kpi4, kpi5, kpi6 = st.columns(3)
 
     with kpi4:
+         net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
+        net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #00897b, #004d40); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">💳 إجمالي المحصل (Total Payments)</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_payments:,.0f}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">⚖️ Net Balance Due</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{net_balance:,.0f}</h2>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi5:
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #5e35b1, #311b92); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">👥 إجمالي الطلاب المسجلين</p>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">👥 Total Students</p>
                 <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_students:,}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">Student</p>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi6:
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, #f57c00, #e65100); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">✅ الطلاب النشطين (Active Students)</p>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">✅ Total Active Students</p>
                 <h2 style="margin: 8px 0 0 0; font-size: 26px;">{active_count:,}</h2>
-                <p style="margin: 0; font-size: 12px; opacity: 0.75;">Student</p>
             </div>
         """, unsafe_allow_html=True)
 
