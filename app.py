@@ -463,9 +463,9 @@ with tab_dash:
 
     # العرض في كروت ملونة
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("💰 Total Collected", f"{total_collected:,.0f} EGP")
-    m2.metric("📝 Gross Tuition", f"{total_invoiced:,.0f} EGP")
-    m3.metric("🎓 Total Discounts", f"{total_discounts:,.0f} EGP")
+    m3.metric("💰 Total Collected", f"{total_collected:,.0f} EGP")
+    m1.metric("📝 Gross Tuition", f"{total_invoiced:,.0f} EGP")
+    m2.metric("🎓 Total Discounts", f"{total_discounts:,.0f} EGP")
     m4.metric("⚖️ Net Outstanding", f"{net_outstanding:,.0f} EGP", delta_color="inverse")
 
     st.markdown("---")
