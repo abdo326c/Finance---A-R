@@ -524,12 +524,13 @@ with tab_search:
             if edit_mode:
                 st.warning("⚠️ **CRITICAL WARNING:** You are modifying Master Data.")
                 
-                # 💡 شيلنا الـ form عشان الشاشة تتفاعل لحظياً بمجرد ما تغير الكلية
+                # 💡 الإضافة هنا: سطر بيوضح أكواد الكليات المعتمدة
+                st.info("💡 **Valid College Codes:** `ENG`, `BBA`, `IT_CS`, `Bio_Tech`")
+                
                 col_e1, col_e2, col_e3 = st.columns(3)
                 e_name = col_e1.text_input("Full Name", value=student.name if student.name else "")
                 e_college = col_e2.text_input("College", value=student.college if student.college else "")
                 
-                # 💡 التحذير التفاعلي: بيقارن الكلية القديمة بالجديدة فوراً
                 old_college = str(student.college).strip().upper() if student.college else ""
                 new_college = str(e_college).strip().upper()
                 
@@ -543,7 +544,6 @@ with tab_search:
                 e_mobile = col_e5.text_input("Mobile", value=student.mobile if student.mobile else "")
                 e_program = col_e6.text_input("Program", value=student.program if student.program else "")
                 
-                # زرار الحفظ بقى حر ومربوط بـ st.button مباشرة
                 if st.button("💾 Save Changes", type="primary"):
                     try:
                         student.name = e_name
@@ -1477,53 +1477,73 @@ with tab_batch:
                 "Uploaded At": b.upload_date.strftime('%Y-%m-%d %H:%M:%S') if b.upload_date else "N/A"
             } for b in batch_summary])
             st.dataframe(df_batches, use_container_width=True)
+            st.info("💡 **Tip:** Copy the 'Batch ID' from the table above to use in Export or Delete operations.")
         else:
             st.info("No active batches found.")
             
     elif batch_action == "📥 Export Batch Details":
         if batch_summary:
-            sel_batch = st.selectbox("Select Batch ID:", list(pd.Series([b.batch_id for b in batch_summary]).unique()))
-            if sel_batch:
-                sql_batch = text("""
-                    SELECT t.reference_no AS "Ref No", s.id AS "Student ID", s.name AS "Student Name", t.transaction_type AS "Type", t.description AS "Description", t.entry_date AS "Date", t.term AS "Term", t.academic_year AS "Year", t.hours_change AS "Hours", t.debit AS "Debit", t.credit AS "Credit" 
-                    FROM transactions t JOIN students s ON t.student_id = s.id 
-                    WHERE t.batch_id = :b_id ORDER BY t.id ASC
-                """)
-                df_ex = pd.read_sql(sql_batch, con=engine, params={"b_id": sel_batch})
-                if not df_ex.empty:
-                    st.dataframe(df_ex.style.format({"Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
-                    buf = io.BytesIO()
-                    df_ex.to_excel(buf, index=False)
-                    st.download_button("📗 Download Batch Excel File", data=buf.getvalue(), file_name=f"Batch_Export_{sel_batch}.xlsx", use_container_width=True)
+            # 💡 التعديل هنا: تحويل الدروب داون لخانة نصية (Text Input)
+            sel_batch = st.text_input("📝 Enter or Paste Batch ID to Export:", placeholder="e.g. BCH-260417-153000")
+            if st.button("📥 Load Batch"):
+                sel_batch = sel_batch.strip()
+                if not sel_batch:
+                    st.warning("Please enter a valid Batch ID.")
+                else:
+                    sql_batch = text("""
+                        SELECT t.reference_no AS "Ref No", s.id AS "Student ID", s.name AS "Student Name", t.transaction_type AS "Type", t.description AS "Description", t.entry_date AS "Date", t.term AS "Term", t.academic_year AS "Year", t.hours_change AS "Hours", t.debit AS "Debit", t.credit AS "Credit" 
+                        FROM transactions t JOIN students s ON t.student_id = s.id 
+                        WHERE t.batch_id = :b_id ORDER BY t.id ASC
+                    """)
+                    df_ex = pd.read_sql(sql_batch, con=engine, params={"b_id": sel_batch})
+                    if not df_ex.empty:
+                        st.success(f"✅ Found {len(df_ex)} records for Batch: {sel_batch}")
+                        st.dataframe(df_ex.style.format({"Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
+                        buf = io.BytesIO()
+                        df_ex.to_excel(buf, index=False)
+                        st.download_button("📗 Download Batch Excel File", data=buf.getvalue(), file_name=f"Batch_Export_{sel_batch}.xlsx", use_container_width=True)
+                    else:
+                        st.error("❌ Batch ID not found. Please make sure you copied it correctly from the Active Batches list.")
         else:
             st.info("No active batches available.")
             
     elif batch_action == "🗑️ Delete Batch (Admin Only)":
         if st.session_state.get('logged_in_user') == 'fin_admin':
             if batch_summary:
-                with st.form("del_batch"):
-                    b_del = st.selectbox("Select Batch ID to Delete:", list(pd.Series([b.batch_id for b in batch_summary]).unique()))
+                with st.form("del_batch", clear_on_submit=True):
+                    # 💡 التعديل هنا: تحويل الدروب داون لخانة نصية للحماية من المسح بالخطأ
+                    b_del = st.text_input("🗑️ Enter or Paste Batch ID to Delete:", placeholder="e.g. BCH-260417-153000")
+                    confirm_checkbox = st.checkbox("⚠️ I confirm that I want to completely delete this exact Batch ID and reverse its transactions.")
                     
-                    if st.form_submit_button("🗑️ Delete Batch") and st.checkbox(f"⚠️ Confirm deletion of '{b_del}'"):
-                        try:
+                    if st.form_submit_button("🗑️ Delete Batch"):
+                        b_del = b_del.strip()
+                        if not b_del:
+                            st.error("⚠️ Please enter the Batch ID you want to delete.")
+                        elif not confirm_checkbox:
+                            st.error("⚠️ You must check the confirmation box to proceed.")
+                        else:
                             recs = [b for b in batch_summary if b.batch_id == b_del]
-                            session.add(DeletedBatchLog(
-                                batch_id=b_del, 
-                                transaction_type=" & ".join(list(set(b.transaction_type for b in recs))), 
-                                record_count=sum(b.record_count for b in recs), 
-                                total_debit=sum(b.total_debit for b in recs), 
-                                total_credit=sum(b.total_credit for b in recs), 
-                                deleted_by=st.session_state.get('logged_in_user')
-                            ))
-                            session.query(Transaction).filter(Transaction.batch_id == b_del).delete()
-                            session.commit()
-                            st.session_state['flash_msg'] = f"✅ Deleted batch {b_del}."
-                            st.rerun()
-                        except Exception as e:
-                            session.rollback()
-                            st.error(f"❌ Error: {e}")
+                            if not recs:
+                                st.error(f"❌ Batch ID '{b_del}' not found! Please make sure you typed or copied it correctly.")
+                            else:
+                                try:
+                                    session.add(DeletedBatchLog(
+                                        batch_id=b_del, 
+                                        transaction_type=" & ".join(list(set(b.transaction_type for b in recs))), 
+                                        record_count=sum(b.record_count for b in recs), 
+                                        total_debit=sum(b.total_debit for b in recs), 
+                                        total_credit=sum(b.total_credit for b in recs), 
+                                        deleted_by=st.session_state.get('logged_in_user')
+                                    ))
+                                    session.query(Transaction).filter(Transaction.batch_id == b_del).delete()
+                                    session.commit()
+                                    st.session_state['flash_msg'] = f"✅ Successfully deleted batch {b_del}."
+                                    st.rerun()
+                                except Exception as e:
+                                    session.rollback()
+                                    st.error(f"❌ Error: {e}")
         else:
-            st.error("🔒 **Access Denied**")
+            st.error("🔒 **Access Denied**: Only Finance Admins can delete batches.")
             
     elif batch_action == "📜 Deleted Batches History":
         deleted_logs = session.query(DeletedBatchLog).order_by(DeletedBatchLog.deleted_at.desc()).all()
@@ -1535,81 +1555,6 @@ with tab_batch:
             } for l in deleted_logs]), use_container_width=True)
         else:
             st.info("No deleted batches history found.")
-
-# -------------------------------------------------------
-# TAB 7: Policies & Docs
-# -------------------------------------------------------
-with tab_docs:
-    st.subheader("📚 University Financial Policies & Documents")
-    doc_action = st.radio("Action: ", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
-
-    if doc_action == "📂 View & Download":
-        available_doc_years = [y[0] for y in session.query(PolicyDocument.academic_year).distinct().all()]
-        # تقدر تمسح السطرين دول لو مش عاوز تثبت سنين معينة في الفلتر
-        if "2022/2023" not in available_doc_years: available_doc_years.append("2022/2023")
-        if "2025/2026" not in available_doc_years: available_doc_years.append("2025/2026")
-            
-        sel_doc_year = st.selectbox("Filter by Academic Year:", sorted(set(available_doc_years), reverse=True))
-        st.markdown("### 🗄️ Original Uploaded PDF Files")
-        docs = session.query(PolicyDocument).filter_by(academic_year=sel_doc_year).order_by(PolicyDocument.uploaded_at.desc()).all()
-        
-        if docs:
-            for doc in docs:
-                with st.container():
-                    c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
-                    c1.markdown(f"📄 **{doc.title}** <br><small>Uploaded by {doc.uploaded_by} on {doc.uploaded_at.strftime('%Y-%m-%d')}</small>", unsafe_allow_html=True)
-                    
-                    if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
-                        st.session_state['view_doc_id'] = doc.id
-                        
-                    c3.download_button("⬇️ Download PDF", data=doc.file_data, file_name=doc.file_name, mime="application/pdf", key=f"dl_{doc.id}")
-                    
-                    if st.session_state.get('logged_in_user') == 'fin_admin':
-                        if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
-                            session.delete(doc)
-                            session.commit()
-                            st.rerun()
-                    else:
-                        c4.write(" ") 
-                        
-            st.markdown("---")
-            if st.session_state.get('view_doc_id'):
-                doc_to_view = session.query(PolicyDocument).get(st.session_state['view_doc_id'])
-                if doc_to_view: 
-                    st.markdown(f"### 👀 Viewing PDF: {doc_to_view.title}")
-                    if st.button("❌ Close Document Reader"):
-                        st.session_state['view_doc_id'] = None
-                        st.rerun()
-                    st.markdown(f'<iframe src="data:application/pdf;base64,{base64.b64encode(doc_to_view.file_data).decode("utf-8")}" width="100%" height="800" type="application/pdf"></iframe>', unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ No original PDF document has been uploaded for this academic year yet.")
-
-    elif doc_action == "📤 Upload New Document (Admin Only)":
-        if st.session_state.get('logged_in_user') == 'fin_admin':
-            with st.form("upload_doc_form", clear_on_submit=True):
-                doc_title = st.text_input("Document Title *", placeholder="e.g., Financial Policy 2025/2026")
-                year_options = [f"{y}/{y+1}" for y in range(2020, 2030)]
-                doc_year = st.selectbox("Academic Year *", year_options, index=5) 
-                doc_file = st.file_uploader("Select PDF File *", type=['pdf'])
-                
-                if st.form_submit_button("📤 Upload Document"):
-                    if not doc_title or not doc_file:
-                        st.error("⚠️ Title and PDF file are required.")
-                    else:
-                        try:
-                            session.add(PolicyDocument(
-                                title=doc_title, academic_year=doc_year, 
-                                file_name=doc_file.name, file_data=doc_file.read(), 
-                                uploaded_by=st.session_state.get('logged_in_user')
-                            ))
-                            session.commit()
-                            st.session_state['flash_msg'] = f"✅ Document uploaded!"
-                            st.rerun()
-                        except Exception as e:
-                            session.rollback()
-                            st.error(f"❌ Upload failed: {e}")
-        else:
-            st.error("🔒 **Access Denied**")
             
 # -------------------------------------------------------
 # TAB 8: Management Reports
