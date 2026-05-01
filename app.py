@@ -380,12 +380,13 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
     return bytes(pdf.output())
 
 # =======================================================
-# 7. Main UI Layout
+# 7. Main UI Layout & Professional CSS
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
+
 st.markdown("""
     <style>
-    /* تحسين شكل التابات */
+    /* 1. تنسيق التابات العلوية لجعلها واضحة واحترافية */
     .stTabs [data-baseweb="tab-list"] {
         gap: 10px;
     }
@@ -396,14 +397,30 @@ st.markdown("""
         padding: 8px 16px;
         color: #555;
         border: 1px solid #eee;
+        transition: all 0.3s;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #3498db !important;
+        background-color: #004a99 !important; /* لون أزرق جامعة النيل */
         color: white !important;
-        border-bottom: 2px solid #2980b9;
+        border-bottom: 2px solid #ffc107; /* خط أصفر تحت التاب النشط */
+    }
+
+    /* 2. تنسيق كروت الداشبورد الجديدة (Metrics) */
+    [data-testid="stMetricValue"] {
+        font-size: 28px !important;
+        color: #004a99 !important;
+        font-weight: bold;
+    }
+    [data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #e6e9ef;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border-top: 5px solid #004a99; /* شريط ملون فوق كل كارت */
     }
     
-    /* تحسين شكل الأزرار */
+    /* 3. تحسين شكل الأزرار */
     .stButton>button {
         border-radius: 8px;
         border: none;
@@ -412,9 +429,11 @@ st.markdown("""
     .stButton>button:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        background-color: #004a99;
+        color: white;
     }
     
-    /* تنعيم شكل الـ Expanders */
+    /* 4. تنعيم شكل الـ Expanders */
     .styled-expander {
         border: 1px solid #e6e9ef;
         border-radius: 10px;
@@ -422,20 +441,6 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
-
-hide_streamlit_style = """
-<style>
-#MainMenu {visibility: hidden !important;}
-footer {visibility: hidden !important;}
-header {visibility: hidden !important;}
-.stDeployButton {display:none !important;}
-[data-testid="stToolbar"] {visibility: hidden !important;}
-[data-testid="stHeader"] {visibility: hidden !important;}
-.st-emotion-cache-1kyxreq {display: none !important;}
-</style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
