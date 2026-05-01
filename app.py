@@ -132,7 +132,7 @@ class PolicyDocument(Base):
 
 Base.metadata.create_all(engine)
 
-# 💡 إنشاء الحسابات الافتراضية
+# إنشاء الحسابات الافتراضية
 with get_db() as db:
     if not db.query(SystemUser).first():
         db.add(SystemUser(username="fin_admin", password_hash=hash_pw("NU_2026"), role="Admin", is_active=True))
@@ -380,28 +380,66 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
     return bytes(pdf.output())
 
 # =======================================================
-# 7. Main UI Layout & Professional CSS
+# 7. Main UI Layout
 # =======================================================
+st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
 st.markdown("""
     <style>
-    /* تنسيق التابات - جعلها بسيطة وراقية */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
     .stTabs [data-baseweb="tab"] {
-        height: 45px; background-color: #f1f3f6; border-radius: 5px;
-        padding: 8px 16px; color: #444; border: none;
+        height: 45px;
+        background-color: #f8f9fa;
+        border-radius: 5px 5px 0px 0px;
+        padding: 8px 16px;
+        color: #555;
+        border: 1px solid #eee;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #004a99 !important; color: white !important;
+        background-color: #3498db !important;
+        color: white !important;
+        border-bottom: 2px solid #2980b9;
     }
-
-    /* كروت الأرقام - تصميم فلات (Flat) بدون زحمة */
-    [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
-    [data-testid="stMetric"] {
-        background-color: #ffffff; padding: 25px; border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
+    .stButton>button {
+        border-radius: 8px;
+        border: none;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .styled-expander {
+        border: 1px solid #e6e9ef;
+        border-radius: 10px;
+        padding: 5px;
+    }
+    /* Dashboard KPI Cards */
+    .kpi-card {
+        padding: 18px 20px;
+        border-radius: 12px;
+        height: 110px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
     </style>
 """, unsafe_allow_html=True)
+
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+header {visibility: hidden !important;}
+.stDeployButton {display:none !important;}
+[data-testid="stToolbar"] {visibility: hidden !important;}
+[data-testid="stHeader"] {visibility: hidden !important;}
+.st-emotion-cache-1kyxreq {display: none !important;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
@@ -421,66 +459,232 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_dash, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
-    "🏠 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
+# ترتيب التابات - Dashboard أول تاب
+tab_dashboard, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
+    "📊 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
     "📤 Bulk Financials", "🎓 Scholarships", "🗑️ Batch Management", "📚 Policies & Docs", "📈 Reports", "⚙️ System Admin"
 ])
+
 # -------------------------------------------------------
-# 🏠 NEW TAB: Dashboard (The Financial Engine)
+# TAB DASHBOARD: الداشبورد الرئيسي (أول تاب)
 # -------------------------------------------------------
-with tab_dash:
+with tab_dashboard:
+    st.markdown("## 📊 Financial Overview Dashboard")
+    st.markdown("*نظرة شاملة على الأداء المالي للجامعة*")
     
-    # صف الفلاتر الثلاثية
-    c_f1, c_f2, c_f3 = st.columns(3)
-    filter_college = c_f1.selectbox("Filter by College:", ["All Colleges"] + VALID_COLLEGES)
-    filter_term = c_f2.selectbox("Filter by Term:", ["All Terms"] + VALID_TERMS)
-    filter_year = c_f3.selectbox("Filter by Year:", ["All Years"] + [str(y) for y in available_years])
-
-    with get_db() as db:
-        # الربط (Join) مهم جداً عشان نقدر نفلتر بالكلية (موجودة في Student) والعمليات (موجودة في Transaction)
-        base_query = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
-
-        # تطبيق الفلاتر
-        if filter_college != "All Colleges":
-            base_query = base_query.filter(Student.college == filter_college)
-        if filter_term != "All Terms":
-            base_query = base_query.filter(Transaction.term == filter_term)
-        if filter_year != "All Years":
-            base_query = base_query.filter(Transaction.academic_year == int(filter_year))
-
-        # الحسابات المالية الدقيقة
-        # 1. إجمالي المحصل (Payments)
-        total_collected = base_query.filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
-        
-        # 2. إجمالي الفواتير (Gross Invoices)
-        total_invoiced = base_query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees'])).with_entities(func.sum(Transaction.debit)).scalar() or 0.0
-        
-        # 3. إجمالي المنح (Discounts)
-        total_discounts = base_query.filter(Transaction.transaction_type == 'Discount').with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
-        
-        # 4. صافي المديونية (Net Balance)
-        net_outstanding = base_query.with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
-
-    # العرض في كروت ملونة
-    m1, m2, m3, m4 = st.columns(4)
-    m3.metric("💰 Total Collected", f"{total_collected:,.0f} EGP")
-    m1.metric("📝 Gross Tuition", f"{total_invoiced:,.0f} EGP")
-    m2.metric("🎓 Total Discounts", f"{total_discounts:,.0f} EGP")
-    m4.metric("⚖️ Net Outstanding", f"{net_outstanding:,.0f} EGP", delta_color="inverse")
+    # --- فلاتر الداشبورد ---
+    st.markdown("#### 🛠️ Dashboard Filters")
+    dash_f1, dash_f2, dash_f3 = st.columns(3)
+    dash_filter_term    = dash_f1.selectbox("Filter by Term:", ["All Terms"] + VALID_TERMS, key="dash_term")
+    dash_filter_year    = dash_f2.selectbox("Filter by Year:", ["All Years"] + [str(y) for y in available_years], key="dash_year")
+    dash_filter_college = dash_f3.selectbox("Filter by College:", ["All Colleges"] + all_colleges, key="dash_college")
 
     st.markdown("---")
-    # إحصائية إضافية للطلاب النشطين بناءً على الفلتر
+
     with get_db() as db:
-        active_q = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
-        if filter_term != "All Terms": active_q = active_q.filter(StudentStatus.term == filter_term)
-        if filter_year != "All Years": active_q = active_q.filter(StudentStatus.academic_year == int(filter_year))
-        active_count = active_q.distinct(StudentStatus.student_id).count()
-        
+        # --- بناء الاستعلامات ---
+        revenue_q   = db.query(func.sum(Transaction.debit)).join(Student, Transaction.student_id == Student.id)
+        discount_q  = db.query(func.sum(Transaction.credit - Transaction.debit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
+        payment_q   = db.query(func.sum(Transaction.credit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments']))
+        collected_q = db.query(func.sum(Transaction.credit)).join(Student, Transaction.student_id == Student.id)
+        status_q    = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
+        student_q   = db.query(Student)
+
+        # تطبيق فلتر الترم
+        if dash_filter_term != "All Terms":
+            revenue_q   = revenue_q.filter(Transaction.term == dash_filter_term)
+            discount_q  = discount_q.filter(Transaction.term == dash_filter_term)
+            payment_q   = payment_q.filter(Transaction.term == dash_filter_term)
+            collected_q = collected_q.filter(Transaction.term == dash_filter_term)
+            status_q    = status_q.filter(StudentStatus.term == dash_filter_term)
+
+        # تطبيق فلتر السنة
+        if dash_filter_year != "All Years":
+            yr_int = int(dash_filter_year)
+            revenue_q   = revenue_q.filter(Transaction.academic_year == yr_int)
+            discount_q  = discount_q.filter(Transaction.academic_year == yr_int)
+            payment_q   = payment_q.filter(Transaction.academic_year == yr_int)
+            collected_q = collected_q.filter(Transaction.academic_year == yr_int)
+            status_q    = status_q.filter(StudentStatus.academic_year == yr_int)
+
+        # تطبيق فلتر الكلية
+        if dash_filter_college != "All Colleges":
+            revenue_q   = revenue_q.filter(Student.college == dash_filter_college)
+            discount_q  = discount_q.filter(Student.college == dash_filter_college)
+            payment_q   = payment_q.filter(Student.college == dash_filter_college)
+            collected_q = collected_q.filter(Student.college == dash_filter_college)
+            student_q   = student_q.filter(Student.college == dash_filter_college)
+            # للـ active count نحتاج نفلتر بالكلية عن طريق join
+            active_ids_by_college = [s.id for s in student_q.all()]
+            if active_ids_by_college:
+                status_q = status_q.filter(StudentStatus.student_id.in_(active_ids_by_college))
+            else:
+                status_q = status_q.filter(StudentStatus.student_id == -1)  # لا نتائج
+
+        # تنفيذ الاستعلامات
+        total_revenue   = revenue_q.scalar() or 0.0
+        total_discounts = discount_q.scalar() or 0.0
+        total_payments  = payment_q.scalar() or 0.0
+        total_collected = collected_q.scalar() or 0.0
+        net_balance     = total_revenue - total_collected   # صافي المستحق
+        total_students  = student_q.count()
+        active_count    = status_q.distinct(StudentStatus.student_id).count()
+
+    # --- عرض الكروت الرئيسية (صف أول) ---
+    st.markdown("### 💰 Financial Summary")
+    kpi1, kpi2, kpi3 = st.columns(3)
+
+    with kpi1:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #1a73e8, #0d47a1); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">📈 إجمالي الإيرادات (Gross Revenue)</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_revenue:,.0f}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi2:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #e53935, #b71c1c); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">🎓 إجمالي الخصومات (Scholarships)</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_discounts:,.0f}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi3:
+        net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
+        net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">⚖️ صافي المستحق (Net Balance Due)</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{net_balance:,.0f}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- صف ثاني من الكروت ---
+    kpi4, kpi5, kpi6 = st.columns(3)
+
+    with kpi4:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #00897b, #004d40); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">💳 إجمالي المحصل (Total Payments)</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_payments:,.0f}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">EGP</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi5:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #5e35b1, #311b92); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">👥 إجمالي الطلاب المسجلين</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_students:,}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">Student</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi6:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #f57c00, #e65100); padding: 20px; border-radius: 14px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">✅ الطلاب النشطين (Active Students)</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{active_count:,}</h2>
+                <p style="margin: 0; font-size: 12px; opacity: 0.75;">Student</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # --- ملخص مالي تفصيلي بالجدول ---
+    st.markdown("### 📋 Revenue Breakdown by College")
+    with get_db() as db:
+        college_sql = text("""
+            SELECT 
+                s.college AS "College",
+                COUNT(DISTINCT s.id) AS "Students",
+                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed (EGP)",
+                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount','Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "Discounts (EGP)",
+                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt','Bulk Payments') THEN t.credit ELSE 0 END), 0) AS "Payments (EGP)",
+                COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Net Balance (EGP)"
+            FROM students s
+            LEFT JOIN transactions t ON s.id = t.student_id
+                AND (:term_filter = 'All Terms' OR t.term = :term_filter)
+                AND (:year_filter = 'All Years' OR t.academic_year = :year_val)
+            WHERE (:college_filter = 'All Colleges' OR s.college = :college_filter)
+            GROUP BY s.college
+            ORDER BY s.college
+        """)
+        df_college = pd.read_sql(college_sql, con=engine, params={
+            "term_filter": dash_filter_term,
+            "year_filter": dash_filter_year,
+            "year_val": int(dash_filter_year) if dash_filter_year != "All Years" else 0,
+            "college_filter": dash_filter_college
+        })
+
+        if not df_college.empty:
+            # إضافة صف المجموع
+            totals_row = {
+                "College": "🔢 TOTAL",
+                "Students": df_college["Students"].sum(),
+                "Tuition Billed (EGP)": df_college["Tuition Billed (EGP)"].sum(),
+                "Discounts (EGP)": df_college["Discounts (EGP)"].sum(),
+                "Payments (EGP)": df_college["Payments (EGP)"].sum(),
+                "Net Balance (EGP)": df_college["Net Balance (EGP)"].sum()
+            }
+            df_college_display = pd.concat([df_college, pd.DataFrame([totals_row])], ignore_index=True)
+
+            st.dataframe(
+                df_college_display.style.format({
+                    "Tuition Billed (EGP)": "{:,.2f}",
+                    "Discounts (EGP)": "{:,.2f}",
+                    "Payments (EGP)": "{:,.2f}",
+                    "Net Balance (EGP)": "{:,.2f}"
+                }).apply(lambda x: ['font-weight: bold; background-color: #f0f4ff' if x.name == len(df_college_display)-1 else '' for _ in x], axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # زر تنزيل تقرير الكليات
+            buf_dash = io.BytesIO()
+            df_college.to_excel(buf_dash, index=False)
+            st.download_button(
+                label="📗 Download College Report (Excel)",
+                data=buf_dash.getvalue(),
+                file_name=f"Dashboard_Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                use_container_width=False
+            )
+        else:
+            st.info("⚠️ No financial data found for the selected filters.")
+
+    st.markdown("---")
+
+    # --- نسبة الخصومات للإيرادات ---
+    if total_revenue > 0:
+        discount_pct = (total_discounts / total_revenue) * 100
+        collection_pct = (total_payments / total_revenue) * 100 if total_revenue > 0 else 0
+
+        st.markdown("### 📐 Key Ratios")
+        ratio1, ratio2 = st.columns(2)
+        with ratio1:
+            st.metric(
+                label="🎓 Discount Rate (Scholarships / Gross Revenue)",
+                value=f"{discount_pct:.1f}%",
+                delta=f"{total_discounts:,.0f} EGP in discounts"
+            )
+        with ratio2:
+            st.metric(
+                label="💳 Collection Rate (Payments / Gross Revenue)",
+                value=f"{collection_pct:.1f}%",
+                delta=f"{total_payments:,.0f} EGP collected"
+            )
+
 # -------------------------------------------------------
-# TAB 0: Student Lookup
+# TAB 1: Student Lookup
 # -------------------------------------------------------
 with tab_search:
-    
     st.subheader("🔍 Student Data Explorer")
 
     if 'lookup_id' not in st.session_state:
@@ -517,7 +721,6 @@ with tab_search:
                 st.markdown("---")
                 st.subheader("📌 Academic Status (Term-Based)")
                 
-                # 1. تعريف دالة التلوين (الجديدة)
                 def color_status(val):
                     color_map = {
                         'Active': 'background-color: #d4edda; color: #155724; font-weight: bold; border-radius: 5px;',
@@ -528,7 +731,6 @@ with tab_search:
                     }
                     return color_map.get(val, '')
 
-                # 2. جلب البيانات من الداتا بيز
                 student_statuses = db.query(StudentStatus).filter_by(student_id=search_lookup_id).order_by(StudentStatus.academic_year.desc(), StudentStatus.term).all()
                 
                 if student_statuses:
@@ -538,7 +740,6 @@ with tab_search:
                         "Status": st_stat.status
                     } for st_stat in student_statuses])
                     
-                    # 3. عرض الجدول مع تطبيق الستايل الملون (تعديل بسيط هنا لضمان عملها مع النسخ الجديدة)
                     st.dataframe(
                         df_statuses.style.map(color_status, subset=['Status']), 
                         use_container_width=True, 
@@ -634,7 +835,6 @@ with tab_search:
                 st.warning("⚠️ No student found with this ID.")
 
     st.markdown("---")
-    # 💡 وضعنا كل العملية داخل Expander رئيسي لتقليل الزحمة في الصفحة
     with st.expander("📤 **Bulk Student Status Management**", expanded=False):
         st.subheader("Bulk Academic Status Update")
         st.markdown("💡 *Upload an Excel file to update the status of multiple students.*")
@@ -644,7 +844,6 @@ with tab_search:
         for i, stat in enumerate(VALID_STATUSES):
             cols[i].code(stat, language="text")
 
-        # هنا يبدأ الجزء اللي كان موجود أصلاً بس بقى "محمي" جوه الـ Expander
         stat_template = {
             "Student ID": 26100123, 
             "Term": VALID_TERMS[1], 
@@ -693,8 +892,8 @@ with tab_search:
                     if failed_records:
                         st.error(f"⚠️ {len(failed_records)} records failed.")
                         st.dataframe(pd.DataFrame(failed_records), use_container_width=True)
+
     st.markdown("---")
-    # 💡 وضعنا عملية التصدير داخل Expander للحفاظ على نظافة الواجهة
     with st.expander("📥 **Student Data Export**", expanded=False):
         st.subheader("Export Master Data")
         st.markdown("💡 *Generate a full Excel backup of all students currently registered in the system.*")
@@ -721,7 +920,7 @@ with tab_search:
                 )
 
 # -------------------------------------------------------
-# TAB 0.5: Registration
+# TAB 2: Registration
 # -------------------------------------------------------
 with tab_reg:
     st.subheader("👤 New Student Registration")
@@ -837,7 +1036,7 @@ with tab_reg:
                             st.download_button(label="⬇️ Download Error Report", data=buf_err.getvalue(), file_name=f"Failed_Registrations_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", use_container_width=True)
 
 # -------------------------------------------------------
-# TAB 1: Manual Operations
+# TAB 3: Manual Operations
 # -------------------------------------------------------
 with tab1:
     st.subheader("Post Manual Transaction")
@@ -928,8 +1127,9 @@ with tab1:
                             auto_info = f" + {len(extra_txs)} auto discount(s)" if extra_txs else ""
                             st.session_state['flash_msg'] = f"✅ Posted: {new_tx.reference_no} for {s_d.name}{auto_info}!"
                             st.rerun()
+
 # -------------------------------------------------------
-# TAB 2: Transaction Search & Statement
+# TAB 4: Transaction Search & Statement
 # -------------------------------------------------------
 with tab2:
     st.subheader("Transaction Search & Statement of Account")
@@ -1030,7 +1230,7 @@ with tab2:
                     st.warning("⚠️ No transactions found matching these criteria.")
 
 # -------------------------------------------------------
-# TAB 3: Bulk Financial Operations
+# TAB 5: Bulk Financial Operations
 # -------------------------------------------------------
 with tab3:
     st.subheader("Bulk Financial Operations")
@@ -1482,7 +1682,7 @@ with tab_sch:
                         st.info("⚠️ No scholarships configured.")
 
 # -------------------------------------------------------
-# TAB 5: Batch Management
+# TAB: Batch Management
 # -------------------------------------------------------
 with tab_batch:
     st.subheader("🗑️ Batch Management")
@@ -1596,7 +1796,7 @@ with tab_batch:
                 st.info("No deleted batches history found.")
 
 # -------------------------------------------------------
-# TAB 7: Policies & Docs
+# TAB: Policies & Docs
 # -------------------------------------------------------
 with tab_docs:
     st.subheader("📚 University Financial Policies & Documents")
@@ -1672,7 +1872,7 @@ with tab_docs:
             st.error("🔒 **Access Denied**: Only Admins can upload policies.")
 
 # -------------------------------------------------------
-# TAB 8: Management Reports
+# TAB: Management Reports
 # -------------------------------------------------------
 with tab4:
     st.subheader("📈 Financial Management Reports")
@@ -1847,7 +2047,7 @@ with tab4:
                 )
 
 # -------------------------------------------------------
-# TAB 9: System Admin (Users & Roles)
+# TAB: System Admin (Users & Roles)
 # -------------------------------------------------------
 with tab_admin:
     st.subheader("⚙️ System Administration & Access Control")
@@ -1897,4 +2097,4 @@ with tab_admin:
                             ))
                             db.commit()
                             st.success(f"✅ User '{n_user}' created successfully with role '{n_role}'!")
-                            st.rerun()                            
+                            st.rerun()
