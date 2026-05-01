@@ -12,7 +12,7 @@ import io
 from contextlib import contextmanager
 
 # =======================================================
-# 🌟 1. Centralized System Configuration (Improvement #4)
+# 1. Centralized System Configuration
 # =======================================================
 VALID_TERMS = ["Fall", "Spring", "Summer"]
 VALID_STATUSES = ["Active", "Inactive", "Graduated", "Program Withdraw", "Semester Withdraw"]
@@ -20,7 +20,7 @@ VALID_COLLEGES = ["ENG", "BBA", "IT_CS", "BIO_TECH"]
 DEFAULT_YEAR = 2026
 
 # =======================================================
-# 🧠 2. Database Configuration & Connection (Improvement #1)
+# 2. Database Configuration & Connection 
 # =======================================================
 DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
 
@@ -32,7 +32,6 @@ engine = get_db_engine()
 Base = declarative_base()
 SessionLocal = sessionmaker(bind=engine)
 
-# 💡 دالة الأمان لفتح وقفل الاتصال بقاعدة البيانات لمنع التهنيج
 @contextmanager
 def get_db():
     db = SessionLocal()
@@ -42,7 +41,7 @@ def get_db():
         db.close()
 
 # =======================================================
-# 📊 3. Database Models
+# 3. Database Models
 # =======================================================
 class Student(Base):
     __tablename__ = 'students'
@@ -135,7 +134,7 @@ except:
     sch_map, all_colleges, available_years = {}, [], [DEFAULT_YEAR]
 
 # =======================================================
-# ⚙️ 4. Core Helper Functions
+# 4. Core Helper Functions
 # =======================================================
 def get_student_scholarships(db_session, student_id, term, academic_year):
     results = (
@@ -248,7 +247,7 @@ def enforce_scholarship_cap(db_session, student_id, term, academic_year):
     return deactivated_names
 
 # =======================================================
-# 🔐 5. Authentication & Helper Functions
+# 5. Authentication 
 # =======================================================
 USERS = st.secrets.get("USERS", {"abdo_finance": "Finance2026", "fin_admin": "NU_2026"})
 
@@ -282,7 +281,7 @@ def get_next_ref_sequence(db_session):
     return max_seq
 
 # =======================================================
-# 📄 6. PDF Generator
+# 6. PDF Generator
 # =======================================================
 class PDFStatement(FPDF):
     def footer(self):
@@ -334,7 +333,7 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
     return bytes(pdf.output())
 
 # =======================================================
-# 💻 7. Main UI Layout
+# 7. Main UI Layout
 # =======================================================
 st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
 
@@ -631,132 +630,6 @@ with tab_reg:
                         st.download_button(label="⬇️ Download Error Report", data=buf_err.getvalue(), file_name=f"Failed_Registrations_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", use_container_width=True)
 
 # -------------------------------------------------------
-# TAB 1: Manual Operations
-# -------------------------------------------------------
-with tab1:
-    st.subheader("Post Manual Transaction")
-    a_t = st.selectbox("Select Action Type", ["Payment Receipt", "Credit Hours Adjustment", "Other Fees", "General Adjustment"], index=0)
-    
-    with st.form(f"manual_tx_form_{a_t}", clear_on_submit=True):
-        sid_raw = st.text_input("Student ID", placeholder="Enter ID (e.g., 18100523)...")
-        c1, c2, c3 = st.columns(3)
-        ed = c1.date_input("Date")
-        et = c2.selectbox("Term", VALID_TERMS)
-        ey = c3.number_input("Year", value=DEFAULT_YEAR)
-
-        if a_t == "Payment Receipt":
-            b_n = st.text_input("Bank Name")
-            b_r = st.text_input("Ref No")
-            amt = st.number_input("Amount Paid", min_value=0.0)
-        elif a_t == "Credit Hours Adjustment":
-            h = st.number_input("Hours Delta (+/-)")
-            st.info("💡 Note: System will automatically calculate and apply/revert scholarships based on the student's active configuration for this term.")
-        elif a_t == "Other Fees":
-            amt = st.number_input("Fee Amount")
-            dsc_input = st.text_input("Description")
-        elif a_t == "General Adjustment":
-            col_ga1, col_ga2 = st.columns(2)
-            dr_input = col_ga1.number_input("Debit Amount (EGP)", min_value=0.0)
-            cr_input = col_ga2.number_input("Credit Amount (EGP)", min_value=0.0)
-            dsc_input = st.text_input("Description")
-
-        if st.form_submit_button("🚀 Process Transaction"):
-            sid = int(sid_raw) if sid_raw.strip().isdigit() else 0
-            if sid == 0: st.error("Please enter a valid Student ID.")
-            else:
-                with get_db() as db:
-                    s_d = db.query(Student).filter_by(id=sid).first()
-                    if not s_d: st.error("Student ID not found! Please register the student first.")
-                    else:
-                        rate = s_d.price_per_hr if s_d else 0.0
-                        dr, cr, dsc, pfx, h_change, extra_txs = 0.0, 0.0, "", "TX", 0.0, []
-                        m_id = get_next_ref_sequence(db)
-
-                        if a_t == "Payment Receipt": pfx, cr, dsc = "PAY", amt, f"Bank: {b_n} | Ref: {b_r}"
-                        elif a_t == "Credit Hours Adjustment":
-                            pfx, val, dsc, h_change = "ADJ", abs(h * rate), f"Adj: {h} CH @ {rate:,.2f}", h
-                            dr = val if h > 0 else 0
-                            cr = val if h < 0 else 0
-                            extra_txs = build_auto_discount_transactions(db, student_id=sid, gross_amount=val, term=et, academic_year=int(ey), entry_date=ed, ref_start=m_id + 2, batch_id=None)
-                            if h < 0:
-                                for t in extra_txs: t.debit, t.credit = t.credit, t.debit
-                        elif a_t == "Other Fees": pfx, dr, dsc = "INV", amt, dsc_input
-                        elif a_t == "General Adjustment": pfx, dr, cr, dsc = "TXN", dr_input, cr_input, dsc_input
-
-                        new_tx = Transaction(reference_no=f"{pfx}-{m_id+1:06d}", student_id=sid, scholarship_type_id=None, transaction_type=a_t, description=dsc, debit=dr, credit=cr, hours_change=h_change, entry_date=ed, term=et, academic_year=ey)
-                        db.add(new_tx)
-                        for t in extra_txs: db.add(t)
-                        db.commit()
-                        auto_info = f" + {len(extra_txs)} auto discount(s)" if extra_txs else ""
-                        st.session_state['flash_msg'] = f"✅ Posted: {new_tx.reference_no} for {s_d.name}{auto_info}!"
-                        st.rerun()
-
-# -------------------------------------------------------
-# TAB 2: Transaction Search & Statement
-# -------------------------------------------------------
-with tab2:
-    st.subheader("Transaction Search & Statement of Account")
-    st.markdown("💡 Leave Student ID blank and enter a Bank Ref or System Ref to search globally.")
-    
-    if 'stmt_search_params' not in st.session_state: st.session_state['stmt_search_params'] = None
-
-    with st.form("stmt_search_form", clear_on_submit=False):
-        col_t1, col_t2, col_t3 = st.columns(3)
-        search_r = col_t1.text_input("Student ID", placeholder="e.g., 25100120")
-        sys_ref_search = col_t2.text_input("System Ref No", placeholder="e.g., INV-004751")
-        bank_ref_search = col_t3.text_input("Bank Ref / Description", placeholder="e.g., 12345 or CIB")
-        
-        f1, f2, f3 = st.columns(3)
-        df_r = f1.date_input("Date Range", [])
-        s_t = f2.multiselect("Terms", VALID_TERMS)
-        s_y = f3.multiselect("Years", available_years)
-        
-        if st.form_submit_button("🔍 Search Transactions"):
-            st.session_state['stmt_search_params'] = {'sid': int(search_r) if search_r.strip().isdigit() else 0, 'sys': sys_ref_search, 'bank': bank_ref_search, 'dates': df_r, 'terms': s_t, 'years': s_y}
-
-    if st.session_state.get('stmt_search_params'):
-        p = st.session_state['stmt_search_params']
-        if p['sid'] > 0 or p['sys'] or p['bank'] or len(p['dates']) == 2 or p['terms'] or p['years']:
-            with get_db() as db:
-                q = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
-                if p['sid'] > 0: q = q.filter(Transaction.student_id == p['sid'])
-                if p['sys']: q = q.filter(Transaction.reference_no.ilike(f"%{p['sys']}%"))
-                if p['bank']: q = q.filter(Transaction.description.ilike(f"%{p['bank']}%"))
-                if len(p['dates']) == 2: q = q.filter(Transaction.entry_date.between(p['dates'][0], p['dates'][1]))
-                if p['terms']: q = q.filter(Transaction.term.in_(p['terms']))
-                if p['years']: q = q.filter(Transaction.academic_year.in_(p['years']))
-
-                res = q.order_by(Transaction.entry_date.desc()).limit(5000).all()
-                
-                if res:
-                    df_display = pd.DataFrame([{"Student ID": s.id, "Name": s.name, "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, "Year": t.academic_year, "Type": t.transaction_type, "Description": t.description, "Debit": f"{t.debit:,.2f}", "Credit": f"{t.credit:,.2f}"} for t, s in res])
-                    st.table(df_display)
-
-                    if p['sid'] > 0:
-                        total_debit = sum(t.debit for t, s in res)
-                        total_credit = sum(t.credit for t, s in res)
-                        net = total_debit - total_credit
-                        
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Total Debit", f"{total_debit:,.2f} EGP")
-                        m2.metric("Total Credit", f"{total_credit:,.2f} EGP")
-                        m3.metric("Net Balance Due", f"{net:,.2f} EGP")
-                        
-                        df_pdf = pd.DataFrame([{"Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, "Year": t.academic_year, "Type": t.transaction_type, "Description": t.description, "Debit": f"{t.debit:,.2f}", "Credit": f"{t.credit:,.2f}"} for t, s in res])
-                        
-                        b1, b2 = st.columns(2)
-                        with b1:
-                            student_name = res[0][1].name
-                            pdf_data = create_pdf(p['sid'], student_name, df_pdf, net, total_debit, total_credit)
-                            st.download_button(label="📄 Download PDF Statement", data=pdf_data, file_name=f"SOA_{p['sid']}.pdf", use_container_width=True)
-                        with b2:
-                            df_export = df_display.copy()
-                            df_export.loc[len(df_export)] = {"Student ID": "", "Name": "", "Ref No": "", "Date": "", "Term": "", "Year": "", "Type": "", "Description": "TOTALS", "Debit": f"{total_debit:,.2f}", "Credit": f"{total_credit:,.2f}"}
-                            excel_buf = io.BytesIO()
-                            df_export.to_excel(excel_buf, index=False)
-                            st.download_button(label="📗 Download Excel Sheet", data=excel_buf.getvalue(), file_name=f"SOA_{p['sid']}.xlsx", use_container_width=True)
-                else: st.warning("⚠️ No transactions found matching these criteria.")
-                # -------------------------------------------------------
 # TAB 1: Manual Operations
 # -------------------------------------------------------
 with tab1:
