@@ -455,73 +455,68 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
-    "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
-    "📤 Bulk Financials", "🎓 Scholarships", "🗑️ Batch Management", "📚 Policies & Docs", "📈 Reports", "⚙️ System Admin"
+# ضيف tab_dash في الأول
+tab_dash, tab_search, tab_reg, tab_ops, tab_stmt, tab_bulk, tab_sch, tab_batch, tab_docs, tab_rep, tab_admin = st.tabs([
+    "🏠 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", 
+    "📜 Statement & Search", "📤 Bulk Financials", "🎓 Scholarships", 
+    "🗑️ Batches", "📚 Policies", "📈 Reports", "⚙️ Admin"
 ])
+# -------------------------------------------------------
+# 🏠 NEW TAB: Dashboard (The Financial Engine)
+# -------------------------------------------------------
+with tab_dash:
+    st.subheader("📊 Financial Command Center")
+    
+    # صف الفلاتر الثلاثية
+    c_f1, c_f2, c_f3 = st.columns(3)
+    filter_college = c_f1.selectbox("Filter by College:", ["All Colleges"] + VALID_COLLEGES)
+    filter_term = c_f2.selectbox("Filter by Term:", ["All Terms"] + VALID_TERMS)
+    filter_year = c_f3.selectbox("Filter by Year:", ["All Years"] + [str(y) for y in available_years])
 
+    with get_db() as db:
+        # الربط (Join) مهم جداً عشان نقدر نفلتر بالكلية (موجودة في Student) والعمليات (موجودة في Transaction)
+        base_query = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
+
+        # تطبيق الفلاتر
+        if filter_college != "All Colleges":
+            base_query = base_query.filter(Student.college == filter_college)
+        if filter_term != "All Terms":
+            base_query = base_query.filter(Transaction.term == filter_term)
+        if filter_year != "All Years":
+            base_query = base_query.filter(Transaction.academic_year == int(filter_year))
+
+        # الحسابات المالية الدقيقة
+        # 1. إجمالي المحصل (Payments)
+        total_collected = base_query.filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        
+        # 2. إجمالي الفواتير (Gross Invoices)
+        total_invoiced = base_query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees'])).with_entities(func.sum(Transaction.debit)).scalar() or 0.0
+        
+        # 3. إجمالي المنح (Discounts)
+        total_discounts = base_query.filter(Transaction.transaction_type == 'Discount').with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        
+        # 4. صافي المديونية (Net Balance)
+        net_outstanding = base_query.with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
+
+    # العرض في كروت ملونة
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("💰 Total Collected", f"{total_collected:,.0f} EGP")
+    m2.metric("📝 Gross Invoiced", f"{total_invoiced:,.0f} EGP")
+    m3.metric("🎓 Total Discounts", f"{total_discounts:,.0f} EGP")
+    m4.metric("⚖️ Net Outstanding", f"{net_outstanding:,.0f} EGP", delta_color="inverse")
+
+    st.markdown("---")
+    # إحصائية إضافية للطلاب النشطين بناءً على الفلتر
+    with get_db() as db:
+        active_q = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
+        if filter_term != "All Terms": active_q = active_q.filter(StudentStatus.term == filter_term)
+        if filter_year != "All Years": active_q = active_q.filter(StudentStatus.academic_year == int(filter_year))
+        active_count = active_q.distinct(StudentStatus.student_id).count()
+        st.info(f"💡 Showing results for: **{filter_college}** | **{filter_term}** | **{filter_year}**. Active Students found: **{active_count}**")
 # -------------------------------------------------------
 # TAB 0: Student Lookup
 # -------------------------------------------------------
 with tab_search:
-    # --- قسم الفلاتر العلوية للـ Dashboard ---
-    st.markdown("#### 🛠️ Dashboard Filters")
-    c_f1, c_f2 = st.columns(2)
-    filter_term = c_f1.selectbox("Filter Dashboard by Term:", ["All Terms"] + VALID_TERMS)
-    filter_year = c_f2.selectbox("Filter Dashboard by Year:", ["All Years"] + [str(y) for y in available_years])
-
-    st.markdown("---")
-    # 📊 Dynamic Dashboard Section
-    with get_db() as db:
-        # بناء الاستعلامات الأساسية
-        student_query = db.query(Student)
-        collected_query = db.query(func.sum(Transaction.credit))
-        status_query = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
-
-        # تطبيق الفلاتر لو المستخدم اختار حاجة محددة
-        if filter_term != "All Terms":
-            collected_query = collected_query.filter(Transaction.term == filter_term)
-            status_query = status_query.filter(StudentStatus.term == filter_term)
-        
-        if filter_year != "All Years":
-            collected_query = collected_query.filter(Transaction.academic_year == int(filter_year))
-            status_query = status_query.filter(StudentStatus.academic_year == int(filter_year))
-
-        # تنفيذ الاستعلامات وجلب الأرقام
-        total_students = student_query.count() # الطلاب ثابتين (Master Data)
-        total_collected = collected_query.scalar() or 0.0
-        active_count = status_query.distinct(StudentStatus.student_id).count()
-
-    # عرض الأرقام في الكروت الملونة
-    dash_col1, dash_col2, dash_col3 = st.columns(3)
-    
-    with dash_col1:
-        st.markdown(f"""
-            <div style="background-color: #e3f2fd; padding: 20px; border-radius: 10px; border-left: 5px solid #2196f3; height: 120px;">
-                <p style="color: #0d47a1; margin: 0; font-weight: bold; font-size: 14px;">👥 Registered Students</p>
-                <h2 style="color: #0d47a1; margin: 10px 0;">{total_students:,}</h2>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with dash_col2:
-        # تلوين كارت التحصيل حسب الفلترة (تغيير بسيط في النص)
-        card_label = f"💰 Collected ({filter_term})" if filter_term != "All Terms" else "💰 Total Collected"
-        st.markdown(f"""
-            <div style="background-color: #e8f5e9; padding: 20px; border-radius: 10px; border-left: 5px solid #4caf50; height: 120px;">
-                <p style="color: #1b5e20; margin: 0; font-weight: bold; font-size: 14px;">{card_label}</p>
-                <h2 style="color: #1b5e20; margin: 10px 0;">{total_collected:,.0f} <span style="font-size: 15px;">EGP</span></h2>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with dash_col3:
-        st.markdown(f"""
-            <div style="background-color: #fff3e0; padding: 20px; border-radius: 10px; border-left: 5px solid #ff9800; height: 120px;">
-                <p style="color: #e65100; margin: 0; font-weight: bold; font-size: 14px;">✅ Active ({filter_term})</p>
-                <h2 style="color: #e65100; margin: 10px 0;">{active_count:,}</h2>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
     
     st.subheader("🔍 Student Data Explorer")
 
