@@ -1555,7 +1555,79 @@ with tab_batch:
             } for l in deleted_logs]), use_container_width=True)
         else:
             st.info("No deleted batches history found.")
+# -------------------------------------------------------
+# TAB 7: Policies & Docs
+# -------------------------------------------------------
+with tab_docs:
+    st.subheader("📚 University Financial Policies & Documents")
+    doc_action = st.radio("Action: ", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
+
+    if doc_action == "📂 View & Download":
+        available_doc_years = [y[0] for y in session.query(PolicyDocument.academic_year).distinct().all()]
+        if "2022/2023" not in available_doc_years: available_doc_years.append("2022/2023")
+        if "2025/2026" not in available_doc_years: available_doc_years.append("2025/2026")
             
+        sel_doc_year = st.selectbox("Filter by Academic Year:", sorted(set(available_doc_years), reverse=True))
+        st.markdown("### 🗄️ Original Uploaded PDF Files")
+        docs = session.query(PolicyDocument).filter_by(academic_year=sel_doc_year).order_by(PolicyDocument.uploaded_at.desc()).all()
+        
+        if docs:
+            for doc in docs:
+                with st.container():
+                    c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
+                    c1.markdown(f"📄 **{doc.title}** <br><small>Uploaded by {doc.uploaded_by} on {doc.uploaded_at.strftime('%Y-%m-%d')}</small>", unsafe_allow_html=True)
+                    
+                    if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
+                        st.session_state['view_doc_id'] = doc.id
+                        
+                    c3.download_button("⬇️ Download PDF", data=doc.file_data, file_name=doc.file_name, mime="application/pdf", key=f"dl_{doc.id}")
+                    
+                    if st.session_state.get('logged_in_user') == 'fin_admin':
+                        if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
+                            session.delete(doc)
+                            session.commit()
+                            st.rerun()
+                    else:
+                        c4.write(" ") 
+                        
+            st.markdown("---")
+            if st.session_state.get('view_doc_id'):
+                doc_to_view = session.query(PolicyDocument).get(st.session_state['view_doc_id'])
+                if doc_to_view: 
+                    st.markdown(f"### 👀 Viewing PDF: {doc_to_view.title}")
+                    if st.button("❌ Close Document Reader"):
+                        st.session_state['view_doc_id'] = None
+                        st.rerun()
+                    st.markdown(f'<iframe src="data:application/pdf;base64,{base64.b64encode(doc_to_view.file_data).decode("utf-8")}" width="100%" height="800" type="application/pdf"></iframe>', unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ No original PDF document has been uploaded for this academic year yet.")
+
+    elif doc_action == "📤 Upload New Document (Admin Only)":
+        if st.session_state.get('logged_in_user') == 'fin_admin':
+            with st.form("upload_doc_form", clear_on_submit=True):
+                doc_title = st.text_input("Document Title *", placeholder="e.g., Financial Policy 2025/2026")
+                year_options = [f"{y}/{y+1}" for y in range(2020, 2030)]
+                doc_year = st.selectbox("Academic Year *", year_options, index=5) 
+                doc_file = st.file_uploader("Select PDF File *", type=['pdf'])
+                
+                if st.form_submit_button("📤 Upload Document"):
+                    if not doc_title or not doc_file:
+                        st.error("⚠️ Title and PDF file are required.")
+                    else:
+                        try:
+                            session.add(PolicyDocument(
+                                title=doc_title, academic_year=doc_year, 
+                                file_name=doc_file.name, file_data=doc_file.read(), 
+                                uploaded_by=st.session_state.get('logged_in_user')
+                            ))
+                            session.commit()
+                            st.session_state['flash_msg'] = f"✅ Document uploaded!"
+                            st.rerun()
+                        except Exception as e:
+                            session.rollback()
+                            st.error(f"❌ Upload failed: {e}")
+        else:
+            st.error("🔒 **Access Denied**")            
 # -------------------------------------------------------
 # TAB 8: Management Reports
 # -------------------------------------------------------
