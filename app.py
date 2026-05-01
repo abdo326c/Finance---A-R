@@ -785,7 +785,7 @@ with tab_search:
                     else:
                         st.info("No active scholarships found for this student.")
 
-                st.markdown("---")
+            st.markdown("---")
                 if st.session_state.get('user_role') in ['Admin', 'Editor']:
                     edit_mode = st.toggle("🔓 Unlock Edit Mode")
                     if edit_mode:
