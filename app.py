@@ -563,8 +563,8 @@ with tab_dashboard:
     kpi4, kpi5, kpi6 = st.columns(3)
 
     with kpi4:
-         net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
-        net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
+             net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
+            net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
         st.markdown(f"""
             <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 14px; color: white; height: 120px;">
                 <p style="margin: 0; font-size: 13px; opacity: 0.85;">⚖️ Net Balance Due</p>
