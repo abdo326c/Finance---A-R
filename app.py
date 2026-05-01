@@ -382,62 +382,23 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
 # =======================================================
 # 7. Main UI Layout & Professional CSS
 # =======================================================
-st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
-
 st.markdown("""
     <style>
-    /* 1. تنسيق التابات العلوية لجعلها واضحة واحترافية */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
+    /* تنسيق التابات - جعلها بسيطة وراقية */
+    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: #f8f9fa;
-        border-radius: 5px 5px 0px 0px;
-        padding: 8px 16px;
-        color: #555;
-        border: 1px solid #eee;
-        transition: all 0.3s;
+        height: 45px; background-color: #f1f3f6; border-radius: 5px;
+        padding: 8px 16px; color: #444; border: none;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #004a99 !important; /* لون أزرق جامعة النيل */
-        color: white !important;
-        border-bottom: 2px solid #ffc107; /* خط أصفر تحت التاب النشط */
+        background-color: #004a99 !important; color: white !important;
     }
 
-    /* 2. تنسيق كروت الداشبورد الجديدة (Metrics) */
-    [data-testid="stMetricValue"] {
-        font-size: 28px !important;
-        color: #004a99 !important;
-        font-weight: bold;
-    }
+    /* كروت الأرقام - تصميم فلات (Flat) بدون زحمة */
+    [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
     [data-testid="stMetric"] {
-        background-color: #ffffff;
-        border: 1px solid #e6e9ef;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        border-top: 5px solid #004a99; /* شريط ملون فوق كل كارت */
-    }
-    
-    /* 3. تحسين شكل الأزرار */
-    .stButton>button {
-        border-radius: 8px;
-        border: none;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        background-color: #004a99;
-        color: white;
-    }
-    
-    /* 4. تنعيم شكل الـ Expanders */
-    .styled-expander {
-        border: 1px solid #e6e9ef;
-        border-radius: 10px;
-        padding: 5px;
+        background-color: #ffffff; padding: 25px; border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -468,7 +429,6 @@ tab_dash, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, t
 # 🏠 NEW TAB: Dashboard (The Financial Engine)
 # -------------------------------------------------------
 with tab_dash:
-    st.subheader("📊 Financial Command Center")
     
     # صف الفلاتر الثلاثية
     c_f1, c_f2, c_f3 = st.columns(3)
@@ -504,7 +464,7 @@ with tab_dash:
     # العرض في كروت ملونة
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("💰 Total Collected", f"{total_collected:,.0f} EGP")
-    m2.metric("📝 Gross Invoiced", f"{total_invoiced:,.0f} EGP")
+    m2.metric("📝 Gross Tuition", f"{total_invoiced:,.0f} EGP")
     m3.metric("🎓 Total Discounts", f"{total_discounts:,.0f} EGP")
     m4.metric("⚖️ Net Outstanding", f"{net_outstanding:,.0f} EGP", delta_color="inverse")
 
@@ -515,7 +475,7 @@ with tab_dash:
         if filter_term != "All Terms": active_q = active_q.filter(StudentStatus.term == filter_term)
         if filter_year != "All Years": active_q = active_q.filter(StudentStatus.academic_year == int(filter_year))
         active_count = active_q.distinct(StudentStatus.student_id).count()
-        st.info(f"💡 Showing results for: **{filter_college}** | **{filter_term}** | **{filter_year}**. Active Students found: **{active_count}**")
+        
 # -------------------------------------------------------
 # TAB 0: Student Lookup
 # -------------------------------------------------------
