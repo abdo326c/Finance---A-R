@@ -132,11 +132,27 @@ class PolicyDocument(Base):
 
 Base.metadata.create_all(engine)
 
-# إنشاء الحسابات الافتراضية
+# إنشاء الحسابات الافتراضية بأمان
 with get_db() as db:
     if not db.query(SystemUser).first():
-        db.add(SystemUser(username="fin_admin", password_hash=hash_pw("NU_2026"), role="Admin", is_active=True))
-        db.add(SystemUser(username="abdo_finance", password_hash=hash_pw("Finance2026"), role="Editor", is_active=True))
+        # قراءة بيانات الأدمن من Secrets
+        admin_info = st.secrets["admin_user"]
+        db.add(SystemUser(
+            username=admin_info["username"], 
+            password_hash=hash_pw(admin_info["password"]), 
+            role="Admin", 
+            is_active=True
+        ))
+        
+        # قراءة بيانات المحرر من Secrets
+        editor_info = st.secrets["editor_user"]
+        db.add(SystemUser(
+            username=editor_info["username"], 
+            password_hash=hash_pw(editor_info["password"]), 
+            role="Editor", 
+            is_active=True
+        ))
+        
         db.commit()
 
 @st.cache_data(ttl=3600)
