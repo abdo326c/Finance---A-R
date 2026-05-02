@@ -285,7 +285,7 @@ def enforce_scholarship_cap(db_session, student_id, term, academic_year):
     return deactivated_names
 
 # =======================================================
-# 5. Authentication & Helper Functions
+# 5. Authentication Setup
 # =======================================================
 if 'authenticated' not in st.session_state:
     st.session_state['authenticated'] = False
@@ -297,9 +297,11 @@ if 'sch_lookup_params' not in st.session_state:
     st.session_state['sch_lookup_params'] = None
 if 'view_doc_id' not in st.session_state:
     st.session_state['view_doc_id'] = None
+if 'lookup_id' not in st.session_state:
+    st.session_state['lookup_id'] = 0
 
 def login_form():
-    st.markdown("<h2 style='text-align: center;'>🔒 Nile University Finance Login</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🔒 Finance Login</h2>", unsafe_allow_html=True)
     with st.form("login_form"):
         user = st.text_input("Username")
         pwd = st.text_input("Password", type="password")
@@ -380,9 +382,9 @@ def create_pdf(sid, student_name, df, net_balance, total_debit, total_credit):
     return bytes(pdf.output())
 
 # =======================================================
-# 7. Main UI Layout
+# 7. Main UI Layout & Styling
 # =======================================================
-st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦")
+st.set_page_config(page_title="Finance A/R System", layout="wide", page_icon="🏦", initial_sidebar_state="expanded")
 st.markdown("""
     <style>
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
@@ -393,33 +395,19 @@ st.markdown("""
     .stTabs [aria-selected="true"] {
         background-color: #004a99 !important; color: white !important;
     }
-
     [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
     [data-testid="stMetric"] {
         background-color: #ffffff; padding: 25px; border-radius: 15px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
     }
     .stButton>button {
-        border-radius: 8px;
-        border: none;
-        transition: all 0.3s;
+        border-radius: 8px; border: none; transition: all 0.3s;
     }
     .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .styled-expander {
-        border: 1px solid #e6e9ef;
-        border-radius: 10px;
-        padding: 5px;
-    }
-    .kpi-card {
-        padding: 18px 20px;
-        border-radius: 12px;
-        height: 110px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+        border: 1px solid #e6e9ef; border-radius: 10px; padding: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -428,11 +416,42 @@ hide_streamlit_style = """
 <style>
 #MainMenu {visibility: hidden !important;}
 footer {visibility: hidden !important;}
-header {visibility: hidden !important;}
 .stDeployButton {display:none !important;}
-[data-testid="stToolbar"] {visibility: hidden !important;}
-[data-testid="stHeader"] {visibility: hidden !important;}
-.st-emotion-cache-1kyxreq {display: none !important;}
+
+/* 🔥 تقليل المساحة الفاضية فوق الهيدر 🔥 */
+.block-container {
+    padding-top: 2rem !important;
+    padding-bottom: 1rem !important;
+}
+
+/* --- Modern Sidebar Menu CSS --- */
+[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] > label {
+    padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
+    background-color: transparent; transition: all 0.2s ease;
+    cursor: pointer; font-weight: 500;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+    background-color: #f0f2f6; transform: translateX(4px);
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
+    background-color: #eaf1fa !important; 
+    color: #004a99 !important; 
+    font-weight: 700 !important; 
+    border-left: 4px solid #004a99 !important; 
+    border-radius: 0px 8px 8px 0px !important; 
+    padding: 8px 10px !important;
+    width: 100% !important; 
+}
+
+/* --- Metrics and Buttons CSS --- */
+[data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
+[data-testid="stMetric"] {
+    background-color: #ffffff; padding: 25px; border-radius: 15px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
+}
+.stButton>button { border-radius: 8px; border: none; transition: all 0.3s; }
+.stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -443,139 +462,155 @@ if not st.session_state['authenticated']:
 
 col_title, col_logout = st.columns([0.8, 0.2], vertical_alignment="center")
 with col_title:
-    st.title("🏦 Nile University - Finance A/R System")
-with col_logout:
-    if st.button("🚪 Log out", use_container_width=True, key="main_logout"):
-        st.session_state['authenticated'] = False
-        st.session_state['logged_in_user'] = None
-        st.session_state['user_role'] = None
-        st.rerun()
-
+    st.markdown("<h2 style='color: #1f2937; margin-bottom: -15px;'>🏦 Nile University - Finance A/R System</h2>", unsafe_allow_html=True)
+    
 st.markdown("---")
 if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_dashboard, tab2, tab4, tab_docs, tab_search, tab1, tab3, tab_sch, tab_reg, tab_batch, tab_admin = st.tabs([
-    "📊 Dashboard", "📜 Student Statement", "📈 Reports", "📚 Policies & Docs", 
-    "🔍 Student Lookup", "📊 Operations", "📤 Bulk Financials", "🎓 Scholarships", 
-    "👤 Registration", "🗑️ Batch Management", "⚙️ System Admin"
-])
-
-# -------------------------------------------------------
-# TAB DASHBOARD: الداشبورد الرئيسي (أول تاب)
-# -------------------------------------------------------
-with tab_dashboard:
+# =======================================================
+# 8. Sidebar Navigation (Modern UX)
+# =======================================================
+with st.sidebar:
+    st.markdown("<br>", unsafe_allow_html=True) # مسافة صغيرة تريح العين
     
+    # الراديو هيشتغل برمجياً عادي، بس الـ CSS هيعرضه كزراير احترافية
+    selected_tab = st.radio(
+        "Navigation", 
+        [
+            "📊 Dashboard", 
+            "📜 Student Statement", 
+            "📈 Reports", 
+            "📚 Policies & Docs", 
+            "🔍 Student Lookup", 
+            "📊 Operations", 
+            "📤 Bulk Financials", 
+            "🎓 Scholarships", 
+            "👤 Registration", 
+            "🗑️ Batch Management", 
+            "⚙️ System Admin"
+        ], 
+        label_visibility="collapsed" # إخفاء كلمة Navigation من فوق اللستة
+    )
+    
+    st.markdown("---")
+    st.caption(f"👤 Logged in as: **{st.session_state.get('logged_in_user', 'Unknown')}**")
+    # تم مسح سطر الـ Role من هنا لتنظيف الواجهة
+# زرار تسجيل الخروج
+    if st.button("🚪 Log out", use_container_width=True, key="sidebar_logout"):
+        st.session_state['authenticated'] = False
+        st.session_state['logged_in_user'] = None
+        st.session_state['user_role'] = None
+        st.rerun()
+# -------------------------------------------------------
+# TAB: Dashboard
+# -------------------------------------------------------
+if selected_tab == "📊 Dashboard":
     dash_f1, dash_f2, dash_f3 = st.columns(3)
     dash_filter_term    = dash_f1.selectbox("Filter by Term:", ["All Terms"] + VALID_TERMS, key="dash_term")
     dash_filter_year    = dash_f2.selectbox("Filter by Year:", ["All Years"] + [str(y) for y in available_years], key="dash_year")
-    dash_filter_college = dash_f3.selectbox("Filter by College:", ["All Colleges"] + all_colleges, key="dash_college")
+    dash_filter_college = dash_f3.selectbox("Filter by College:", ["All Colleges"] + VALID_COLLEGES, key="dash_college")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     with get_db() as db:
-        # --- 1. بناء الاستعلامات الأساسية ---
-        # استخدمنا base query واحد عشان الكود يكون أسرع وأنظف
-        tx_q = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
+        base_q = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
         status_q = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
         student_q = db.query(Student)
 
-        # --- 2. تطبيق الفلاتر ---
         if dash_filter_term != "All Terms":
-            tx_q = tx_q.filter(Transaction.term == dash_filter_term)
+            base_q = base_q.filter(Transaction.term == dash_filter_term)
             status_q = status_q.filter(StudentStatus.term == dash_filter_term)
 
         if dash_filter_year != "All Years":
             yr_int = int(dash_filter_year)
-            tx_q = tx_q.filter(Transaction.academic_year == yr_int)
+            base_q = base_q.filter(Transaction.academic_year == yr_int)
             status_q = status_q.filter(StudentStatus.academic_year == yr_int)
 
         if dash_filter_college != "All Colleges":
-            tx_q = tx_q.filter(Student.college == dash_filter_college)
+            base_q = base_q.filter(Student.college == dash_filter_college)
             student_q = student_q.filter(Student.college == dash_filter_college)
             status_q = status_q.join(Student, StudentStatus.student_id == Student.id).filter(Student.college == dash_filter_college)
 
-        # --- 3. الحسابات المحاسبية الموزونة ---
-        
-        # أ. الخصومات والمنح الفعلية
-        total_discounts = tx_q.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
-        
-        # ب. المدفوعات والتحصيلات الفعلية
-        total_payments = tx_q.filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
-        
-        # ج. الصافي الحقيقي والفعلي من ميزان المراجعة (كل الـ Debits ناقص كل الـ Credits)
-        net_balance = tx_q.with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
+        gross_billed = base_q.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees'])).with_entities(func.sum(Transaction.debit)).scalar() or 0.0
+        total_discounts = base_q.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        total_payments = base_q.filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        net_adjustments = base_q.filter(~Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees', 'Discount', 'Bulk Scholarships', 'Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
+        net_balance = base_q.with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
 
-        # د. السر هنا: حساب الإيراد الإجمالي المعدل عشان يضمن إن الأرقام تبان منطقية للعين
-        # (Gross Revenue = Net Balance + Discounts + Payments)
-        # بكده أي تسويات (Adjustments) هتتدمج جوا الإيراد الإجمالي والرياضيات هتظبط 100%
-        total_revenue = net_balance + total_discounts + total_payments
-
-        # أعداد الطلاب
         total_students = student_q.count()
         active_count = status_q.distinct(StudentStatus.student_id).count()
 
-    # --- 4. عرض الكروت (بنفس تصميمك وترتيبك بالضبط) ---
-    kpi1, kpi2, kpi3 = st.columns(3)
+    st.markdown("### 💰 Financial Summary")
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
     with kpi1:
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #1a73e8, #0d47a1); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">📈 Gross Revenue</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_revenue:,.0f}</h2>
+            <div style="background: linear-gradient(135deg, #1a73e8, #0d47a1); padding: 15px; border-radius: 12px; color: white; height: 110px;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.85;">📈 Gross Billed</p>
+                <h3 style="margin: 5px 0 0 0; font-size: 22px;">{gross_billed:,.0f}</h3>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi2:
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #e53935, #b71c1c); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">🎓 Total Scholarships</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_discounts:,.0f}</h2>
+            <div style="background: linear-gradient(135deg, #e53935, #b71c1c); padding: 15px; border-radius: 12px; color: white; height: 110px;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.85;">🎓 Total Scholarships</p>
+                <h3 style="margin: 5px 0 0 0; font-size: 22px;">{total_discounts:,.0f}</h3>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi3:
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #00897b, #004d40); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">💳 Total Payments</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_payments:,.0f}</h2>
+            <div style="background: linear-gradient(135deg, #00897b, #004d40); padding: 15px; border-radius: 12px; color: white; height: 110px;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.85;">💳 Total Payments</p>
+                <h3 style="margin: 5px 0 0 0; font-size: 22px;">{total_payments:,.0f}</h3>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi4:
+        adj_color_start = "#fb8c00" if net_adjustments >= 0 else "#757575"
+        adj_color_end   = "#e65100" if net_adjustments >= 0 else "#424242"
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, {adj_color_start}, {adj_color_end}); padding: 15px; border-radius: 12px; color: white; height: 110px;">
+                <p style="margin: 0; font-size: 14px; opacity: 0.85;">⚙️ Net Adjustments</p>
+                <h3 style="margin: 5px 0 0 0; font-size: 22px;">{net_adjustments:,.0f}</h3>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    kpi4, kpi5, kpi6 = st.columns(3)
-
-    with kpi4:
-        net_color_start = "#2e7d32" if net_balance >= 0 else "#e65100"
-        net_color_end   = "#1b5e20" if net_balance >= 0 else "#bf360c"
-        st.markdown(f"""
-            <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">⚖️ Net Balance Due</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{net_balance:,.0f}</h2>
-            </div>
-        """, unsafe_allow_html=True)
+    kpi5, kpi6, kpi7 = st.columns(3)
 
     with kpi5:
+        net_color_start = "#2e7d32" if net_balance >= 0 else "#b71c1c"
+        net_color_end   = "#1b5e20" if net_balance >= 0 else "#7f0000"
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #5e35b1, #311b92); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">👥 Total Students</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{total_students:,}</h2>
+            <div style="background: linear-gradient(135deg, {net_color_start}, {net_color_end}); padding: 20px; border-radius: 12px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 16px; opacity: 0.85;">⚖️ Net Balance Due</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 28px;">{net_balance:,.0f} EGP</h2>
             </div>
         """, unsafe_allow_html=True)
 
     with kpi6:
         st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f57c00, #e65100); padding: 20px; border-radius: 14px; color: white; height: 120px;">
-                <p style="margin: 0; font-size: 16px; opacity: 0.85;">✅ Total Active Students</p>
-                <h2 style="margin: 8px 0 0 0; font-size: 26px;">{active_count:,}</h2>
+            <div style="background: linear-gradient(135deg, #5e35b1, #311b92); padding: 20px; border-radius: 12px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 16px; opacity: 0.85;">👥 Total Students</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 28px;">{total_students:,}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with kpi7:
+        st.markdown(f"""
+            <div style="background: linear-gradient(135deg, #f57c00, #e65100); padding: 20px; border-radius: 12px; color: white; height: 120px;">
+                <p style="margin: 0; font-size: 16px; opacity: 0.85;">✅ Active Students</p>
+                <h2 style="margin: 8px 0 0 0; font-size: 28px;">{active_count:,}</h2>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
-
     
     st.markdown("### 📋 Revenue Breakdown by College")
     with get_db() as db:
@@ -603,7 +638,6 @@ with tab_dashboard:
         })
 
         if not df_college.empty:
-            
             totals_row = {
                 "College": "🔢 TOTAL",
                 "Students": df_college["Students"].sum(),
@@ -621,10 +655,8 @@ with tab_dashboard:
                     "Payments (EGP)": "{:,.2f}",
                     "Net Balance (EGP)": "{:,.2f}"
                 }).apply(lambda x: ['font-weight: bold; background-color: #f0f4ff' if x.name == len(df_college_display)-1 else '' for _ in x], axis=1),
-                use_container_width=True,
-                hide_index=True
+                use_container_width=True, hide_index=True
             )
-
             
             buf_dash = io.BytesIO()
             df_college.to_excel(buf_dash, index=False)
@@ -638,44 +670,395 @@ with tab_dashboard:
             st.info("⚠️ No financial data found for the selected filters.")
 
     st.markdown("---")
-
-    
-    if total_revenue > 0:
-        discount_pct = (total_discounts / total_revenue) * 100
-        collection_pct = (total_payments / total_revenue) * 100 if total_revenue > 0 else 0
-
+    if gross_billed > 0:
+        discount_pct = (total_discounts / gross_billed) * 100
+        collection_pct = (total_payments / gross_billed) * 100
         st.markdown("### 📐 Key Ratios")
         ratio1, ratio2 = st.columns(2)
         with ratio1:
-            st.metric(
-                label="🎓 Discount Rate (Scholarships / Gross Revenue)",
-                value=f"{discount_pct:.1f}%",
-                delta=f"{total_discounts:,.0f} EGP in discounts"
-            )
+            st.metric("🎓 Discount Rate (Scholarships / Gross Billed)", f"{discount_pct:.1f}%", f"{total_discounts:,.0f} EGP in discounts")
         with ratio2:
-            st.metric(
-                label="💳 Collection Rate (Payments / Gross Revenue)",
-                value=f"{collection_pct:.1f}%",
-                delta=f"{total_payments:,.0f} EGP collected"
-            )
+            st.metric("💳 Collection Rate (Payments / Gross Billed)", f"{collection_pct:.1f}%", f"{total_payments:,.0f} EGP collected")
 
 # -------------------------------------------------------
-# TAB 1: Student Lookup
+# TAB: Student Statement
 # -------------------------------------------------------
-with tab_search:
+elif selected_tab == "📜 Student Statement":
+    st.subheader("Transaction Search & Statement of Account")
+    st.markdown("💡 Leave Student ID blank and enter a Bank Ref or System Ref to search globally.")
+    
+    if 'stmt_search_params' not in st.session_state:
+        st.session_state['stmt_search_params'] = None
+
+    with st.form("stmt_search_form", clear_on_submit=False):
+        col_t1, col_t2, col_t3 = st.columns(3)
+        default_stmt_id = str(st.session_state.get('lookup_id', '')) if st.session_state.get('lookup_id', 0) > 0 else ""
+        search_r = col_t1.text_input("Student ID", value=default_stmt_id, placeholder="e.g., 26100123")
+        sys_ref_search = col_t2.text_input("System Ref No", placeholder="e.g., INV-004751")
+        bank_ref_search = col_t3.text_input("Bank Ref / Description", placeholder="e.g., 12345 or CIB")
+        
+        f1, f2, f3 = st.columns(3)
+        df_r = f1.date_input("Date Range", [])
+        s_t = f2.multiselect("Terms", VALID_TERMS)
+        s_y = f3.multiselect("Years", available_years)
+        
+        if st.form_submit_button("🔍 Search Transactions"):
+            st.session_state['stmt_search_params'] = {
+                'sid': int(search_r) if search_r.strip().isdigit() else 0, 
+                'sys': sys_ref_search, 'bank': bank_ref_search, 
+                'dates': df_r, 'terms': s_t, 'years': s_y
+            }
+
+    if st.session_state.get('stmt_search_params'):
+        p = st.session_state['stmt_search_params']
+        if p['sid'] > 0 or p['sys'] or p['bank'] or len(p['dates']) == 2 or p['terms'] or p['years']:
+            with get_db() as db:
+                q = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
+                if p['sid'] > 0: q = q.filter(Transaction.student_id == p['sid'])
+                if p['sys']: q = q.filter(Transaction.reference_no.ilike(f"%{p['sys']}%"))
+                if p['bank']: q = q.filter(Transaction.description.ilike(f"%{p['bank']}%"))
+                if len(p['dates']) == 2: q = q.filter(Transaction.entry_date.between(p['dates'][0], p['dates'][1]))
+                if p['terms']: q = q.filter(Transaction.term.in_(p['terms']))
+                if p['years']: q = q.filter(Transaction.academic_year.in_(p['years']))
+
+                res = q.order_by(Transaction.entry_date.desc()).limit(5000).all()
+                
+                if res:
+                    df_display = pd.DataFrame([{
+                        "Student ID": s.id, "Name": s.name, "Ref No": t.reference_no, 
+                        "Date": t.entry_date, "Term": t.term, "Year": t.academic_year, 
+                        "Type": t.transaction_type, "Description": t.description, 
+                        "Debit": t.debit, "Credit": t.credit 
+                    } for t, s in res])
+                    
+                    st.dataframe(
+                        df_display, use_container_width=True,
+                        column_config={
+                            "Debit": st.column_config.NumberColumn("Debit", format="%,.2f"),
+                            "Credit": st.column_config.NumberColumn("Credit", format="%,.2f")
+                        }
+                    )
+
+                    if p['sid'] > 0:
+                        total_debit = sum(t.debit for t, s in res)
+                        total_credit = sum(t.credit for t, s in res)
+                        net = total_debit - total_credit
+                        
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Total Debit", f"{total_debit:,.2f} EGP")
+                        m2.metric("Total Credit", f"{total_credit:,.2f} EGP")
+                        m3.metric("Net Balance Due", f"{net:,.2f} EGP")
+                        
+                        df_pdf = pd.DataFrame([{
+                            "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, 
+                            "Year": t.academic_year, "Type": t.transaction_type, 
+                            "Description": t.description, "Debit": f"{t.debit:,.2f}", "Credit": f"{t.credit:,.2f}"
+                        } for t, s in res])
+                        
+                        b1, b2 = st.columns(2)
+                        with b1:
+                            student_name = res[0][1].name
+                            pdf_data = create_pdf(p['sid'], student_name, df_pdf, net, total_debit, total_credit)
+                            st.download_button(
+                                label="📄 Download PDF Statement", data=pdf_data, 
+                                file_name=f"SOA_{p['sid']}.pdf", use_container_width=True
+                            )
+                        with b2:
+                            df_export = df_display.copy()
+                            df_export.loc[len(df_export)] = {
+                                "Student ID": "", "Name": "", "Ref No": "", "Date": "", 
+                                "Term": "", "Year": "", "Type": "", "Description": "TOTALS", 
+                                "Debit": total_debit, "Credit": total_credit
+                            }
+                            excel_buf = io.BytesIO()
+                            df_export.to_excel(excel_buf, index=False)
+                            st.download_button(
+                                label="📗 Download Excel Sheet", data=excel_buf.getvalue(), 
+                                file_name=f"SOA_{p['sid']}.xlsx", use_container_width=True
+                            )
+                else:
+                    st.warning("⚠️ No transactions found matching these criteria.")
+# -------------------------------------------------------
+# TAB: Management Reports
+# -------------------------------------------------------
+elif selected_tab == "📈 Reports":
+    st.subheader("📈 Financial Management Reports")
+    
+    if 'report_params' not in st.session_state:
+        st.session_state['report_params'] = None
+        
+    with st.form("reports_filter_form", clear_on_submit=False):
+        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
+        sel_col = col_f1.multiselect("Filter by College", VALID_COLLEGES) 
+        sel_term = col_f2.multiselect("Filter by Term", VALID_TERMS)
+        sel_year = col_f3.multiselect("Filter by Year", available_years)
+        sel_status = col_f4.multiselect("Filter by Status", VALID_STATUSES)
+        
+        col_f5, col_f6 = st.columns([1, 2])
+        sel_dates = col_f5.date_input("Date Range", [])
+        
+        rep_v = col_f6.radio("Format: ", [
+            "Accounting Summary", "Full Detailed Log", 
+            "Period Closing (Activity Summary)", "Student Academic Status Report"
+        ], horizontal=True)
+        
+        if st.form_submit_button("📂 Generate Report Data"):
+            st.session_state['report_params'] = {
+                'col': sel_col, 'term': sel_term, 'year': sel_year, 
+                'status': sel_status, 'dates': sel_dates, 'format': rep_v
+            }
+
+    if st.session_state.get('report_params'):
+        p = st.session_state['report_params']
+        with st.spinner("Processing High-Speed Data Report..."):
+            
+            if p['format'] == "Student Academic Status Report":
+                sql = text("""
+                    SELECT 
+                        s.id AS "Student ID", s.name AS "Student Name", s.college AS "College", 
+                        s.program AS "Program", ss.term AS "Term", ss.academic_year AS "Year", 
+                        ss.status AS "Academic Status"
+                    FROM student_statuses ss 
+                    JOIN students s ON ss.student_id = s.id 
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                      AND (:t_cnt = 0 OR ss.term IN :trms) 
+                      AND (:y_cnt = 0 OR ss.academic_year IN :yrs) 
+                      AND (:s_cnt = 0 OR ss.status IN :stats)
+                    ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
+                """)
+                params = {
+                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
+                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
+                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
+                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',)
+                }
+                df = pd.read_sql(sql, con=engine, params=params)
+                if not df.empty:
+                    st.dataframe(df, use_container_width=True)
+                else:
+                    st.warning("No status history found matching the selected criteria.")
+                    
+            elif p['format'] == "Accounting Summary":
+                sql = text("""
+                    SELECT 
+                        s.id AS "ID", s.name AS "Student Name", s.college AS "College", s.email AS "Email", 
+                        COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status", 
+                        s.price_per_hr AS "Price/Hr", 
+                        COALESCE(SUM(t.hours_change), 0) AS "Reg. Hours", 
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed", 
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees", 
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "Discounts", 
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments", 
+                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments", 
+                        COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance" 
+                    FROM students s 
+                    LEFT JOIN transactions t ON s.id = t.student_id AND (:t_cnt = 0 OR t.term IN :trms) AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                      AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
+                    GROUP BY s.id, s.name, s.college, s.email, s.price_per_hr ORDER BY s.id
+                """)
+                params = {
+                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
+                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
+                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
+                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',)
+                }
+                df = pd.read_sql(sql, con=engine, params=params)
+                if not df.empty:
+                    st.dataframe(df, use_container_width=True, column_config={
+                        "Price/Hr": st.column_config.NumberColumn(format="%,.2f"),
+                        "Reg. Hours": st.column_config.NumberColumn(format="%,.1f"),
+                        "Tuition Billed": st.column_config.NumberColumn(format="%,.2f"),
+                        "Other Fees": st.column_config.NumberColumn(format="%,.2f"),
+                        "Discounts": st.column_config.NumberColumn(format="%,.2f"),
+                        "Payments": st.column_config.NumberColumn(format="%,.2f"),
+                        "Adjustments": st.column_config.NumberColumn(format="%,.2f"),
+                        "Balance": st.column_config.NumberColumn(format="%,.2f")
+                    })
+                else:
+                    st.warning("No data found matching the selected criteria.")
+
+            elif p['format'] == "Period Closing (Activity Summary)":
+                if len(p['dates']) != 2:
+                    st.warning("⚠️ Please select a Date Range.")
+                else:
+                    sql = text("""
+                        SELECT 
+                            s.id AS "ID", s.name AS "Student Name", s.college AS "College", 
+                            COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status", 
+                            COALESCE(SUM(t.hours_change), 0) AS "CH Changed", 
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed", 
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees", 
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "New Discounts", 
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments Received", 
+                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments", 
+                            COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Net Period Change" 
+                        FROM transactions t 
+                        JOIN students s ON t.student_id = s.id 
+                        WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                          AND (:t_cnt = 0 OR t.term IN :trms) 
+                          AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
+                          AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
+                          AND t.entry_date >= :s_date AND t.entry_date <= :e_date 
+                        GROUP BY s.id, s.name, s.college HAVING COALESCE(SUM(t.debit), 0) > 0 OR COALESCE(SUM(t.credit), 0) > 0 ORDER BY s.id
+                    """)
+                    params = {
+                        "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
+                        "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
+                        "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
+                        "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',), 
+                        "s_date": p['dates'][0], "e_date": p['dates'][1]
+                    }
+                    df = pd.read_sql(sql, con=engine, params=params)
+                    if not df.empty:
+                        st.dataframe(df, use_container_width=True, column_config={
+                            "CH Changed": st.column_config.NumberColumn(format="%,.1f"),
+                            "Tuition Billed": st.column_config.NumberColumn(format="%,.2f"),
+                            "Other Fees": st.column_config.NumberColumn(format="%,.2f"),
+                            "New Discounts": st.column_config.NumberColumn(format="%,.2f"),
+                            "Payments Received": st.column_config.NumberColumn(format="%,.2f"),
+                            "Adjustments": st.column_config.NumberColumn(format="%,.2f"),
+                            "Net Period Change": st.column_config.NumberColumn(format="%,.2f")
+                        })
+                    else:
+                        st.warning("No financial activity found in the selected date range.")
+
+            else:
+                sql = text("""
+                    SELECT 
+                        t.student_id, s.name, s.college, 
+                        COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status",
+                        t.reference_no, t.entry_date, t.term, t.academic_year, t.description, t.hours_change AS "Hours", t.debit, t.credit 
+                    FROM transactions t 
+                    JOIN students s ON t.student_id = s.id 
+                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
+                      AND (:t_cnt = 0 OR t.term IN :trms) 
+                      AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
+                      AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
+                      AND (:has_dates = 0 OR (t.entry_date >= :s_date AND t.entry_date <= :e_date)) 
+                    ORDER BY t.student_id, t.entry_date DESC
+                """)
+                params = {
+                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
+                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
+                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
+                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',), 
+                    "has_dates": 1 if len(p['dates']) == 2 else 0, 
+                    "s_date": p['dates'][0] if len(p['dates']) == 2 else None, 
+                    "e_date": p['dates'][1] if len(p['dates']) == 2 else None
+                }
+                df = pd.read_sql(sql, con=engine, params=params)
+                if not df.empty:
+                    st.dataframe(
+                        df, use_container_width=True,
+                        column_config={
+                            "Hours": st.column_config.NumberColumn("Hours", format="%,.1f"),
+                            "debit": st.column_config.NumberColumn("Debit", format="%,.2f"),
+                            "credit": st.column_config.NumberColumn("Credit", format="%,.2f")
+                        }
+                    )
+                else:
+                    st.warning("No financial activity found in the selected criteria.")
+
+            if 'df' in locals() and not df.empty:
+                buf_rep_final = io.BytesIO()
+                df.to_excel(buf_rep_final, index=False)
+                st.download_button(
+                    label="📗 Download Excel Report", data=buf_rep_final.getvalue(), 
+                    file_name=f"Management_Report_{p['format'].replace(' ', '_')}.xlsx", 
+                    use_container_width=True
+                )
+
+# -------------------------------------------------------
+# TAB: Policies & Docs
+# -------------------------------------------------------
+elif selected_tab == "📚 Policies & Docs":
+    st.subheader("📚 University Financial Policies & Documents")
+    doc_action = st.radio("Action: ", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
+
+    if doc_action == "📂 View & Download":
+        with get_db() as db:
+            available_doc_years = [y[0] for y in db.query(PolicyDocument.academic_year).distinct().all()]
+            if "2022/2023" not in available_doc_years:
+                available_doc_years.append("2022/2023")
+            if "2025/2026" not in available_doc_years:
+                available_doc_years.append("2025/2026")
+                
+            sel_doc_year = st.selectbox("Filter by Academic Year:", sorted(set(available_doc_years), reverse=True))
+            st.markdown("### 🗄️ Original Uploaded PDF Files")
+            docs = db.query(PolicyDocument).filter_by(academic_year=sel_doc_year).order_by(PolicyDocument.uploaded_at.desc()).all()
+            
+            if docs:
+                for doc in docs:
+                    with st.container():
+                        c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
+                        c1.markdown(f"📄 **{doc.title}** <br><small>Uploaded by {doc.uploaded_by} on {doc.uploaded_at.strftime('%Y-%m-%d')}</small>", unsafe_allow_html=True)
+                        if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
+                            st.session_state['view_doc_id'] = doc.id
+                        c3.download_button("⬇️ Download PDF", data=doc.file_data, file_name=doc.file_name, mime="application/pdf", key=f"dl_{doc.id}")
+                        
+                        if st.session_state.get('user_role') == 'Admin':
+                            if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
+                                db.delete(doc)
+                                db.commit()
+                                st.rerun()
+                        else:
+                            c4.write(" ") 
+                            
+                st.markdown("---")
+                if st.session_state.get('view_doc_id'):
+                    doc_to_view = db.query(PolicyDocument).get(st.session_state['view_doc_id'])
+                    if doc_to_view: 
+                        st.markdown(f"### 👀 Viewing PDF: {doc_to_view.title}")
+                        if st.button("❌ Close Document Reader"):
+                            st.session_state['view_doc_id'] = None
+                            st.rerun()
+                        st.markdown(f'<iframe src="data:application/pdf;base64,{base64.b64encode(doc_to_view.file_data).decode("utf-8")}" width="100%" height="800" type="application/pdf"></iframe>', unsafe_allow_html=True)
+            else:
+                st.warning("⚠️ No original PDF document has been uploaded for this academic year yet.")
+
+    elif doc_action == "📤 Upload New Document (Admin Only)":
+        if st.session_state.get('user_role') == 'Admin':
+            with st.form("upload_doc_form", clear_on_submit=True):
+                doc_title = st.text_input("Document Title *", placeholder="e.g., Financial Policy 2025/2026")
+                year_options = [f"{y}/{y+1}" for y in range(2020, 2030)]
+                doc_year = st.selectbox("Academic Year *", year_options, index=5) 
+                doc_file = st.file_uploader("Select PDF File *", type=['pdf'])
+                
+                if st.form_submit_button("📤 Upload Document"):
+                    if not doc_title or not doc_file:
+                        st.error("⚠️ Title and PDF file are required.")
+                    else:
+                        with get_db() as db:
+                            try:
+                                db.add(PolicyDocument(
+                                    title=doc_title, academic_year=doc_year, 
+                                    file_name=doc_file.name, file_data=doc_file.read(), 
+                                    uploaded_by=st.session_state.get('logged_in_user')
+                                ))
+                                db.commit()
+                                st.session_state['flash_msg'] = f"✅ Document uploaded!"
+                                st.rerun()
+                            except Exception as e:
+                                db.rollback()
+                                st.error(f"❌ Upload failed: {e}")
+        else:
+            st.error("🔒 **Access Denied**: Only Admins can upload policies.")
+
+# -------------------------------------------------------
+# TAB: Student Lookup
+# -------------------------------------------------------
+elif selected_tab == "🔍 Student Lookup":
     st.subheader("🔍 Student Data Explorer")
 
-    if 'lookup_id' not in st.session_state:
-        st.session_state['lookup_id'] = 0
-
     with st.form("lookup_search_form", clear_on_submit=False):
-        search_id_raw = st.text_input("Enter Student ID to lookup profile:", placeholder="e.g. 26100123")
+        search_id_raw = st.text_input("Enter Student ID to lookup profile:", value=str(st.session_state.get('lookup_id', '') if st.session_state.get('lookup_id', 0) > 0 else ""), placeholder="e.g. 26100123")
         lookup_submitted = st.form_submit_button("🔍 Lookup Profile")
 
     if lookup_submitted:
         st.session_state['lookup_id'] = int(search_id_raw) if search_id_raw.strip().isdigit() else 0
 
-    search_lookup_id = st.session_state['lookup_id']
+    search_lookup_id = st.session_state.get('lookup_id', 0)
 
     if search_lookup_id > 0:
         with get_db() as db:
@@ -720,8 +1103,7 @@ with tab_search:
                     
                     st.dataframe(
                         df_statuses.style.map(color_status, subset=['Status']), 
-                        use_container_width=True, 
-                        hide_index=True
+                        use_container_width=True, hide_index=True
                     )
                 else:
                     st.info("No academic status history recorded for this student yet.")
@@ -756,8 +1138,7 @@ with tab_search:
                     student_schs_all = db.query(StudentScholarship, ScholarshipType).join(
                         ScholarshipType, StudentScholarship.scholarship_type_id == ScholarshipType.id
                     ).filter(
-                        StudentScholarship.student_id == search_lookup_id, 
-                        StudentScholarship.is_active == True
+                        StudentScholarship.student_id == search_lookup_id
                     ).order_by(StudentScholarship.academic_year.desc(), StudentScholarship.term).all()
                     
                     if student_schs_all:
@@ -765,11 +1146,12 @@ with tab_search:
                             "Term": ss.term,
                             "Year": ss.academic_year,
                             "Scholarship": st_type.name,
-                            "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%"
+                            "Percentage": f"{ss.percentage * 100 if ss.percentage <= 1 else ss.percentage:.1f}%",
+                            "Status": "✅ Active" if ss.is_active else "❌ Inactive"
                         } for ss, st_type in student_schs_all])
                         st.dataframe(df_schs, use_container_width=True, hide_index=True)
                     else:
-                        st.info("No active scholarships found for this student.")
+                        st.info("No scholarships found for this student.")
 
                 st.markdown("---")
                 if st.session_state.get('user_role') in ['Admin', 'Editor']:
@@ -780,13 +1162,12 @@ with tab_search:
                         
                         col_e1, col_e2, col_e3 = st.columns(3)
                         e_name = col_e1.text_input("Full Name", value=student.name if student.name else "")
-                        e_college = col_e2.text_input("College", value=student.college if student.college else "")
-                        
-                        old_college = str(student.college).strip().upper() if student.college else ""
-                        new_college = str(e_college).strip().upper()
-                        
-                        if new_college and old_college and new_college != old_college:
-                            st.error(f"⚠️ **College Change Detected!** Moving student from **{old_college}** to **{new_college}**. Please remember to update the **Price Per Hr** to match the new college rates before saving.")
+                        # Strict validation for college edit
+                        try:
+                            current_col_idx = VALID_COLLEGES.index(str(student.college).strip().upper()) if student.college else 0
+                        except ValueError:
+                            current_col_idx = 0
+                        e_college = col_e2.selectbox("College", VALID_COLLEGES, index=current_col_idx)
                         
                         e_price = col_e3.number_input("Price Per Hr (EGP)", value=float(student.price_per_hr) if student.price_per_hr else 0.0, step=100.0)
                         
@@ -798,7 +1179,7 @@ with tab_search:
                         if st.button("💾 Save Changes", type="primary"):
                             try:
                                 student.name = e_name
-                                student.college = e_college.upper()
+                                student.college = e_college
                                 student.price_per_hr = e_price
                                 student.email = e_email
                                 student.mobile = e_mobile
@@ -812,218 +1193,19 @@ with tab_search:
             else:
                 st.warning("⚠️ No student found with this ID.")
 
-    st.markdown("---")
-    with st.expander("📤 **Bulk Student Status Management**", expanded=False):
-        st.subheader("Bulk Academic Status Update")
-        st.markdown("💡 *Upload an Excel file to update the status of multiple students.*")
-        
-        st.info("📌 **Important Note:** Only the following exact status values are accepted:")
-        cols = st.columns(len(VALID_STATUSES))
-        for i, stat in enumerate(VALID_STATUSES):
-            cols[i].code(stat, language="text")
-
-        stat_template = {
-            "Student ID": 26100123, 
-            "Term": VALID_TERMS[1], 
-            "Year": DEFAULT_YEAR, 
-            "Status": VALID_STATUSES[-1]
-        }
-        
-        buf_stat = io.BytesIO()
-        pd.DataFrame([stat_template]).to_excel(buf_stat, index=False)
-        st.download_button(label="📥 Download Template", data=buf_stat.getvalue(), file_name="Template_Bulk_Status.xlsx")
-        
-        u_stat = st.file_uploader("Upload Status Excel File", type=['xlsx'], key="bulk_status_upload")
-        if u_stat and st.button("🚀 Process Bulk Status Update"):
-            with st.spinner(f"Updating student statuses..."):
-                df_stat = pd.read_excel(u_stat)
-                df_stat.columns = [str(c).strip() for c in df_stat.columns]
-                status_map = {s.lower(): s for s in VALID_STATUSES}
-                
-                with get_db() as db:
-                    valid_ids = {s[0] for s in db.query(Student.id).all()}
-                    failed_records = []
-                    success_count = 0
-                    
-                    for _, r in df_stat.iterrows():
-                        sid = int(r.get('Student ID', 0)) if pd.notnull(r.get('Student ID')) else 0
-                        raw_status = str(r.get('Status', '')).strip().lower()
-                        status_val = status_map.get(raw_status, None)
-                        trm = str(r.get('Term', '')).strip().capitalize()
-                        yr = int(r.get('Year', 0)) if pd.notnull(r.get('Year')) else 0
-                        row_dict = r.to_dict()
-                        
-                        if sid <= 0 or sid not in valid_ids or not status_val or trm not in VALID_TERMS or yr <= 0:
-                            row_dict['Error Reason'] = "Invalid Data or ID"
-                            failed_records.append(row_dict)
-                            continue
-                            
-                        existing = db.query(StudentStatus).filter_by(student_id=sid, term=trm, academic_year=yr).first()
-                        if existing: existing.status = status_val
-                        else: db.add(StudentStatus(student_id=sid, term=trm, academic_year=yr, status=status_val))
-                        success_count += 1
-                        
-                    if success_count > 0:
-                        db.commit()
-                        st.success(f"✅ Successfully updated {success_count} student statuses!")
-                    
-                    if failed_records:
-                        st.error(f"⚠️ {len(failed_records)} records failed.")
-                        st.dataframe(pd.DataFrame(failed_records), use_container_width=True)
-
-    st.markdown("---")
-    with st.expander("📥 **Student Data Export**", expanded=False):
-        st.subheader("Export Master Data")
-        st.markdown("💡 *Generate a full Excel backup of all students currently registered in the system.*")
-        
-        if st.button("🚀 Load Fast Export", use_container_width=True):
-            with st.spinner("Compiling High-Speed Export..."):
-                sql_query = """
-                    SELECT 
-                        id AS "Student ID", name AS "Full Name", college AS "College Code", program AS "Program", 
-                        price_per_hr AS "Price Per Hour (EGP)", email AS "University Email", mobile AS "Mobile Number", 
-                        national_id AS "National ID", nationality AS "Nationality", birth_date AS "Birth Date", admit_year AS "Admit Year" 
-                    FROM students
-                """
-                df_all_students = pd.read_sql(sql_query, con=engine)
-                
-                buf_all = io.BytesIO()
-                df_all_students.to_excel(buf_all, index=False)
-                st.download_button(
-                    label="⬇️ Download Excel File", 
-                    data=buf_all.getvalue(), 
-                    file_name=f"NU_Students_MasterData_{datetime.now().strftime('%Y%m%d')}.xlsx", 
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                    use_container_width=True
-                )
-
 # -------------------------------------------------------
-# TAB 2: Registration
+# TAB: Manual Operations
 # -------------------------------------------------------
-with tab_reg:
-    st.subheader("👤 New Student Registration")
-    if st.session_state.get('user_role') not in ['Admin', 'Editor']:
-        st.warning("🔒 **Access Denied**: Only Admins and Editors can register new students.")
-    else:
-        reg_mode = st.radio("Registration Type:", ["Manual Entry", "Bulk Upload (Excel)"], horizontal=True)
-        
-        if reg_mode == "Manual Entry":
-            with st.form("manual_reg", clear_on_submit=True):
-                st.info(f"💡 **Valid College Codes:** `{', '.join(VALID_COLLEGES)}`")
-                col_s1, col_s2, col_s3 = st.columns(3)
-                n_id = col_s1.number_input("Student ID", value=None, placeholder="(e.g., 26100123)", step=1, format="%d")
-                n_name = col_s2.text_input("Full Name *")
-                n_college = col_s3.text_input("College Code *")
-                
-                col_s4, col_s5, col_s6 = st.columns(3)
-                n_program = col_s4.text_input("Program")
-                n_price = col_s5.number_input("Fixed Price Per Credit Hour (EGP) *", min_value=0.0, step=100.0, format="%.2f")
-                n_email = col_s6.text_input("University Email")
-                
-                col_s7, col_s8, col_s9 = st.columns(3)
-                n_mobile = col_s7.text_input("Mobile Number")
-                n_nat_id = col_s8.text_input("National ID")
-                n_nationality = col_s9.text_input("Nationality", value="Egyptian")
-                
-                col_s10, col_s11 = st.columns(2)
-                n_dob = col_s10.date_input("Birth Date", min_value=datetime(1990, 1, 1), value=datetime(2005, 1, 1))
-                n_admit = col_s11.number_input("Admit Year", value=DEFAULT_YEAR, step=1)
-                
-                if st.form_submit_button("💾 Register Student"):
-                    if n_id is None or not n_name or not n_college:
-                        st.error("⚠️ Student ID, Name, and College are required fields!")
-                    else:
-                        with get_db() as db:
-                            if db.query(Student).filter_by(id=n_id).first():
-                                st.error("⚠️ Student ID already exists!")
-                            else:
-                                try:
-                                    db.add(Student(
-                                        id=n_id, name=n_name, college=n_college.upper(), program=n_program, 
-                                        price_per_hr=n_price, email=n_email, mobile=n_mobile, national_id=n_nat_id, 
-                                        nationality=n_nationality, admit_year=n_admit, birth_date=n_dob
-                                    ))
-                                    db.commit()
-                                    st.session_state['flash_msg'] = f"✅ Student '{n_name}' has been registered!"
-                                    st.rerun()
-                                except Exception as e:
-                                    db.rollback()
-                                    st.error(f"❌ Error: {e}")
-        else:
-            std_ex = {
-                "ID": 26100123, "Name": "Ahmed Ali", "College": "ENG", "Program": "Computer Eng", 
-                "Price Per Hr": 4600.0, "Email": "ahmed@nu.edu.eg", "Mobile": "01000000000", 
-                "National ID": "29901010000000", "Nationality": "Egyptian", "Admit Year": DEFAULT_YEAR, "Birth Date": "2005-01-01"
-            }
-            buf_std = io.BytesIO()
-            pd.DataFrame([std_ex]).to_excel(buf_std, index=False)
-            st.download_button(label="📥 Download Students Template", data=buf_std.getvalue(), file_name="Template_Bulk_Students.xlsx")
-            
-            u_std = st.file_uploader("Upload Students Excel", type=['xlsx'])
-            if u_std and st.button("🚀 Process Bulk Registration"):
-                with st.spinner("Registering students..."):
-                    df_std = pd.read_excel(u_std)
-                    df_std.columns = [str(c).strip() for c in df_std.columns]
-                    
-                    with get_db() as db:
-                        existing_ids = {s[0] for s in db.query(Student.id).all()}
-                        new_students = []
-                        failed_records = []
-                        success_count = 0
-                        
-                        for _, r in df_std.iterrows():
-                            sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
-                            row_dict = r.to_dict()
-                            if sid <= 0:
-                                row_dict['Error Reason'] = "Invalid Student ID"
-                                failed_records.append(row_dict)
-                                continue
-                            if sid in existing_ids:
-                                row_dict['Error Reason'] = "Student ID already exists"
-                                failed_records.append(row_dict)
-                                continue
-                                
-                            bd_dt = pd.to_datetime(r.get('Birth Date'), errors='coerce')
-                            new_students.append(Student(
-                                id=sid, name=str(r.get('Name', 'Unknown')), college=str(r.get('College', 'N/A')).upper(), 
-                                program=str(r.get('Program', '')), price_per_hr=float(r.get('Price Per Hr', 0.0)), 
-                                email=str(r.get('Email', '')), mobile=str(r.get('Mobile', '')), national_id=str(r.get('National ID', '')), 
-                                nationality=str(r.get('Nationality', 'Egyptian')), admit_year=int(r.get('Admit Year', DEFAULT_YEAR)), 
-                                birth_date=bd_dt.date() if pd.notna(bd_dt) else None
-                            ))
-                            success_count += 1
-                            
-                        if new_students:
-                            try:
-                                db.add_all(new_students)
-                                db.commit()
-                                st.success(f"✅ Successfully registered {success_count} new students!")
-                            except Exception as e:
-                                db.rollback()
-                                st.error(f"❌ Database Error: {e}")
-                                success_count = 0
-                        elif success_count == 0 and not failed_records:
-                            st.warning("⚠️ No data found in the uploaded file.")
-                            
-                        if failed_records:
-                            st.error(f"⚠️ {len(failed_records)} records failed or skipped. See report below.")
-                            df_failed = pd.DataFrame(failed_records)
-                            st.dataframe(df_failed, use_container_width=True)
-                            buf_err = io.BytesIO()
-                            df_failed.to_excel(buf_err, index=False)
-                            st.download_button(label="⬇️ Download Error Report", data=buf_err.getvalue(), file_name=f"Failed_Registrations_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", use_container_width=True)
-
-# -------------------------------------------------------
-# TAB 3: Manual Operations
-# -------------------------------------------------------
-with tab1:
+elif selected_tab == "📊 Operations":
     st.subheader("Post Manual Transaction")
     if st.session_state.get('user_role') not in ['Admin', 'Editor']:
         st.warning("🔒 **Access Denied**: Only Admins and Editors can post transactions.")
     else:
         a_t = st.selectbox("Select Action Type", ["Payment Receipt", "Credit Hours Adjustment", "Other Fees", "General Adjustment"], index=0)
         with st.form(f"manual_tx_form_{a_t}", clear_on_submit=True):
-            sid_raw = st.text_input("Student ID", placeholder="Enter ID (e.g., 18100523)...")
+            default_ops_id = str(st.session_state.get('lookup_id', '')) if st.session_state.get('lookup_id', 0) > 0 else ""
+            sid_raw = st.text_input("Student ID", value=default_ops_id, placeholder="Enter ID (e.g., 26100123)...")
+            
             c1, c2, c3 = st.columns(3)
             ed = c1.date_input("Date")
             et = c2.selectbox("Term", VALID_TERMS)
@@ -1107,110 +1289,9 @@ with tab1:
                             st.rerun()
 
 # -------------------------------------------------------
-# TAB 4: Transaction Search & Statement
+# TAB: Bulk Financial Operations
 # -------------------------------------------------------
-with tab2:
-    st.subheader("Transaction Search & Statement of Account")
-    st.markdown("💡 Leave Student ID blank and enter a Bank Ref or System Ref to search globally.")
-    
-    if 'stmt_search_params' not in st.session_state:
-        st.session_state['stmt_search_params'] = None
-
-    with st.form("stmt_search_form", clear_on_submit=False):
-        col_t1, col_t2, col_t3 = st.columns(3)
-        search_r = col_t1.text_input("Student ID", placeholder="e.g., 25100120")
-        sys_ref_search = col_t2.text_input("System Ref No", placeholder="e.g., INV-004751")
-        bank_ref_search = col_t3.text_input("Bank Ref / Description", placeholder="e.g., 12345 or CIB")
-        
-        f1, f2, f3 = st.columns(3)
-        df_r = f1.date_input("Date Range", [])
-        s_t = f2.multiselect("Terms", VALID_TERMS)
-        s_y = f3.multiselect("Years", available_years)
-        
-        if st.form_submit_button("🔍 Search Transactions"):
-            st.session_state['stmt_search_params'] = {
-                'sid': int(search_r) if search_r.strip().isdigit() else 0, 
-                'sys': sys_ref_search, 
-                'bank': bank_ref_search, 
-                'dates': df_r, 
-                'terms': s_t, 
-                'years': s_y
-            }
-
-    if st.session_state.get('stmt_search_params'):
-        p = st.session_state['stmt_search_params']
-        if p['sid'] > 0 or p['sys'] or p['bank'] or len(p['dates']) == 2 or p['terms'] or p['years']:
-            with get_db() as db:
-                q = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
-                if p['sid'] > 0:
-                    q = q.filter(Transaction.student_id == p['sid'])
-                if p['sys']:
-                    q = q.filter(Transaction.reference_no.ilike(f"%{p['sys']}%"))
-                if p['bank']:
-                    q = q.filter(Transaction.description.ilike(f"%{p['bank']}%"))
-                if len(p['dates']) == 2:
-                    q = q.filter(Transaction.entry_date.between(p['dates'][0], p['dates'][1]))
-                if p['terms']:
-                    q = q.filter(Transaction.term.in_(p['terms']))
-                if p['years']:
-                    q = q.filter(Transaction.academic_year.in_(p['years']))
-
-                res = q.order_by(Transaction.entry_date.desc()).limit(5000).all()
-                
-                if res:
-                    df_display = pd.DataFrame([{
-                        "Student ID": s.id, "Name": s.name, "Ref No": t.reference_no, 
-                        "Date": t.entry_date, "Term": t.term, "Year": t.academic_year, 
-                        "Type": t.transaction_type, "Description": t.description, 
-                        "Debit": f"{t.debit:,.2f}", "Credit": f"{t.credit:,.2f}"
-                    } for t, s in res])
-                    
-                    st.table(df_display)
-
-                    if p['sid'] > 0:
-                        total_debit = sum(t.debit for t, s in res)
-                        total_credit = sum(t.credit for t, s in res)
-                        net = total_debit - total_credit
-                        
-                        m1, m2, m3 = st.columns(3)
-                        m1.metric("Total Debit", f"{total_debit:,.2f} EGP")
-                        m2.metric("Total Credit", f"{total_credit:,.2f} EGP")
-                        m3.metric("Net Balance Due", f"{net:,.2f} EGP")
-                        
-                        df_pdf = pd.DataFrame([{
-                            "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, 
-                            "Year": t.academic_year, "Type": t.transaction_type, 
-                            "Description": t.description, "Debit": f"{t.debit:,.2f}", "Credit": f"{t.credit:,.2f}"
-                        } for t, s in res])
-                        
-                        b1, b2 = st.columns(2)
-                        with b1:
-                            student_name = res[0][1].name
-                            pdf_data = create_pdf(p['sid'], student_name, df_pdf, net, total_debit, total_credit)
-                            st.download_button(
-                                label="📄 Download PDF Statement", data=pdf_data, 
-                                file_name=f"SOA_{p['sid']}.pdf", use_container_width=True
-                            )
-                        with b2:
-                            df_export = df_display.copy()
-                            df_export.loc[len(df_export)] = {
-                                "Student ID": "", "Name": "", "Ref No": "", "Date": "", 
-                                "Term": "", "Year": "", "Type": "", "Description": "TOTALS", 
-                                "Debit": f"{total_debit:,.2f}", "Credit": f"{total_credit:,.2f}"
-                            }
-                            excel_buf = io.BytesIO()
-                            df_export.to_excel(excel_buf, index=False)
-                            st.download_button(
-                                label="📗 Download Excel Sheet", data=excel_buf.getvalue(), 
-                                file_name=f"SOA_{p['sid']}.xlsx", use_container_width=True
-                            )
-                else:
-                    st.warning("⚠️ No transactions found matching these criteria.")
-
-# -------------------------------------------------------
-# TAB 5: Bulk Financial Operations
-# -------------------------------------------------------
-with tab3:
+elif selected_tab == "📤 Bulk Financials":
     st.subheader("Bulk Financial Operations")
     if st.session_state.get('user_role') not in ['Admin', 'Editor']:
         st.warning("🔒 **Access Denied**: Only Admins and Editors can run bulk operations.")
@@ -1231,141 +1312,153 @@ with tab3:
         pd.DataFrame([ex[b_t]]).to_excel(buf_t, index=False)
         st.download_button(label="📥 Download Template", data=buf_t.getvalue(), file_name=f"Tpl_{b_t}.xlsx")
 
-        u_f = st.file_uploader("Upload Excel File", type=['xlsx'])
+        u_f = st.file_uploader("Upload Excel File", type=['xlsx'], key="bulk_upload")
         if u_f and st.button("🚀 Run Bulk Process"):
-            with st.spinner("Processing..."):
-                current_batch_id = f"BCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
-                df_b = pd.read_excel(u_f)
-                df_b.columns = [str(c).strip() for c in df_b.columns]
-                
-                numeric_columns = ['Amount', 'Hours', 'Hours_Delta', 'Fee Amount', 'Debit', 'Credit', 'New_Price_Per_Hr']
-                for col in numeric_columns:
-                    if col in df_b.columns:
-                        df_b[col] = pd.to_numeric(df_b[col].astype(str).str.replace(',', '').str.strip(), errors='coerce').fillna(0.0)
+            current_batch_id = f"BCH-{datetime.now().strftime('%y%m%d-%H%M%S')}"
+            df_b = pd.read_excel(u_f)
+            df_b.columns = [str(c).strip() for c in df_b.columns]
+            
+            numeric_columns = ['Amount', 'Hours', 'Hours_Delta', 'Fee Amount', 'Debit', 'Credit', 'New_Price_Per_Hr']
+            for col in numeric_columns:
+                if col in df_b.columns:
+                    df_b[col] = pd.to_numeric(df_b[col].astype(str).str.replace(',', '').str.strip(), errors='coerce').fillna(0.0)
 
-                with get_db() as db:
-                    failed_records = []
-                    success_count = 0
-                    rts = {s.id: s.price_per_hr for s in db.query(Student).all()} 
+            total_rows = len(df_b)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
 
-                    if b_t == "Update Student Rates":
-                        for _, r in df_b.iterrows():
-                            r_id = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
-                            original_row = r.to_dict()
-                            if r_id <= 0:
-                                original_row['Error Reason'] = "Invalid Student ID"
-                                failed_records.append(original_row)
-                            elif r_id not in rts:
-                                original_row['Error Reason'] = "Student ID not registered"
-                                failed_records.append(original_row)
-                            else:
-                                db.query(Student).filter(Student.id == r_id).update({"price_per_hr": float(r['New_Price_Per_Hr'])})
-                                success_count += 1
-                                
-                        if success_count > 0:
-                            db.commit()
-                            st.success(f"✅ Successfully updated rates for {success_count} students!")
-                    else:
-                        m_id = get_next_ref_sequence(db)
-                        bulk_l = []
-                        tx_counter = 1
+            with get_db() as db:
+                failed_records = []
+                success_count = 0
+                rts = {s.id: s.price_per_hr for s in db.query(Student).all()} 
 
-                        for i, r in df_b.iterrows():
-                            sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
-                            original_row = r.to_dict()
-                            
-                            if sid <= 0:
-                                original_row['Error Reason'] = "Invalid Student ID"
-                                failed_records.append(original_row)
-                                continue
-                            if sid not in rts:
-                                original_row['Error Reason'] = "Student ID not registered"
-                                failed_records.append(original_row)
-                                continue
-
-                            rt = rts[sid]
-                            dr = 0.0
-                            cr = 0.0
-                            pfx = "TX"
-                            h_change = 0.0
-                            
-                            raw_desc = str(r.get('Description', '')).strip()
-                            dsc = b_t if not raw_desc or raw_desc in ['0', '0.0', 'nan'] else raw_desc
-                            term_val = str(r.get('Term', VALID_TERMS[1]))
-                            year_val = int(r.get('Year', DEFAULT_YEAR)) if pd.notnull(r.get('Year')) else DEFAULT_YEAR
-
-                            if b_t == "Bulk Payments":
-                                pfx = "PAY"
-                                cr = float(str(r.get('Amount', 0)).replace(',', '').strip() or 0.0)
-                                dsc = f"Bank: {r.get('Bank Name')} | Ref: {r.get('Bank Ref')}"
-                            elif b_t == "Bulk Invoices (Tuition)":
-                                h = float(str(r.get('Hours', 15.0)).replace(',', '').strip() or 0.0)
-                                pfx = "INV"
-                                dr = h * rt
-                                dsc = f"Tuition Invoice ({h} CH)"
-                                h_change = h
-                            elif b_t == "Bulk Other Fees":
-                                pfx = "INV"
-                                dr = float(str(r.get('Fee Amount', 0)).replace(',', '').strip() or 0.0)
-                                dsc = raw_desc if raw_desc and raw_desc not in ['0', '0.0', 'nan'] else "Other Fee"
-                            elif b_t == "Credit Hours Adjustments":
-                                h = float(str(r.get('Hours_Delta', 0)).replace(',', '').strip() or 0.0)
-                                pfx = "ADJ"
-                                v = abs(h * rt)
-                                dr = v if h > 0 else 0
-                                cr = v if h < 0 else 0
-                                dsc = f"Adj {h} CH"
-                                h_change = h
-                            elif b_t == "General Adjustments":
-                                pfx = "TXN"
-                                dr = float(str(r.get('Debit', 0)).replace(',', '').strip() or 0.0)
-                                cr = float(str(r.get('Credit', 0)).replace(',', '').strip() or 0.0)
-
-                            new_bulk_tx = Transaction(
-                                reference_no=f"{pfx}-{m_id+tx_counter:06d}", batch_id=current_batch_id,
-                                student_id=sid, scholarship_type_id=None, transaction_type=b_t, description=dsc,
-                                debit=dr, credit=cr, hours_change=h_change,
-                                entry_date=pd.to_datetime(r.get('Date', datetime.now())).date(), 
-                                term=term_val, academic_year=year_val
-                            )
-                            bulk_l.append(new_bulk_tx)
+                if b_t == "Update Student Rates":
+                    for i, r in df_b.iterrows():
+                        r_id = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
+                        original_row = r.to_dict()
+                        if r_id <= 0:
+                            original_row['Error Reason'] = "Invalid Student ID"
+                            failed_records.append(original_row)
+                        elif r_id not in rts:
+                            original_row['Error Reason'] = "Student ID not registered"
+                            failed_records.append(original_row)
+                        else:
+                            db.query(Student).filter(Student.id == r_id).update({"price_per_hr": float(r['New_Price_Per_Hr'])})
                             success_count += 1
-                            tx_counter += 1
+                        
+                        progress_bar.progress((i + 1) / total_rows)
+                        status_text.text(f"Processing record {i+1} of {total_rows}...")
+                            
+                    if success_count > 0:
+                        db.commit()
+                        st.success(f"✅ Successfully updated rates for {success_count} students!")
+                else:
+                    m_id = get_next_ref_sequence(db)
+                    bulk_l = []
+                    tx_counter = 1
 
-                            if b_t in ["Bulk Invoices (Tuition)", "Credit Hours Adjustments"]:
-                                inv_amount = dr if b_t == "Bulk Invoices (Tuition)" else v
-                                auto_discounts = build_auto_discount_transactions(
-                                    db, student_id=sid, gross_amount=inv_amount, term=term_val,
-                                    academic_year=year_val, entry_date=pd.to_datetime(r.get('Date')).date(),
-                                    ref_start=m_id + tx_counter, batch_id=current_batch_id
-                                )
-                                if b_t == "Credit Hours Adjustments" and h_change < 0:
-                                    for t in auto_discounts:
-                                        t.debit, t.credit = t.credit, t.debit
-                                bulk_l.extend(auto_discounts)
-                                tx_counter += len(auto_discounts)
+                    for i, r in df_b.iterrows():
+                        sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
+                        original_row = r.to_dict()
+                        
+                        if sid <= 0:
+                            original_row['Error Reason'] = "Invalid Student ID"
+                            failed_records.append(original_row)
+                            progress_bar.progress((i + 1) / total_rows)
+                            continue
+                        if sid not in rts:
+                            original_row['Error Reason'] = "Student ID not registered"
+                            failed_records.append(original_row)
+                            progress_bar.progress((i + 1) / total_rows)
+                            continue
 
-                        if bulk_l:
-                            db.bulk_save_objects(bulk_l)
-                            db.commit()
-                            st.success(f"✅ Batch Posted! ({success_count} transactions)")
+                        rt = rts[sid]
+                        dr = 0.0
+                        cr = 0.0
+                        pfx = "TX"
+                        h_change = 0.0
+                        
+                        raw_desc = str(r.get('Description', '')).strip()
+                        dsc = b_t if not raw_desc or raw_desc in ['0', '0.0', 'nan'] else raw_desc
+                        term_val = str(r.get('Term', VALID_TERMS[1]))
+                        year_val = int(r.get('Year', DEFAULT_YEAR)) if pd.notnull(r.get('Year')) else DEFAULT_YEAR
 
-                if failed_records:
-                    st.error(f"⚠️ {len(failed_records)} records failed or were skipped.")
-                    df_failed = pd.DataFrame(failed_records)
-                    st.dataframe(df_failed, use_container_width=True)
-                    buf_err = io.BytesIO()
-                    df_failed.to_excel(buf_err, index=False)
-                    st.download_button(
-                        label="⬇️ Download Error Report", data=buf_err.getvalue(), 
-                        file_name=f"Failed_Transactions_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", 
-                        use_container_width=True
-                    )
+                        if b_t == "Bulk Payments":
+                            pfx = "PAY"
+                            cr = float(str(r.get('Amount', 0)).replace(',', '').strip() or 0.0)
+                            dsc = f"Bank: {r.get('Bank Name')} | Ref: {r.get('Bank Ref')}"
+                        elif b_t == "Bulk Invoices (Tuition)":
+                            h = float(str(r.get('Hours', 15.0)).replace(',', '').strip() or 0.0)
+                            pfx = "INV"
+                            dr = h * rt
+                            dsc = f"Tuition Invoice ({h} CH)"
+                            h_change = h
+                        elif b_t == "Bulk Other Fees":
+                            pfx = "INV"
+                            dr = float(str(r.get('Fee Amount', 0)).replace(',', '').strip() or 0.0)
+                            dsc = raw_desc if raw_desc and raw_desc not in ['0', '0.0', 'nan'] else "Other Fee"
+                        elif b_t == "Credit Hours Adjustments":
+                            h = float(str(r.get('Hours_Delta', 0)).replace(',', '').strip() or 0.0)
+                            pfx = "ADJ"
+                            v = abs(h * rt)
+                            dr = v if h > 0 else 0
+                            cr = v if h < 0 else 0
+                            dsc = f"Adj {h} CH"
+                            h_change = h
+                        elif b_t == "General Adjustments":
+                            pfx = "TXN"
+                            dr = float(str(r.get('Debit', 0)).replace(',', '').strip() or 0.0)
+                            cr = float(str(r.get('Credit', 0)).replace(',', '').strip() or 0.0)
+
+                        new_bulk_tx = Transaction(
+                            reference_no=f"{pfx}-{m_id+tx_counter:06d}", batch_id=current_batch_id,
+                            student_id=sid, scholarship_type_id=None, transaction_type=b_t, description=dsc,
+                            debit=dr, credit=cr, hours_change=h_change,
+                            entry_date=pd.to_datetime(r.get('Date', datetime.now())).date(), 
+                            term=term_val, academic_year=year_val
+                        )
+                        bulk_l.append(new_bulk_tx)
+                        success_count += 1
+                        tx_counter += 1
+
+                        if b_t in ["Bulk Invoices (Tuition)", "Credit Hours Adjustments"]:
+                            inv_amount = dr if b_t == "Bulk Invoices (Tuition)" else v
+                            auto_discounts = build_auto_discount_transactions(
+                                db, student_id=sid, gross_amount=inv_amount, term=term_val,
+                                academic_year=year_val, entry_date=pd.to_datetime(r.get('Date')).date(),
+                                ref_start=m_id + tx_counter, batch_id=current_batch_id
+                            )
+                            if b_t == "Credit Hours Adjustments" and h_change < 0:
+                                for t in auto_discounts:
+                                    t.debit, t.credit = t.credit, t.debit
+                            bulk_l.extend(auto_discounts)
+                            tx_counter += len(auto_discounts)
+
+                        progress_bar.progress((i + 1) / total_rows)
+                        status_text.text(f"Processing record {i+1} of {total_rows}...")
+
+                    if bulk_l:
+                        db.bulk_save_objects(bulk_l)
+                        db.commit()
+                        st.success(f"✅ Batch Posted! ({success_count} transactions)")
+
+            status_text.empty()
+            if failed_records:
+                st.error(f"⚠️ {len(failed_records)} records failed or were skipped.")
+                df_failed = pd.DataFrame(failed_records)
+                st.dataframe(df_failed, use_container_width=True)
+                buf_err = io.BytesIO()
+                df_failed.to_excel(buf_err, index=False)
+                st.download_button(
+                    label="⬇️ Download Error Report", data=buf_err.getvalue(), 
+                    file_name=f"Failed_Transactions_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", 
+                    use_container_width=True
+                )
 
 # -------------------------------------------------------
 # TAB: Scholarships Management
 # -------------------------------------------------------
-with tab_sch:
+elif selected_tab == "🎓 Scholarships":
     st.subheader("🎓 Student Scholarships Management")
     if st.session_state.get('user_role') not in ['Admin', 'Editor']:
         st.warning("🔒 **Access Denied**: You can only view statements. You don't have permission to manage scholarships.")
@@ -1660,9 +1753,141 @@ with tab_sch:
                         st.info("⚠️ No scholarships configured.")
 
 # -------------------------------------------------------
+# TAB: Registration (Strict College Validation Added)
+# -------------------------------------------------------
+elif selected_tab == "👤 Registration":
+    st.subheader("👤 New Student Registration")
+    if st.session_state.get('user_role') not in ['Admin', 'Editor']:
+        st.warning("🔒 **Access Denied**: Only Admins and Editors can register new students.")
+    else:
+        reg_mode = st.radio("Registration Type:", ["Manual Entry", "Bulk Upload (Excel)"], horizontal=True)
+        
+        if reg_mode == "Manual Entry":
+            with st.form("manual_reg", clear_on_submit=True):
+                st.info(f"💡 **Valid College Codes:** `{', '.join(VALID_COLLEGES)}`")
+                col_s1, col_s2, col_s3 = st.columns(3)
+                n_id = col_s1.number_input("Student ID", value=None, placeholder="(e.g., 26100123)", step=1, format="%d")
+                n_name = col_s2.text_input("Full Name *")
+                n_college = col_s3.selectbox("College Code *", VALID_COLLEGES)
+                
+                col_s4, col_s5, col_s6 = st.columns(3)
+                n_program = col_s4.text_input("Program")
+                n_price = col_s5.number_input("Fixed Price Per Credit Hour (EGP) *", min_value=0.0, step=100.0, format="%.2f")
+                n_email = col_s6.text_input("University Email")
+                
+                col_s7, col_s8, col_s9 = st.columns(3)
+                n_mobile = col_s7.text_input("Mobile Number")
+                n_nat_id = col_s8.text_input("National ID")
+                n_nationality = col_s9.text_input("Nationality", value="Egyptian")
+                
+                col_s10, col_s11 = st.columns(2)
+                n_dob = col_s10.date_input("Birth Date", min_value=datetime(1990, 1, 1), value=datetime(2005, 1, 1))
+                n_admit = col_s11.number_input("Admit Year", value=DEFAULT_YEAR, step=1)
+                
+                if st.form_submit_button("💾 Register Student"):
+                    if n_id is None or not n_name or not n_college:
+                        st.error("⚠️ Student ID, Name, and College are required fields!")
+                    else:
+                        with get_db() as db:
+                            if db.query(Student).filter_by(id=n_id).first():
+                                st.error("⚠️ Student ID already exists!")
+                            else:
+                                try:
+                                    db.add(Student(
+                                        id=n_id, name=n_name, college=n_college, program=n_program, 
+                                        price_per_hr=n_price, email=n_email, mobile=n_mobile, national_id=n_nat_id, 
+                                        nationality=n_nationality, admit_year=n_admit, birth_date=n_dob
+                                    ))
+                                    db.commit()
+                                    st.session_state['flash_msg'] = f"✅ Student '{n_name}' has been registered!"
+                                    st.rerun()
+                                except Exception as e:
+                                    db.rollback()
+                                    st.error(f"❌ Error: {e}")
+        else:
+            std_ex = {
+                "ID": 26100123, "Name": "Ahmed Ali", "College": "ENG", "Program": "Computer Eng", 
+                "Price Per Hr": 4600.0, "Email": "ahmed@nu.edu.eg", "Mobile": "01000000000", 
+                "National ID": "29901010000000", "Nationality": "Egyptian", "Admit Year": DEFAULT_YEAR, "Birth Date": "2005-01-01"
+            }
+            buf_std = io.BytesIO()
+            pd.DataFrame([std_ex]).to_excel(buf_std, index=False)
+            st.download_button(label="📥 Download Students Template", data=buf_std.getvalue(), file_name="Template_Bulk_Students.xlsx")
+            
+            u_std = st.file_uploader("Upload Students Excel", type=['xlsx'])
+            if u_std and st.button("🚀 Process Bulk Registration"):
+                df_std = pd.read_excel(u_std)
+                df_std.columns = [str(c).strip() for c in df_std.columns]
+                total_rows = len(df_std)
+                
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                with get_db() as db:
+                    existing_ids = {s[0] for s in db.query(Student.id).all()}
+                    new_students = []
+                    failed_records = []
+                    success_count = 0
+                    
+                    for i, r in df_std.iterrows():
+                        sid = int(r.get('ID', 0)) if pd.notnull(r.get('ID')) else 0
+                        row_dict = r.to_dict()
+                        if sid <= 0:
+                            row_dict['Error Reason'] = "Invalid Student ID"
+                            failed_records.append(row_dict)
+                            progress_bar.progress((i + 1) / total_rows)
+                            continue
+                        if sid in existing_ids:
+                            row_dict['Error Reason'] = "Student ID already exists"
+                            failed_records.append(row_dict)
+                            progress_bar.progress((i + 1) / total_rows)
+                            continue
+                            
+                        raw_college = str(r.get('College', '')).strip().upper()
+                        if raw_college not in VALID_COLLEGES:
+                            row_dict['Error Reason'] = f"Invalid College '{raw_college}'. Allowed: {', '.join(VALID_COLLEGES)}"
+                            failed_records.append(row_dict)
+                            progress_bar.progress((i + 1) / total_rows)
+                            continue
+                            
+                        bd_dt = pd.to_datetime(r.get('Birth Date'), errors='coerce')
+                        new_students.append(Student(
+                            id=sid, name=str(r.get('Name', 'Unknown')), college=raw_college, 
+                            program=str(r.get('Program', '')), price_per_hr=float(r.get('Price Per Hr', 0.0)), 
+                            email=str(r.get('Email', '')), mobile=str(r.get('Mobile', '')), national_id=str(r.get('National ID', '')), 
+                            nationality=str(r.get('Nationality', 'Egyptian')), admit_year=int(r.get('Admit Year', DEFAULT_YEAR)), 
+                            birth_date=bd_dt.date() if pd.notna(bd_dt) else None
+                        ))
+                        success_count += 1
+                        
+                        progress_bar.progress((i + 1) / total_rows)
+                        status_text.text(f"Processing record {i+1} of {total_rows}...")
+                        
+                    if new_students:
+                        try:
+                            db.add_all(new_students)
+                            db.commit()
+                            st.success(f"✅ Successfully registered {success_count} new students!")
+                        except Exception as e:
+                            db.rollback()
+                            st.error(f"❌ Database Error: {e}")
+                            success_count = 0
+                    elif success_count == 0 and not failed_records:
+                        st.warning("⚠️ No data found in the uploaded file.")
+                        
+                    status_text.empty()
+                    if failed_records:
+                        st.error(f"⚠️ {len(failed_records)} records failed or skipped. See report below.")
+                        df_failed = pd.DataFrame(failed_records)
+                        st.dataframe(df_failed, use_container_width=True)
+                        buf_err = io.BytesIO()
+                        df_failed.to_excel(buf_err, index=False)
+                        st.download_button(label="⬇️ Download Error Report", data=buf_err.getvalue(), file_name=f"Failed_Registrations_{datetime.now().strftime('%Y%m%d%H%M')}.xlsx", use_container_width=True)
+
+# -------------------------------------------------------
 # TAB: Batch Management
 # -------------------------------------------------------
-with tab_batch:
+elif selected_tab == "🗑️ Batch Management":
     st.subheader("🗑️ Batch Management")
     batch_action = st.radio("Action: ", ["📂 View Active Batches", "📥 Export Batch Details", "🗑️ Delete Batch (Admin Only)", "📜 Deleted Batches History"], horizontal=True)
     
@@ -1681,11 +1906,8 @@ with tab_batch:
         if batch_action == "📂 View Active Batches":
             if batch_summary:
                 df_batches = pd.DataFrame([{
-                    "Batch ID": b.batch_id, 
-                    "Type": b.transaction_type, 
-                    "Records": b.record_count, 
-                    "Total Debit": f"{b.total_debit:,.2f}", 
-                    "Total Credit": f"{b.total_credit:,.2f}", 
+                    "Batch ID": b.batch_id, "Type": b.transaction_type, "Records": b.record_count, 
+                    "Total Debit": f"{b.total_debit:,.2f}", "Total Credit": f"{b.total_credit:,.2f}", 
                     "Uploaded At": b.upload_date.strftime('%Y-%m-%d %H:%M:%S') if b.upload_date else "N/A"
                 } for b in batch_summary])
                 st.dataframe(df_batches, use_container_width=True)
@@ -1713,7 +1935,6 @@ with tab_batch:
                         if not df_ex.empty:
                             st.success(f"✅ Found {len(df_ex)} records for Batch: {sel_batch}")
                             st.dataframe(df_ex.style.format({"Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
-                            
                             buf_ex_batch = io.BytesIO()
                             df_ex.to_excel(buf_ex_batch, index=False)
                             st.download_button(
@@ -1774,260 +1995,9 @@ with tab_batch:
                 st.info("No deleted batches history found.")
 
 # -------------------------------------------------------
-# TAB: Policies & Docs
+# TAB: System Admin (Users & Data Management)
 # -------------------------------------------------------
-with tab_docs:
-    st.subheader("📚 University Financial Policies & Documents")
-    doc_action = st.radio("Action: ", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
-
-    if doc_action == "📂 View & Download":
-        with get_db() as db:
-            available_doc_years = [y[0] for y in db.query(PolicyDocument.academic_year).distinct().all()]
-            if "2022/2023" not in available_doc_years:
-                available_doc_years.append("2022/2023")
-            if "2025/2026" not in available_doc_years:
-                available_doc_years.append("2025/2026")
-                
-            sel_doc_year = st.selectbox("Filter by Academic Year:", sorted(set(available_doc_years), reverse=True))
-            st.markdown("### 🗄️ Original Uploaded PDF Files")
-            docs = db.query(PolicyDocument).filter_by(academic_year=sel_doc_year).order_by(PolicyDocument.uploaded_at.desc()).all()
-            
-            if docs:
-                for doc in docs:
-                    with st.container():
-                        c1, c2, c3, c4 = st.columns([4, 1, 1, 1])
-                        c1.markdown(f"📄 **{doc.title}** <br><small>Uploaded by {doc.uploaded_by} on {doc.uploaded_at.strftime('%Y-%m-%d')}</small>", unsafe_allow_html=True)
-                        if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
-                            st.session_state['view_doc_id'] = doc.id
-                        c3.download_button("⬇️ Download PDF", data=doc.file_data, file_name=doc.file_name, mime="application/pdf", key=f"dl_{doc.id}")
-                        
-                        if st.session_state.get('user_role') == 'Admin':
-                            if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
-                                db.delete(doc)
-                                db.commit()
-                                st.rerun()
-                        else:
-                            c4.write(" ") 
-                            
-                st.markdown("---")
-                if st.session_state.get('view_doc_id'):
-                    doc_to_view = db.query(PolicyDocument).get(st.session_state['view_doc_id'])
-                    if doc_to_view: 
-                        st.markdown(f"### 👀 Viewing PDF: {doc_to_view.title}")
-                        if st.button("❌ Close Document Reader"):
-                            st.session_state['view_doc_id'] = None
-                            st.rerun()
-                        st.markdown(f'<iframe src="data:application/pdf;base64,{base64.b64encode(doc_to_view.file_data).decode("utf-8")}" width="100%" height="800" type="application/pdf"></iframe>', unsafe_allow_html=True)
-            else:
-                st.warning("⚠️ No original PDF document has been uploaded for this academic year yet.")
-
-    elif doc_action == "📤 Upload New Document (Admin Only)":
-        if st.session_state.get('user_role') == 'Admin':
-            with st.form("upload_doc_form", clear_on_submit=True):
-                doc_title = st.text_input("Document Title *", placeholder="e.g., Financial Policy 2025/2026")
-                year_options = [f"{y}/{y+1}" for y in range(2020, 2030)]
-                doc_year = st.selectbox("Academic Year *", year_options, index=5) 
-                doc_file = st.file_uploader("Select PDF File *", type=['pdf'])
-                
-                if st.form_submit_button("📤 Upload Document"):
-                    if not doc_title or not doc_file:
-                        st.error("⚠️ Title and PDF file are required.")
-                    else:
-                        with get_db() as db:
-                            try:
-                                db.add(PolicyDocument(
-                                    title=doc_title, academic_year=doc_year, 
-                                    file_name=doc_file.name, file_data=doc_file.read(), 
-                                    uploaded_by=st.session_state.get('logged_in_user')
-                                ))
-                                db.commit()
-                                st.session_state['flash_msg'] = f"✅ Document uploaded!"
-                                st.rerun()
-                            except Exception as e:
-                                db.rollback()
-                                st.error(f"❌ Upload failed: {e}")
-        else:
-            st.error("🔒 **Access Denied**: Only Admins can upload policies.")
-
-# -------------------------------------------------------
-# TAB: Management Reports
-# -------------------------------------------------------
-with tab4:
-    st.subheader("📈 Financial Management Reports")
-    
-    if 'report_params' not in st.session_state:
-        st.session_state['report_params'] = None
-        
-    with st.form("reports_filter_form", clear_on_submit=False):
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-        sel_col = col_f1.multiselect("Filter by College", all_colleges)
-        sel_term = col_f2.multiselect("Filter by Term", VALID_TERMS)
-        sel_year = col_f3.multiselect("Filter by Year", available_years)
-        sel_status = col_f4.multiselect("Filter by Status", VALID_STATUSES)
-        
-        col_f5, col_f6 = st.columns([1, 2])
-        sel_dates = col_f5.date_input("Date Range", [])
-        
-        rep_v = col_f6.radio("Format: ", [
-            "Accounting Summary", "Full Detailed Log", 
-            "Period Closing (Activity Summary)", "Student Academic Status Report"
-        ], horizontal=True)
-        
-        if st.form_submit_button("📂 Generate Report Data"):
-            st.session_state['report_params'] = {
-                'col': sel_col, 'term': sel_term, 'year': sel_year, 
-                'status': sel_status, 'dates': sel_dates, 'format': rep_v
-            }
-
-    if st.session_state.get('report_params'):
-        p = st.session_state['report_params']
-        with st.spinner("Processing High-Speed Data Report..."):
-            
-            if p['format'] == "Student Academic Status Report":
-                sql = text("""
-                    SELECT 
-                        s.id AS "Student ID", s.name AS "Student Name", s.college AS "College", 
-                        s.program AS "Program", ss.term AS "Term", ss.academic_year AS "Year", 
-                        ss.status AS "Academic Status"
-                    FROM student_statuses ss 
-                    JOIN students s ON ss.student_id = s.id 
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
-                      AND (:t_cnt = 0 OR ss.term IN :trms) 
-                      AND (:y_cnt = 0 OR ss.academic_year IN :yrs) 
-                      AND (:s_cnt = 0 OR ss.status IN :stats)
-                    ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
-                """)
-                params = {
-                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
-                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',)
-                }
-                df = pd.read_sql(sql, con=engine, params=params)
-                if not df.empty:
-                    st.dataframe(df, use_container_width=True)
-                else:
-                    st.warning("No status history found matching the selected criteria.")
-                    
-            elif p['format'] == "Accounting Summary":
-                sql = text("""
-                    SELECT 
-                        s.id AS "ID", s.name AS "Student Name", s.college AS "College", s.email AS "Email", 
-                        COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status", 
-                        s.price_per_hr AS "Price/Hr", 
-                        COALESCE(SUM(t.hours_change), 0) AS "Reg. Hours", 
-                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed", 
-                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees", 
-                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "Discounts", 
-                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments", 
-                        COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments", 
-                        COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Balance" 
-                    FROM students s 
-                    LEFT JOIN transactions t ON s.id = t.student_id AND (:t_cnt = 0 OR t.term IN :trms) AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
-                      AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
-                    GROUP BY s.id, s.name, s.college, s.email, s.price_per_hr ORDER BY s.id
-                """)
-                params = {
-                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
-                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',)
-                }
-                df = pd.read_sql(sql, con=engine, params=params)
-                if not df.empty:
-                    st.dataframe(df.style.format({
-                        "Price/Hr": "{:,.2f}", "Reg. Hours": "{:,.1f}", "Tuition Billed": "{:,.2f}", 
-                        "Other Fees": "{:,.2f}", "Discounts": "{:,.2f}", "Payments": "{:,.2f}", 
-                        "Adjustments": "{:,.2f}", "Balance": "{:,.2f}"
-                    }), use_container_width=True)
-                else:
-                    st.warning("No data found matching the selected criteria.")
-
-            elif p['format'] == "Period Closing (Activity Summary)":
-                if len(p['dates']) != 2:
-                    st.warning("⚠️ Please select a Date Range.")
-                else:
-                    sql = text("""
-                        SELECT 
-                            s.id AS "ID", s.name AS "Student Name", s.college AS "College", 
-                            COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status", 
-                            COALESCE(SUM(t.hours_change), 0) AS "CH Changed", 
-                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice', 'Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END), 0) AS "Tuition Billed", 
-                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees', 'Bulk Other Fees') THEN t.debit ELSE 0 END), 0) AS "Other Fees", 
-                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount', 'Bulk Scholarships') THEN t.credit - t.debit ELSE 0 END), 0) AS "New Discounts", 
-                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt', 'Bulk Payments') THEN t.credit - t.debit ELSE 0 END), 0) AS "Payments Received", 
-                            COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment', 'Credit Hours Adjustments', 'General Adjustment', 'General Adjustments') THEN t.debit - t.credit ELSE 0 END), 0) AS "Adjustments", 
-                            COALESCE(SUM(t.debit) - SUM(t.credit), 0) AS "Net Period Change" 
-                        FROM transactions t 
-                        JOIN students s ON t.student_id = s.id 
-                        WHERE (:c_cnt = 0 OR s.college IN :cls) 
-                          AND (:t_cnt = 0 OR t.term IN :trms) 
-                          AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
-                          AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
-                          AND t.entry_date >= :s_date AND t.entry_date <= :e_date 
-                        GROUP BY s.id, s.name, s.college HAVING COALESCE(SUM(t.debit), 0) > 0 OR COALESCE(SUM(t.credit), 0) > 0 ORDER BY s.id
-                    """)
-                    params = {
-                        "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                        "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                        "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
-                        "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',), 
-                        "s_date": p['dates'][0], "e_date": p['dates'][1]
-                    }
-                    df = pd.read_sql(sql, con=engine, params=params)
-                    if not df.empty:
-                        st.dataframe(df.style.format({
-                            "CH Changed": "{:,.1f}", "Tuition Billed": "{:,.2f}", "Other Fees": "{:,.2f}", 
-                            "New Discounts": "{:,.2f}", "Payments Received": "{:,.2f}", "Adjustments": "{:,.2f}", 
-                            "Net Period Change": "{:,.2f}"
-                        }), use_container_width=True)
-                    else:
-                        st.warning("No financial activity found in the selected date range.")
-
-            else:
-                sql = text("""
-                    SELECT 
-                        t.student_id, s.name, s.college, 
-                        COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') AS "Current Status",
-                        t.reference_no, t.entry_date, t.term, t.academic_year, t.description, t.hours_change AS "Hours", t.debit, t.credit 
-                    FROM transactions t 
-                    JOIN students s ON t.student_id = s.id 
-                    WHERE (:c_cnt = 0 OR s.college IN :cls) 
-                      AND (:t_cnt = 0 OR t.term IN :trms) 
-                      AND (:y_cnt = 0 OR t.academic_year IN :yrs) 
-                      AND (:s_cnt = 0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id = s.id ORDER BY id DESC LIMIT 1), 'Not Set') IN :stats)
-                      AND (:has_dates = 0 OR (t.entry_date >= :s_date AND t.entry_date <= :e_date)) 
-                    ORDER BY t.student_id, t.entry_date DESC
-                """)
-                params = {
-                    "c_cnt": len(p['col']), "cls": tuple(p['col']) if p['col'] else ('',), 
-                    "t_cnt": len(p['term']), "trms": tuple(p['term']) if p['term'] else ('',), 
-                    "y_cnt": len(p['year']), "yrs": tuple(p['year']) if p['year'] else (-1,), 
-                    "s_cnt": len(p['status']), "stats": tuple(p['status']) if p['status'] else ('',), 
-                    "has_dates": 1 if len(p['dates']) == 2 else 0, 
-                    "s_date": p['dates'][0] if len(p['dates']) == 2 else None, 
-                    "e_date": p['dates'][1] if len(p['dates']) == 2 else None
-                }
-                df = pd.read_sql(sql, con=engine, params=params)
-                if not df.empty:
-                    st.dataframe(df.style.format({"Hours": "{:,.1f}", "Debit": "{:,.2f}", "Credit": "{:,.2f}"}), use_container_width=True)
-                else:
-                    st.warning("No financial activity found in the selected criteria.")
-
-            if 'df' in locals() and not df.empty:
-                buf_rep_final = io.BytesIO()
-                df.to_excel(buf_rep_final, index=False)
-                st.download_button(
-                    label="📗 Download Excel Report", data=buf_rep_final.getvalue(), 
-                    file_name=f"Management_Report_{p['format'].replace(' ', '_')}.xlsx", 
-                    use_container_width=True
-                )
-
-# -------------------------------------------------------
-# TAB: System Admin (Users & Roles)
-# -------------------------------------------------------
-with tab_admin:
+elif selected_tab == "⚙️ System Admin":
     st.subheader("⚙️ System Administration & Access Control")
     if st.session_state.get('user_role') != 'Admin':
         st.error("🔒 **Access Denied**: You do not have permission to view this page. Only System Administrators can access User Management.")
@@ -2055,7 +2025,7 @@ with tab_admin:
                                 db.commit()
                                 st.success(f"✅ User '{u.username}' updated successfully!")
                                 st.rerun()
-                                                    
+                                
             elif admin_action == "➕ Add New User":
                 with st.form("add_user_form"):
                     col_a1, col_a2 = st.columns(2)
@@ -2076,6 +2046,7 @@ with tab_admin:
                             db.commit()
                             st.success(f"✅ User '{n_user}' created successfully with role '{n_role}'!")
                             st.rerun()
+                            
             elif admin_action == "🛠️ Database Fixes":
                 st.markdown("### 🧹 Fix College Names (Data Cleansing)")
                 st.info("💡 This tool will scan all registered students and convert any lowercase or incorrectly spaced college names (e.g., 'Bio_Tech') to the standard uppercase format (e.g., 'BIO_TECH').")
@@ -2101,18 +2072,15 @@ with tab_admin:
                 st.markdown("### 💾 Full Database Backup")
                 st.info("💡 **Best Practice:** Download this file daily or weekly. It contains EVERYTHING (Students, Transactions, Users, Settings). If anything goes wrong, you can replace the existing database with this file to restore the system.")
                 
-                # مسار قاعدة البيانات (استخراج الاسم من الـ DB_URL أو استخدام الافتراضي)
                 db_filepath = "finance.db"
                 
                 if os.path.exists(db_filepath):
-                    # قراءة ملف قاعدة البيانات كـ Bytes
                     with open(db_filepath, "rb") as f:
                         db_bytes = f.read()
                     
                     col_b1, col_b2 = st.columns([1, 2])
                     
                     with col_b1:
-                        # زرار التحميل
                         st.download_button(
                             label="⬇️ Download Full Database (.db)",
                             data=db_bytes,
@@ -2125,4 +2093,4 @@ with tab_admin:
                         st.markdown(f"**Current Database Size:** `{os.path.getsize(db_filepath) / 1024 / 1024:.2f} MB`")
                         st.markdown("**Last Modified:** `" + datetime.fromtimestamp(os.path.getmtime(db_filepath)).strftime('%Y-%m-%d %H:%M:%S') + "`")
                 else:
-                    st.error("⚠️ Database file not found in the root directory.")                
+                    st.error("⚠️ Database file not found in the root directory.")
