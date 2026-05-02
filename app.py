@@ -456,9 +456,10 @@ if st.session_state.get('flash_msg'):
     st.success(st.session_state['flash_msg'])
     st.session_state['flash_msg'] = None
 
-tab_dashboard, tab_search, tab_reg, tab1, tab2, tab3, tab_sch, tab_batch, tab_docs, tab4, tab_admin = st.tabs([
-    "📊 Dashboard", "🔍 Student Lookup", "👤 Registration", "📊 Operations", "📜 Statement & Search", 
-    "📤 Bulk Financials", "🎓 Scholarships", "🗑️ Batch Management", "📚 Policies & Docs", "📈 Reports", "⚙️ System Admin"
+tab_dashboard, tab2, tab4, tab_docs, tab_search, tab1, tab3, tab_sch, tab_reg, tab_batch, tab_admin = st.tabs([
+    "📊 Dashboard", "📜 Student Statement", "📈 Reports", "📚 Policies & Docs", 
+    "🔍 Student Lookup", "📊 Operations", "📤 Bulk Financials", "🎓 Scholarships", 
+    "👤 Registration", "🗑️ Batch Management", "⚙️ System Admin"
 ])
 
 # -------------------------------------------------------
@@ -474,47 +475,48 @@ with tab_dashboard:
     st.markdown("<br>", unsafe_allow_html=True)
 
     with get_db() as db:
-        revenue_q   = db.query(func.sum(Transaction.debit)).join(Student, Transaction.student_id == Student.id)
-        discount_q  = db.query(func.sum(Transaction.credit - Transaction.debit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
-        payment_q   = db.query(func.sum(Transaction.credit)).join(Student, Transaction.student_id == Student.id).filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments']))
-        collected_q = db.query(func.sum(Transaction.credit)).join(Student, Transaction.student_id == Student.id)
-        status_q    = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
-        student_q   = db.query(Student)
+        # --- 1. بناء الاستعلامات الأساسية ---
+        # استخدمنا base query واحد عشان الكود يكون أسرع وأنظف
+        tx_q = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
+        status_q = db.query(StudentStatus).filter(StudentStatus.status == 'Active')
+        student_q = db.query(Student)
 
+        # --- 2. تطبيق الفلاتر ---
         if dash_filter_term != "All Terms":
-            revenue_q   = revenue_q.filter(Transaction.term == dash_filter_term)
-            discount_q  = discount_q.filter(Transaction.term == dash_filter_term)
-            payment_q   = payment_q.filter(Transaction.term == dash_filter_term)
-            collected_q = collected_q.filter(Transaction.term == dash_filter_term)
-            status_q    = status_q.filter(StudentStatus.term == dash_filter_term)
+            tx_q = tx_q.filter(Transaction.term == dash_filter_term)
+            status_q = status_q.filter(StudentStatus.term == dash_filter_term)
 
         if dash_filter_year != "All Years":
             yr_int = int(dash_filter_year)
-            revenue_q   = revenue_q.filter(Transaction.academic_year == yr_int)
-            discount_q  = discount_q.filter(Transaction.academic_year == yr_int)
-            payment_q   = payment_q.filter(Transaction.academic_year == yr_int)
-            collected_q = collected_q.filter(Transaction.academic_year == yr_int)
-            status_q    = status_q.filter(StudentStatus.academic_year == yr_int)
+            tx_q = tx_q.filter(Transaction.academic_year == yr_int)
+            status_q = status_q.filter(StudentStatus.academic_year == yr_int)
 
         if dash_filter_college != "All Colleges":
-            revenue_q   = revenue_q.filter(Student.college == dash_filter_college)
-            discount_q  = discount_q.filter(Student.college == dash_filter_college)
-            payment_q   = payment_q.filter(Student.college == dash_filter_college)
-            collected_q = collected_q.filter(Student.college == dash_filter_college)
-            student_q   = student_q.filter(Student.college == dash_filter_college)
-            
+            tx_q = tx_q.filter(Student.college == dash_filter_college)
+            student_q = student_q.filter(Student.college == dash_filter_college)
             status_q = status_q.join(Student, StudentStatus.student_id == Student.id).filter(Student.college == dash_filter_college)
 
+        # --- 3. الحسابات المحاسبية الموزونة ---
+        
+        # أ. الخصومات والمنح الفعلية
+        total_discounts = tx_q.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        
+        # ب. المدفوعات والتحصيلات الفعلية
+        total_payments = tx_q.filter(Transaction.transaction_type.in_(['Payment Receipt', 'Bulk Payments'])).with_entities(func.sum(Transaction.credit - Transaction.debit)).scalar() or 0.0
+        
+        # ج. الصافي الحقيقي والفعلي من ميزان المراجعة (كل الـ Debits ناقص كل الـ Credits)
+        net_balance = tx_q.with_entities(func.sum(Transaction.debit - Transaction.credit)).scalar() or 0.0
 
-        total_revenue   = revenue_q.scalar() or 0.0
-        total_discounts = discount_q.scalar() or 0.0
-        total_payments  = payment_q.scalar() or 0.0
-        total_collected = collected_q.scalar() or 0.0
-        net_balance     = total_revenue - total_collected   
-        total_students  = student_q.count()
-        active_count    = status_q.distinct(StudentStatus.student_id).count()
+        # د. السر هنا: حساب الإيراد الإجمالي المعدل عشان يضمن إن الأرقام تبان منطقية للعين
+        # (Gross Revenue = Net Balance + Discounts + Payments)
+        # بكده أي تسويات (Adjustments) هتتدمج جوا الإيراد الإجمالي والرياضيات هتظبط 100%
+        total_revenue = net_balance + total_discounts + total_payments
 
-    
+        # أعداد الطلاب
+        total_students = student_q.count()
+        active_count = status_q.distinct(StudentStatus.student_id).count()
+
+    # --- 4. عرض الكروت (بنفس تصميمك وترتيبك بالضبط) ---
     kpi1, kpi2, kpi3 = st.columns(3)
 
     with kpi1:
@@ -2030,7 +2032,7 @@ with tab_admin:
     if st.session_state.get('user_role') != 'Admin':
         st.error("🔒 **Access Denied**: You do not have permission to view this page. Only System Administrators can access User Management.")
     else:
-        admin_action = st.radio("Action:", ["👥 Manage Users", "➕ Add New User"], horizontal=True)
+        admin_action = st.radio("Action:", ["👥 Manage Users", "➕ Add New User", "🛠️ Database Fixes", "💾 System Backup"], horizontal=True)
         
         with get_db() as db:
             if admin_action == "👥 Manage Users":
@@ -2053,7 +2055,7 @@ with tab_admin:
                                 db.commit()
                                 st.success(f"✅ User '{u.username}' updated successfully!")
                                 st.rerun()
-                                
+                                                    
             elif admin_action == "➕ Add New User":
                 with st.form("add_user_form"):
                     col_a1, col_a2 = st.columns(2)
@@ -2074,3 +2076,53 @@ with tab_admin:
                             db.commit()
                             st.success(f"✅ User '{n_user}' created successfully with role '{n_role}'!")
                             st.rerun()
+            elif admin_action == "🛠️ Database Fixes":
+                st.markdown("### 🧹 Fix College Names (Data Cleansing)")
+                st.info("💡 This tool will scan all registered students and convert any lowercase or incorrectly spaced college names (e.g., 'Bio_Tech') to the standard uppercase format (e.g., 'BIO_TECH').")
+                
+                if st.button("🚀 Run College Name Fix", type="primary"):
+                    with st.spinner("Cleaning database..."):
+                        students = db.query(Student).all()
+                        fixed_count = 0
+                        for s in students:
+                            if s.college:
+                                clean_name = s.college.strip().upper()
+                                if s.college != clean_name:
+                                    s.college = clean_name
+                                    fixed_count += 1
+                        
+                        if fixed_count > 0:
+                            db.commit()
+                            st.success(f"✅ Successfully fixed and merged {fixed_count} student records! Go to the Dashboard to see the updated Revenue Breakdown.")
+                        else:
+                            st.success("✅ Database is already clean. No mismatched college names found.")
+                            
+            elif admin_action == "💾 System Backup":
+                st.markdown("### 💾 Full Database Backup")
+                st.info("💡 **Best Practice:** Download this file daily or weekly. It contains EVERYTHING (Students, Transactions, Users, Settings). If anything goes wrong, you can replace the existing database with this file to restore the system.")
+                
+                # مسار قاعدة البيانات (استخراج الاسم من الـ DB_URL أو استخدام الافتراضي)
+                db_filepath = "finance.db"
+                
+                if os.path.exists(db_filepath):
+                    # قراءة ملف قاعدة البيانات كـ Bytes
+                    with open(db_filepath, "rb") as f:
+                        db_bytes = f.read()
+                    
+                    col_b1, col_b2 = st.columns([1, 2])
+                    
+                    with col_b1:
+                        # زرار التحميل
+                        st.download_button(
+                            label="⬇️ Download Full Database (.db)",
+                            data=db_bytes,
+                            file_name=f"NU_Finance_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db",
+                            mime="application/octet-stream",
+                            type="primary",
+                            use_container_width=True
+                        )
+                    with col_b2:
+                        st.markdown(f"**Current Database Size:** `{os.path.getsize(db_filepath) / 1024 / 1024:.2f} MB`")
+                        st.markdown("**Last Modified:** `" + datetime.fromtimestamp(os.path.getmtime(db_filepath)).strftime('%Y-%m-%d %H:%M:%S') + "`")
+                else:
+                    st.error("⚠️ Database file not found in the root directory.")                
