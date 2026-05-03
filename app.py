@@ -11,6 +11,7 @@ from datetime import datetime
 from fpdf import FPDF
 import io
 from contextlib import contextmanager
+import time
 
 # =======================================================
 # 1. Centralized System Configuration
@@ -315,6 +316,8 @@ if 'view_doc_id' not in st.session_state:
     st.session_state['view_doc_id'] = None
 if 'lookup_id' not in st.session_state:
     st.session_state['lookup_id'] = 0
+if 'last_activity' not in st.session_state:
+    st.session_state['last_activity'] = time.time()
 
 def login_form():
     st.markdown("<h2 style='text-align: center;'>🔒 Finance Login</h2>", unsafe_allow_html=True)
@@ -323,7 +326,11 @@ def login_form():
         pwd = st.text_input("Password", type="password")
         if st.form_submit_button("Login"):
             with get_db() as db:
-                db_user = db.query(SystemUser).filter_by(username=user, is_active=True).first()
+                # بدلاً من السطر القديم، استخدم func.lower لتوحيد الحروف أثناء البحث
+                db_user = db.query(SystemUser).filter(
+                 func.lower(SystemUser.username) == user.lower(), 
+                  SystemUser.is_active == True
+                        ).first()
                 if db_user and db_user.password_hash == hash_pw(pwd):
                     st.session_state['authenticated'] = True
                     st.session_state['logged_in_user'] = db_user.username
@@ -475,6 +482,23 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
+# --- Session Timeout Logic (30 Minutes) ---
+TIMEOUT_SECONDS = 30 * 60  # 30 دقيقة تحولت لثواني
+
+if st.session_state['authenticated']:
+    current_time = time.time()
+    elapsed_time = current_time - st.session_state['last_activity']
+    
+    if elapsed_time > TIMEOUT_SECONDS:
+        # لو الوقت عدى، امسح كل حاجة وطرده بره
+        st.session_state['authenticated'] = False
+        st.session_state['logged_in_user'] = None
+        st.session_state['user_role'] = None
+        st.warning("⚠️ Session expired due to inactivity (30m). Please login again.")
+        st.stop() # وقف التنفيذ عشان ميروحش للداشبورد
+    else:
+        # لو لسه شغال، حدث وقت آخر نشاط للوقت الحالي
+        st.session_state['last_activity'] = current_time
 
 col_title, col_logout = st.columns([0.8, 0.2], vertical_alignment="center")
 with col_title:
@@ -2048,6 +2072,26 @@ elif selected_tab == "⚙️ System Admin":
                     n_user = col_a1.text_input("New Username *")
                     n_pwd = col_a2.text_input("Temporary Password *", type="password")
                     n_role = st.selectbox("Assign Role *", ["Admin", "Editor", "Viewer"], index=1)
+                    
+                    if st.form_submit_button("🚀 Create User"):
+                        if not n_user or not n_pwd: 
+                            st.error("⚠️ Username and Password are required!")
+                        
+                        # 🔥 التعديل هنا (سطر التحقق Case-Insensitive)
+                        elif db.query(SystemUser).filter(func.lower(SystemUser.username) == n_user.lower()).first():
+                            st.error("⚠️ Username already exists (Case-Insensitive). Choose another one.")
+                        
+                        else:
+                            # لو كل تمام، بنضيف اليوزر الجديد
+                            db.add(SystemUser(
+                                username=n_user.strip(), # نصيحة: امسح أي مسافات بالمرة
+                                password_hash=hash_pw(n_pwd), 
+                                role=n_role, 
+                                is_active=True
+                            ))
+                            db.commit()
+                            st.success(f"✅ User '{n_user}' created successfully!")
+                            st.rerun()
                     
                     if st.form_submit_button("🚀 Create User"):
                         if not n_user or not n_pwd:
