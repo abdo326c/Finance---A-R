@@ -408,7 +408,7 @@ else:
 # =======================================================
 # 8. Main App Framework & Sidebar
 # =======================================================
-st.markdown("<h3 style='text-align: center; color: #1f2937; margin-bottom: -20px;'>🏦 Nile University - Finance A/R System</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #1f2937; margin-bottom: -30px;'>🏦 Nile University - Finance A/R System</h3>", unsafe_allow_html=True)
 st.markdown("---")
 
 # Toast Notifications الجديد (بدل st.success القديمة)
