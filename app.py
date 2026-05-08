@@ -437,54 +437,53 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. الضربة القاضية لزراير Streamlit Cloud (GitHub و Fork) */
-.viewerBadge_container { display: none !important; }
-.viewerBadge_link { display: none !important; }
+/* 1. إخفاء زراير Streamlit Cloud (GitHub / Fork) بأعنف طريقة */
+.viewerBadge_container,
+.viewerBadge_link,
+div[class^="viewerBadge"] {
+    display: none !important;
+    opacity: 0 !important;
+}
 
-/* 2. إخفاء التول بار والمنيو الافتراضية بتاعت Streamlit */
-[data-testid="stToolbar"] { display: none !important; }
-[data-testid="stHeaderActionElements"] { display: none !important; }
-.stDeployButton { display: none !important; }
-#MainMenu { display: none !important; }
-
-/* 3. إخفاء لون الهيدر نفسه عشان يبان إن مفيش هيدر أصلاً */
+/* 2. إخفاء التول بار والهيدر بالكامل */
+[data-testid="stToolbar"],
+[data-testid="stHeaderActionElements"],
+.stDeployButton,
+#MainMenu {
+    display: none !important;
+}
 header[data-testid="stHeader"] {
     background: transparent !important;
     box-shadow: none !important;
+    height: 0px !important; /* بنلغي مساحة الهيدر تماماً */
 }
 
-/* 4. نقل زرار السايدبار (المقبض) لنص الشاشة يساراً */
-header[data-testid="stHeader"] button {
+/* 3. زرار فتح القائمة (المقبض) - هيظهر لما تقفل الـ Sidebar */
+[data-testid="collapsedControl"] {
     position: fixed !important;
     top: 50% !important;
     left: 0 !important;
     transform: translateY(-50%) !important;
-    background-color: #004a99 !important; /* اللون الأزرق */
+    background-color: #004a99 !important;
     border-radius: 0 10px 10px 0 !important; /* حواف من اليمين بس */
     width: 45px !important;
     height: 60px !important;
     z-index: 999999 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border: none !important;
     box-shadow: 2px 2px 10px rgba(0,0,0,0.3) !important;
     transition: all 0.3s ease !important;
 }
-
-/* تلوين السهم اللي جوه الزرار بالأبيض */
-header[data-testid="stHeader"] button svg {
-    fill: white !important;
-    color: white !important;
-}
-
-/* حركة الماوس على الزرار (بيكيكبر سنة) */
-header[data-testid="stHeader"] button:hover {
-    background-color: #1a73e8 !important;
+/* حركة أنيقة لما تقف عليه بالماوس */
+[data-testid="collapsedControl"]:hover {
     width: 55px !important;
+    background-color: #1a73e8 !important;
+}
+/* تلوين السهم بالأبيض */
+[data-testid="collapsedControl"] svg {
+    color: white !important;
+    fill: white !important;
 }
 
-/* 5. رفع المحتوى لفوق لتقليل المساحة الفاضية */
+/* 4. رفع المحتوى لفوق */
 .block-container {
     padding-top: 1.5rem !important;
 }
