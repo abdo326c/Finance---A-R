@@ -437,14 +437,34 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
+/* 1. إخفاء القائمة الافتراضية، التذييل، وزرار Deploy و GitHub */
 #MainMenu {visibility: hidden !important;}
 footer {visibility: hidden !important;}
 .stDeployButton {display:none !important;}
+[data-testid="stHeader"] > div:nth-child(1) {display:none !important;} /* لإخفاء أيقونات اليمين */
 
-/* 🔥 تقليل المساحة الفاضية فوق الهيدر 🔥 */
+/* 2. تقليل المساحة الفاضية فوق الهيدر */
 .block-container {
-    padding-top: 2rem !important;
+    padding-top: 1.5rem !important;
     padding-bottom: 1rem !important;
+}
+
+/* 3. نقل زرار فتح الـ Sidebar للمنتصف */
+/* ملاحظة: زرار السايدبار في ستريمليت هو Button داخل الـ Header */
+header[data-testid="stHeader"] button {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: 10px !important;
+    visibility: visible !important;
+    display: flex !important;
+    z-index: 999999;
+    background-color: #f8f9fa !important;
+    border: 1px solid #004a99 !important;
+    border-radius: 50% !important; /* نخليه مدور وشكله شيك */
+    width: 40px !important;
+    height: 40px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
 }
 
 /* --- Modern Sidebar Menu CSS --- */
@@ -478,7 +498,6 @@ footer {visibility: hidden !important;}
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
-
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
