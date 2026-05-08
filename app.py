@@ -437,37 +437,41 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. إخفاء القائمة الافتراضية، التذييل، وزرار Deploy و GitHub */
+/* 1. إخفاء القائمة الافتراضية، التذييل، وأيقونات GitHub */
 #MainMenu {visibility: hidden !important;}
 footer {visibility: hidden !important;}
 .stDeployButton {display:none !important;}
-[data-testid="stHeader"] > div:nth-child(1) {display:none !important;} /* لإخفاء أيقونات اليمين */
+[data-testid="stHeader"] > div:nth-child(1) {display:none !important;} 
 
-/* 2. تقليل المساحة الفاضية فوق الهيدر */
+/* 2. تقليل المساحة الفاضية فوق */
 .block-container {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 2rem !important;
 }
 
-/* 3. نقل زرار فتح الـ Sidebar للمنتصف */
-/* ملاحظة: زرار السايدبار في ستريمليت هو Button داخل الـ Header */
+/* 3. نقل زرار الـ Sidebar ليكون في منتصف الشاشة يساراً */
 header[data-testid="stHeader"] button {
     position: fixed !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    top: 10px !important;
+    top: 50% !important; /* في منتصف ارتفاع الشاشة */
+    left: 0px !important; /* ملتصق بالحافة اليسرى */
+    transform: translateY(-50%) !important; /* لضمان التوسيط الرأسي الدقيق */
     visibility: visible !important;
     display: flex !important;
     z-index: 999999;
-    background-color: #f8f9fa !important;
-    border: 1px solid #004a99 !important;
-    border-radius: 50% !important; /* نخليه مدور وشكله شيك */
-    width: 40px !important;
-    height: 40px !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+    background-color: #004a99 !important; /* لون أزرق عشان يبان */
+    color: white !important; /* لون السهم أبيض */
+    border-radius: 0px 10px 10px 0px !important; /* حواف دائرية من الناحية اليمين فقط */
+    width: 35px !important;
+    height: 50px !important;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s ease !important;
 }
 
-/* --- Modern Sidebar Menu CSS --- */
+header[data-testid="stHeader"] button:hover {
+    width: 45px !important; /* يتمدد سنة بسيطة لما تقف عليه */
+    background-color: #1a73e8 !important;
+}
+
+/* --- باقي الـ CSS بتاع الـ Sidebar والـ Metrics يفضل زي ما هو --- */
 [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
 [data-testid="stSidebar"] div[role="radiogroup"] > label {
     padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
@@ -486,8 +490,6 @@ header[data-testid="stHeader"] button {
     padding: 8px 10px !important;
     width: 100% !important; 
 }
-
-/* --- Metrics and Buttons CSS --- */
 [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
 [data-testid="stMetric"] {
     background-color: #ffffff; padding: 25px; border-radius: 15px;
@@ -498,6 +500,7 @@ header[data-testid="stHeader"] button {
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
