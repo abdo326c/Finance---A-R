@@ -437,62 +437,42 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. إخفاء زراير Streamlit Cloud (GitHub / Fork) بأعنف طريقة */
-.viewerBadge_container,
-.viewerBadge_link,
-div[class^="viewerBadge"] {
-    display: none !important;
-    opacity: 0 !important;
-}
+/* 1. إخفاء القائمة الافتراضية، التذييل، وزرار Deploy و GitHub */
+#MainMenu {visibility: hidden !important;}
+footer {visibility: hidden !important;}
+.stDeployButton {display:none !important;}
+[data-testid="stHeader"] > div:nth-child(1) {display:none !important;} /* لإخفاء أيقونات اليمين */
 
-/* 2. إخفاء التول بار والهيدر بالكامل */
-[data-testid="stToolbar"],
-[data-testid="stHeaderActionElements"],
-.stDeployButton,
-#MainMenu {
-    display: none !important;
-}
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    box-shadow: none !important;
-    height: 0px !important; /* بنلغي مساحة الهيدر تماماً */
-}
-
-/* 3. زرار فتح القائمة (المقبض) - هيظهر لما تقفل الـ Sidebar */
-[data-testid="collapsedControl"] {
-    position: fixed !important;
-    top: 50% !important;
-    left: 0 !important;
-    transform: translateY(-50%) !important;
-    background-color: #004a99 !important;
-    border-radius: 0 10px 10px 0 !important; /* حواف من اليمين بس */
-    width: 45px !important;
-    height: 60px !important;
-    z-index: 999999 !important;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.3) !important;
-    transition: all 0.3s ease !important;
-}
-/* حركة أنيقة لما تقف عليه بالماوس */
-[data-testid="collapsedControl"]:hover {
-    width: 55px !important;
-    background-color: #1a73e8 !important;
-}
-/* تلوين السهم بالأبيض */
-[data-testid="collapsedControl"] svg {
-    color: white !important;
-    fill: white !important;
-}
-
-/* 4. رفع المحتوى لفوق */
+/* 2. تقليل المساحة الفاضية فوق الهيدر */
 .block-container {
     padding-top: 1.5rem !important;
+    padding-bottom: 1rem !important;
 }
 
-/* --- تنسيقات السايدبار المودرن --- */
+/* 3. نقل زرار فتح الـ Sidebar للمنتصف */
+/* ملاحظة: زرار السايدبار في ستريمليت هو Button داخل الـ Header */
+header[data-testid="stHeader"] button {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: 10px !important;
+    visibility: visible !important;
+    display: flex !important;
+    z-index: 999999;
+    background-color: #f8f9fa !important;
+    border: 1px solid #004a99 !important;
+    border-radius: 50% !important; /* نخليه مدور وشكله شيك */
+    width: 40px !important;
+    height: 40px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+}
+
+/* --- Modern Sidebar Menu CSS --- */
 [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
 [data-testid="stSidebar"] div[role="radiogroup"] > label {
     padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
-    transition: all 0.2s ease; cursor: pointer;
+    background-color: transparent; transition: all 0.2s ease;
+    cursor: pointer; font-weight: 500;
 }
 [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
     background-color: #f0f2f6; transform: translateX(4px);
@@ -503,14 +483,18 @@ header[data-testid="stHeader"] {
     font-weight: 700 !important; 
     border-left: 4px solid #004a99 !important; 
     border-radius: 0px 8px 8px 0px !important; 
+    padding: 8px 10px !important;
     width: 100% !important; 
 }
 
-/* تنسيق الكروت */
+/* --- Metrics and Buttons CSS --- */
+[data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
 [data-testid="stMetric"] {
     background-color: #ffffff; padding: 25px; border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
 }
+.stButton>button { border-radius: 8px; border: none; transition: all 0.3s; }
+.stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
