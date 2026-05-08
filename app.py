@@ -1476,7 +1476,7 @@ elif selected_tab == "⚙️ System Admin":
     if st.session_state.get('user_role') != 'Admin':
         st.error("🔒 **Access Denied**: Only System Administrators can access User Management.")
     else:
-        admin_action = st.radio("Action:", ["👥 Manage Users", "➕ Add New User", "🛠️ Database Fixes", "💾 System Backup"], horizontal=True)
+        admin_action = st.radio("Action:", ["👥 Manage Users", "➕ Add New User", "🛠️ Database Fixes"], horizontal=True)
         with get_db() as db:
             if admin_action == "👥 Manage Users":
                 users = db.query(SystemUser).order_by(SystemUser.id).all()
