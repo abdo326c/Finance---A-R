@@ -1526,23 +1526,4 @@ elif selected_tab == "⚙️ System Admin":
                             db.commit()
                             st.success(f"✅ Successfully fixed and merged {fixed_count} student records!")
                         else: st.success("✅ Database is already clean.")
-                            
-            elif admin_action == "💾 System Backup":
-                st.markdown("### 💾 Full Database Backup")
-                
-                # استخراج مسار الداتا بيز الحقيقي من محرك قاعدة البيانات
-                if engine.name == 'sqlite':
-                    db_filepath = engine.url.database
-                    
-                    if db_filepath and os.path.exists(db_filepath):
-                        with open(db_filepath, "rb") as f: 
-                            db_bytes = f.read()
-                        col_b1, col_b2 = st.columns([1, 2])
-                        with col_b1:
-                            st.download_button("⬇️ Download Full Database (.db)", data=db_bytes, file_name=f"NU_Finance_Backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db", mime="application/octet-stream", type="primary", use_container_width=True)
-                        with col_b2:
-                            st.markdown(f"**Size:** `{os.path.getsize(db_filepath) / 1024 / 1024:.2f} MB` | **Last Modified:** `{datetime.fromtimestamp(os.path.getmtime(db_filepath)).strftime('%Y-%m-%d %H:%M:%S')}`")
-                    else: 
-                        st.error(f"⚠️ Database file '{db_filepath}' not found on the server.")
-                else:
-                    st.warning("⚠️ Backup download is only available for local SQLite databases. For Cloud databases (PostgreSQL/MySQL), please use your database provider's backup tools.")
+                              
