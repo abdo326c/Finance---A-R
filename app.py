@@ -437,46 +437,56 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. إخفاء التول بار اللي فوق على اليمين (GitHub, Fork, Deploy) */
-[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-.stDeployButton {display: none !important;}
-#MainMenu {visibility: hidden !important;}
-header[data-testid="stHeader"] {background: transparent !important;} /* إخفاء شريط الهيدر نفسه */
+/* 1. الضربة القاضية لزراير Streamlit Cloud (GitHub و Fork) */
+.viewerBadge_container { display: none !important; }
+.viewerBadge_link { display: none !important; }
 
-/* 2. نقل زرار السايدبار (المقبض) لنص الشاشة يساراً */
-/* المعرف الصحيح لزرار السايدبار وهو مقفول هو collapsedControl */
-[data-testid="collapsedControl"] {
+/* 2. إخفاء التول بار والمنيو الافتراضية بتاعت Streamlit */
+[data-testid="stToolbar"] { display: none !important; }
+[data-testid="stHeaderActionElements"] { display: none !important; }
+.stDeployButton { display: none !important; }
+#MainMenu { display: none !important; }
+
+/* 3. إخفاء لون الهيدر نفسه عشان يبان إن مفيش هيدر أصلاً */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* 4. نقل زرار السايدبار (المقبض) لنص الشاشة يساراً */
+header[data-testid="stHeader"] button {
     position: fixed !important;
     top: 50% !important;
-    left: 0px !important;
+    left: 0 !important;
     transform: translateY(-50%) !important;
-    z-index: 999999 !important;
-    background-color: #004a99 !important;
-    border-radius: 0px 10px 10px 0px !important; /* حواف ناعمة يمين */
+    background-color: #004a99 !important; /* اللون الأزرق */
+    border-radius: 0 10px 10px 0 !important; /* حواف من اليمين بس */
     width: 45px !important;
     height: 60px !important;
+    z-index: 999999 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.3) !important;
+    border: none !important;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.3) !important;
     transition: all 0.3s ease !important;
 }
 
-/* تلوين السهم اللي جوه الزرار باللون الأبيض */
-[data-testid="collapsedControl"] svg {
-    color: white !important;
+/* تلوين السهم اللي جوه الزرار بالأبيض */
+header[data-testid="stHeader"] button svg {
     fill: white !important;
+    color: white !important;
 }
 
-/* حركة أنيقة لما الماوس ييجي عليه */
-[data-testid="collapsedControl"]:hover {
-    width: 55px !important;
+/* حركة الماوس على الزرار (بيكيكبر سنة) */
+header[data-testid="stHeader"] button:hover {
     background-color: #1a73e8 !important;
+    width: 55px !important;
 }
 
-/* 3. تقليل المساحة الفاضية فوق */
+/* 5. رفع المحتوى لفوق لتقليل المساحة الفاضية */
 .block-container {
-    padding-top: 2rem !important;
+    padding-top: 1.5rem !important;
 }
 
 /* --- تنسيقات السايدبار المودرن --- */
@@ -484,6 +494,9 @@ header[data-testid="stHeader"] {background: transparent !important;} /* إخفا
 [data-testid="stSidebar"] div[role="radiogroup"] > label {
     padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
     transition: all 0.2s ease; cursor: pointer;
+}
+[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+    background-color: #f0f2f6; transform: translateX(4px);
 }
 [data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
     background-color: #eaf1fa !important; 
