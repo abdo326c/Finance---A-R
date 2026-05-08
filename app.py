@@ -437,47 +437,46 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. إخفاء أيقونات اليمين (Deploy, GitHub, Menu) فقط */
-[data-testid="stHeaderActionElements"] {
-    display: none !important;
-}
-footer {visibility: hidden !important;}
+/* 1. إخفاء التول بار اللي فوق على اليمين (GitHub, Fork, Deploy) */
+[data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+.stDeployButton {display: none !important;}
+#MainMenu {visibility: hidden !important;}
+header[data-testid="stHeader"] {background: transparent !important;} /* إخفاء شريط الهيدر نفسه */
 
-/* 2. تضبيط مساحة الشاشة */
-.block-container {
-    padding-top: 2rem !important;
-}
-
-/* 3. إظهار وتحريك زرار السايدبار (المقبض) لنص الشاشة يساراً */
-/* نتحكم في الحاوية اللي شايلة الزرار */
-[data-testid="stSidebarCollapsedControl"] {
+/* 2. نقل زرار السايدبار (المقبض) لنص الشاشة يساراً */
+/* المعرف الصحيح لزرار السايدبار وهو مقفول هو collapsedControl */
+[data-testid="collapsedControl"] {
     position: fixed !important;
     top: 50% !important;
     left: 0px !important;
     transform: translateY(-50%) !important;
     z-index: 999999 !important;
-    display: block !important;
-    visibility: visible !important;
-}
-
-/* نتحكم في الزرار نفسه عشان ندي له شكل الـ Tab */
-[data-testid="stSidebarCollapsedControl"] button {
-    background-color: #004a99 !important; /* لون أزرق براند الجامعة */
-    color: white !important;
-    border-radius: 0px 10px 10px 0px !important; /* حواف دائرية يمين بس */
-    width: 40px !important;
+    background-color: #004a99 !important;
+    border-radius: 0px 10px 10px 0px !important; /* حواف ناعمة يمين */
+    width: 45px !important;
     height: 60px !important;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.3) !important;
-    border: 1px solid #003366 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.3) !important;
+    transition: all 0.3s ease !important;
 }
 
-/* تأثير عند الوقوف بالماوس */
-[data-testid="stSidebarCollapsedControl"] button:hover {
-    width: 50px !important;
+/* تلوين السهم اللي جوه الزرار باللون الأبيض */
+[data-testid="collapsedControl"] svg {
+    color: white !important;
+    fill: white !important;
+}
+
+/* حركة أنيقة لما الماوس ييجي عليه */
+[data-testid="collapsedControl"]:hover {
+    width: 55px !important;
     background-color: #1a73e8 !important;
+}
+
+/* 3. تقليل المساحة الفاضية فوق */
+.block-container {
+    padding-top: 2rem !important;
 }
 
 /* --- تنسيقات السايدبار المودرن --- */
@@ -495,15 +494,15 @@ footer {visibility: hidden !important;}
     width: 100% !important; 
 }
 
-/* تنسيق الكروت والأزرار */
+/* تنسيق الكروت */
 [data-testid="stMetric"] {
     background-color: #ffffff; padding: 25px; border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
 }
-.stButton>button { border-radius: 8px; }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 if not st.session_state['authenticated']:
     login_form()
     st.stop()
