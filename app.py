@@ -437,45 +437,54 @@ st.markdown("""
 
 hide_streamlit_style = """
 <style>
-/* 1. إخفاء القائمة الافتراضية، التذييل، وزرار Deploy و GitHub */
-#MainMenu {visibility: hidden !important;}
+/* 1. إخفاء أيقونات اليمين (Deploy, GitHub, Menu) فقط */
+[data-testid="stHeaderActionElements"] {
+    display: none !important;
+}
 footer {visibility: hidden !important;}
-.stDeployButton {display:none !important;}
-[data-testid="stHeader"] > div:nth-child(1) {display:none !important;} /* لإخفاء أيقونات اليمين */
 
-/* 2. تقليل المساحة الفاضية فوق الهيدر */
+/* 2. تضبيط مساحة الشاشة */
 .block-container {
-    padding-top: 1.5rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 2rem !important;
 }
 
-/* 3. نقل زرار فتح الـ Sidebar للمنتصف */
-/* ملاحظة: زرار السايدبار في ستريمليت هو Button داخل الـ Header */
-header[data-testid="stHeader"] button {
+/* 3. إظهار وتحريك زرار السايدبار (المقبض) لنص الشاشة يساراً */
+/* نتحكم في الحاوية اللي شايلة الزرار */
+[data-testid="stSidebarCollapsedControl"] {
     position: fixed !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    top: 10px !important;
+    top: 50% !important;
+    left: 0px !important;
+    transform: translateY(-50%) !important;
+    z-index: 999999 !important;
+    display: block !important;
     visibility: visible !important;
-    display: flex !important;
-    z-index: 999999;
-    background-color: #f8f9fa !important;
-    border: 1px solid #004a99 !important;
-    border-radius: 50% !important; /* نخليه مدور وشكله شيك */
-    width: 40px !important;
-    height: 40px !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
 }
 
-/* --- Modern Sidebar Menu CSS --- */
+/* نتحكم في الزرار نفسه عشان ندي له شكل الـ Tab */
+[data-testid="stSidebarCollapsedControl"] button {
+    background-color: #004a99 !important; /* لون أزرق براند الجامعة */
+    color: white !important;
+    border-radius: 0px 10px 10px 0px !important; /* حواف دائرية يمين بس */
+    width: 40px !important;
+    height: 60px !important;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.3) !important;
+    border: 1px solid #003366 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* تأثير عند الوقوف بالماوس */
+[data-testid="stSidebarCollapsedControl"] button:hover {
+    width: 50px !important;
+    background-color: #1a73e8 !important;
+}
+
+/* --- تنسيقات السايدبار المودرن --- */
 [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
 [data-testid="stSidebar"] div[role="radiogroup"] > label {
     padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
-    background-color: transparent; transition: all 0.2s ease;
-    cursor: pointer; font-weight: 500;
-}
-[data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
-    background-color: #f0f2f6; transform: translateX(4px);
+    transition: all 0.2s ease; cursor: pointer;
 }
 [data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
     background-color: #eaf1fa !important; 
@@ -483,18 +492,15 @@ header[data-testid="stHeader"] button {
     font-weight: 700 !important; 
     border-left: 4px solid #004a99 !important; 
     border-radius: 0px 8px 8px 0px !important; 
-    padding: 8px 10px !important;
     width: 100% !important; 
 }
 
-/* --- Metrics and Buttons CSS --- */
-[data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
+/* تنسيق الكروت والأزرار */
 [data-testid="stMetric"] {
     background-color: #ffffff; padding: 25px; border-radius: 15px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-left: 6px solid #004a99;
 }
-.stButton>button { border-radius: 8px; border: none; transition: all 0.3s; }
-.stButton>button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+.stButton>button { border-radius: 8px; }
 </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
