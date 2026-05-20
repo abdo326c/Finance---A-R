@@ -38,11 +38,20 @@ def render():
                     f"{doc.uploaded_at.strftime('%Y-%m-%d')}</small>",
                     unsafe_allow_html=True,
                 )
-                if c2.button("👁️ View", key=f"view_{doc.id}"):
-                    st.session_state["view_doc_id"] = doc.id
-                c3.download_button("⬇️ Download", data=doc.file_data,
-                                   file_name=doc.file_name, mime="application/pdf",
-                                   key=f"dl_{doc.id}")
+                # بدلاً من الـ iframe، استخدم هذا الكود لعرض الملف في تبويبة جديدة
+if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
+    # تحويل الـ binary لـ base64
+    b64 = base64.b64encode(doc.file_data).decode()
+    # إنشاء رابط مباشر للـ PDF
+    href = f'data:application/pdf;base64,{b64}'
+    
+    # استخدام JS عشان يفتح الملف في تبويبة جديدة خالص (المتصفح مش هيعملها Block)
+    st.components.v1.html(f"""
+        <script>
+            var win = window.open('{href}', '_blank');
+            win.focus();
+        </script>
+    """, height=0)
                 if st.session_state.get("user_role") == "Admin":
                     if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
                         if st.session_state.get(f"confirm_del_{doc.id}"):
