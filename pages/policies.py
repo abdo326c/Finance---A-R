@@ -1,5 +1,6 @@
 # pages/policies.py
 import base64
+import json
 import streamlit as st
 from streamlit.components.v1 import html
 
@@ -71,36 +72,66 @@ def render():
                         st.session_state["view_doc_id"] = None
                         st.rerun()
 
-                    # Convert PDF bytes to base64 and render via Blob URL in client-side JS
+                    # Encode bytes to base64 and JSON-escape the string for safe embedding in JS
                     b64 = base64.b64encode(doc_v.file_data).decode()
+                    b64_json = json.dumps(b64)
 
-                    # Use a small HTML/JS snippet to convert base64 -> Blob -> object URL
-                    # This approach avoids data: URI iframe issues in Edge.
+                    # HTML/JS: use fetch on data: URI to create a Blob (avoids atob limits and Edge data: iframe issues)
+                    # Fallback: show download link and friendly message if embedding fails.
                     html(
                         f"""
                         <div>
-                          <iframe id="pdf_frame" width="100%" height="800"></iframe>
+                          <div id="pdf_container" style="width:100%;height:820px;border:1px solid #eee;">
+                            <iframe id="pdf_frame" width="100%" height="100%" style="border:none"></iframe>
+                          </div>
+                          <div id="fallback" style="margin-top:8px;display:none;">
+                            <p style="color:darkred">تعذر عرض الملف داخل المتصفح. الرجاء تنزيله بدلاً من ذلك.</p>
+                            <a id="download_link" href="#" download="{doc_v.file_name}">⬇️ تنزيل الملف</a>
+                          </div>
                           <script>
-                            const b64 = "{b64}";
-                            try {{
-                              const byteCharacters = atob(b64);
-                              const byteNumbers = new Array(byteCharacters.length);
-                              for (let i = 0; i < byteCharacters.length; i++) {{
-                                byteNumbers[i] = byteCharacters.charCodeAt(i);
-                              }}
-                              const byteArray = new Uint8Array(byteNumbers);
-                              const blob = new Blob([byteArray], {{ type: 'application/pdf' }});
-                              const blobUrl = URL.createObjectURL(blob);
-                              document.getElementById('pdf_frame').src = blobUrl;
-                            }} catch (err) {{
-                              document.getElementById('pdf_frame').outerHTML =
-                                '<p style="color:darkred">تعذر عرض الملف داخل المتصفح. الرجاء تنزيله بدلاً من ذلك.</p>';
-                              console.error(err);
-                            }}
+                            (function() {{
+                              const b64 = {b64_json};
+                              const dataUrl = 'data:application/pdf;base64,' + b64;
+                              const iframe = document.getElementById('pdf_frame');
+                              const fallback = document.getElementById('fallback');
+                              const downloadLink = document.getElementById('download_link');
+
+                              // Set download link href (so user can always download)
+                              downloadLink.href = dataUrl;
+
+                              // Try to convert data URL to Blob via fetch (more memory-friendly in some browsers)
+                              fetch(dataUrl)
+                                .then(res => res.blob())
+                                .then(blob => {{
+                                  const blobUrl = URL.createObjectURL(blob);
+                                  // Try setting iframe src to blob URL
+                                  iframe.src = blobUrl;
+
+                                  // Some browsers (or extensions) may still block embedding PDFs.
+                                  // Add a short timeout to detect if iframe loaded (best-effort).
+                                  setTimeout(() => {{
+                                    // If iframe contentWindow is null or about:blank, show fallback
+                                    try {{
+                                      const cw = iframe.contentWindow;
+                                      if (!cw || iframe.src === 'about:blank') {{
+                                        fallback.style.display = 'block';
+                                      }}
+                                    }} catch (e) {{
+                                      // Accessing contentWindow may throw due to cross-origin or blocking; show fallback
+                                      fallback.style.display = 'block';
+                                      console.error('Iframe load check error:', e);
+                                    }}
+                                  }}, 800);
+                                }})
+                                .catch(err => {{
+                                  console.error('Failed to create blob from base64:', err);
+                                  fallback.style.display = 'block';
+                                }});
+                            }})();
                           </script>
                         </div>
                         """,
-                        height=820,
+                        height=860,
                     )
 
     else:
@@ -133,3 +164,8 @@ def render():
                             db.rollback()
                             st.error("Upload failed. Please try again.")
                             st.exception(e)
+
+
+# If this module is used as a page, call render()
+if __name__ == "__main__":
+    render()
