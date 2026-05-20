@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 st.set_page_config(page_title="Executive Dashboard | Nile University", page_icon="📊", layout="wide")
 
 # متنساش تحط الباسورد الحقيقية بتاعتك
-DB_URL = "postgresql://postgres:Finance01017043056@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require"
+DB_URL = "postgresql://postgres.njqjgvfvxtdxrabidkje:Finance01017043056@aws-0-eu-west-1.pooler.supabase.com:6543/postgres"
 
 # ================= 2. دالة جلب البيانات =================
 @st.cache_data # الكود ده بيحفظ الداتا في الكاش عشان ميهلكش السيرفر مع كل ريفريش
