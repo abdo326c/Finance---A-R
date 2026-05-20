@@ -89,7 +89,7 @@ def render(engine, available_years):
                 f'<h2 style="margin:8px 0 0;font-size:28px;">{val}</h2></div>',
                 unsafe_allow_html=True,
             )
-
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📋 Revenue Breakdown by College")
 
     with get_db() as db:
