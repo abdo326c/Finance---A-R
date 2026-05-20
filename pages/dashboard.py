@@ -90,7 +90,7 @@ def render(engine, available_years):
                 unsafe_allow_html=True,
             )
 
-    st.markdown("📋 Revenue Breakdown by College")
+    st.markdown("### 📋 Revenue Breakdown by College")
 
     with get_db() as db:
         df = pd.read_sql(
