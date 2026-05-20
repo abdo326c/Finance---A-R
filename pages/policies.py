@@ -5,7 +5,9 @@ import streamlit as st
 from auth import require_role
 from models import get_db, PolicyDocument
 
-
+if not st.session_state.get('authenticated'):
+    st.switch_page("app.py")
+    
 def render():
     st.subheader("📚 University Financial Policies & Documents")
     action = st.radio("Action:", ["📂 View & Download", "📤 Upload New Document (Admin Only)"], horizontal=True)
