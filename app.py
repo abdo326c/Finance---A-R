@@ -13,6 +13,8 @@ from fpdf import FPDF
 import io
 from contextlib import contextmanager
 
+st.sidebar.success("اختر صفحة من الأعلى ⬆️")
+
 # =======================================================
 # 1. Centralized System Configuration
 # =======================================================
