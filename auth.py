@@ -18,11 +18,20 @@ def hash_pw(plain: str) -> str:
 
 
 def verify_pw(plain: str, hashed: str) -> bool:
+    """
+    Supports both bcrypt hashes (new) and legacy SHA-256 hashes (old).
+    Automatically upgrades SHA-256 passwords to bcrypt on first login.
+    """
     try:
-        return bcrypt.checkpw(plain.encode(), hashed.encode())
+        # bcrypt hashes always start with $2b$ or $2a$
+        if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+            return bcrypt.checkpw(plain.encode(), hashed.encode())
+        else:
+            # Legacy SHA-256 path
+            import hashlib
+            return hashlib.sha256(plain.encode()).hexdigest() == hashed
     except Exception:
         return False
-
 
 # ── Session helpers ───────────────────────────
 def init_session():
@@ -97,6 +106,10 @@ def login_form():
                     .first()
                 )
                 if user and verify_pw(password, user.password_hash):
+
+                    if not user.password_hash.startswith(("$2b$", "$2a$")):
+                        user.password_hash = hash_pw(password)
+                        db.commit()
                     st.session_state["authenticated"]  = True
                     st.session_state["logged_in_user"] = user.username
                     st.session_state["user_role"]      = user.role
