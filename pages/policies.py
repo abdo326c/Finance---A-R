@@ -1,7 +1,6 @@
-# pages/policies.py
 import base64
 import streamlit as st
-
+import streamlit.components.v1 as components
 from auth import require_role
 from models import get_db, PolicyDocument
 
@@ -38,20 +37,22 @@ def render():
                     f"{doc.uploaded_at.strftime('%Y-%m-%d')}</small>",
                     unsafe_allow_html=True,
                 )
-                # بدلاً من الـ iframe، استخدم هذا الكود لعرض الملف في تبويبة جديدة
-if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
-    # تحويل الـ binary لـ base64
-    b64 = base64.b64encode(doc.file_data).decode()
-    # إنشاء رابط مباشر للـ PDF
-    href = f'data:application/pdf;base64,{b64}'
-    
-    # استخدام JS عشان يفتح الملف في تبويبة جديدة خالص (المتصفح مش هيعملها Block)
-    st.components.v1.html(f"""
-        <script>
-            var win = window.open('{href}', '_blank');
-            win.focus();
-        </script>
-    """, height=0)
+                
+                # --- التعديل هنا: فتح الـ PDF في تبويبة جديدة ---
+                if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
+                    b64 = base64.b64encode(doc.file_data).decode()
+                    # استخدام JS لفتح تبويبة جديدة وتجنب حظر الـ iframe
+                    components.html(f"""
+                        <script>
+                            var win = window.open('data:application/pdf;base64,{b64}', '_blank');
+                            win.focus();
+                        </script>
+                    """, height=0)
+                
+                c3.download_button("⬇️ Download", data=doc.file_data,
+                                   file_name=doc.file_name, mime="application/pdf",
+                                   key=f"dl_{doc.id}")
+                
                 if st.session_state.get("user_role") == "Admin":
                     if c4.button("🗑️ Delete", key=f"del_{doc.id}"):
                         if st.session_state.get(f"confirm_del_{doc.id}"):
@@ -60,21 +61,7 @@ if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
                             st.rerun()
                         else:
                             st.session_state[f"confirm_del_{doc.id}"] = True
-                            st.warning(f"Click Delete again to confirm removing '{doc.title}'.")
-
-            if st.session_state.get("view_doc_id"):
-                doc_v = db.get(PolicyDocument, st.session_state["view_doc_id"])
-                if doc_v:
-                    st.markdown(f"---\n### 👀 Viewing: {doc_v.title}")
-                    if st.button("❌ Close"):
-                        st.session_state["view_doc_id"] = None
-                        st.rerun()
-                    b64 = base64.b64encode(doc_v.file_data).decode()
-                    st.markdown(
-                        f'<iframe src="data:application/pdf;base64,{b64}" '
-                        f'width="100%" height="800" type="application/pdf"></iframe>',
-                        unsafe_allow_html=True,
-                    )
+                            st.warning(f"Click Delete again to confirm.")
 
     else:
         require_role("Admin")
@@ -99,5 +86,7 @@ if c2.button("👁️ View PDF", key=f"view_{doc.id}"):
                             st.rerun()
                         except Exception as e:
                             db.rollback()
-                            st.error("Upload failed. Please try again.")
-                            st.exception(e)
+                            st.error("Upload failed.")
+
+# استدعاء دالة الـ render
+render()
