@@ -51,11 +51,20 @@ def check_timeout():
     """Call once per page load. Returns True if session is still alive."""
     if not st.session_state.get("authenticated"):
         return False
+        
     elapsed = time.time() - st.session_state.get("last_activity", 0)
+    
+    # التعديل هنا: إضافة زرار إعادة الاتصال بعد انتهاء الجلسة
     if elapsed > TIMEOUT_MIN * 60:
         logout()
         st.warning(f"⚠️ Session expired after {TIMEOUT_MIN} minutes of inactivity. Please log in again.")
+        
+        if st.button("🔄 العودة لشاشة تسجيل الدخول", type="primary"):
+            st.session_state["last_activity"] = time.time()
+            st.rerun()
+            
         return False
+        
     st.session_state["last_activity"] = time.time()
     return True
 
