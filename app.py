@@ -93,6 +93,7 @@ NAV_OPTIONS = [
     "📊 Operations",
     "📤 Bulk Financials",
     "🎓 Scholarships",
+    "🔄 D365 FTI Export",  # <--- السطر الجديد اللي ضفناه
     "👤 Registration",
     "🗑️ Batch Management",
     "⚙️ System Admin",
@@ -149,6 +150,12 @@ elif selected_tab == "📤 Bulk Financials":
 elif selected_tab == "🎓 Scholarships":
     from pages.scholarships import render
     render(engine)
+    
+ # ── السطور الجديدة اللي هتضيفها ──
+elif selected_tab == "🔄 D365 FTI Export":
+    from pages.d365_export import render
+    render(engine, available_years)
+# ─────────────────────────────────   
 
 elif selected_tab == "👤 Registration":
     from pages.registration import render
