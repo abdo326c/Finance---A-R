@@ -1,4 +1,5 @@
-# pages/admin.py
+# views/admin.py
+import io
 import streamlit as st
 
 from config import VALID_ROLES
@@ -95,34 +96,66 @@ def render():
                 st.success(f"✅ Converted {fixed} scholarship record(s).")
 
             # ---------------------------------------------------------
-            # الأداة الجديدة: تحديث الأبعاد المالية
+            # 🟢 التعديل المطور: توليد التمبلت وحماية رفع الملفات
             # ---------------------------------------------------------
             st.markdown("---\n### 🛠️ Bulk Update: Financial Dimensions (D365)")
-            st.info("💡 Upload an Excel file containing exactly two columns: `ID` (Student ID) and `Dimension` (Financial Dimension string).")
+            st.write("Download the verified Excel template, fill your data, and upload it back to sync with Supabase.")
             
-            dim_file = st.file_uploader("Upload Dimensions Excel", type=['xlsx'], key="dim_uploader")
+            # 1. إنشاء التمبلت في الذاكرة أوتوماتيك للمستخدم
+            sample_data = {
+                "ID": [211000224, 211001595],
+                "Dimension": [
+                    "Academic||||||||EAS (AC02)|Civil and Infrastructure|211000224|Spring|",
+                    "Academic||||||||BA (AC02)|General Business|211001595|Fall|"
+                ]
+            }
+            df_sample = pd.DataFrame(sample_data)
+            
+            template_buffer = io.BytesIO()
+            with pd.ExcelWriter(template_buffer, engine='openpyxl') as writer:
+                df_sample.to_excel(writer, index=False, sheet_name='D365_Template')
+            
+            # زرار تحميل التمبلت الفوري لضمان تطابق الأعمدة
+            st.download_button(
+                label="📥 Download Verified Excel Template",
+                data=template_buffer.getvalue(),
+                file_name="D365_Students_Dimensions_Template.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            dim_file = st.file_uploader("Upload Completed Dimensions Excel", type=['xlsx'], key="dim_uploader")
             
             if dim_file and st.button("🚀 Update Students Dimensions", type="primary"):
-                with st.spinner("Updating student records..."):
-                    df_dims = pd.read_excel(dim_file)
-                    
-                    # التأكد من وجود الأعمدة المطلوبة
-                    if 'ID' not in df_dims.columns or 'Dimension' not in df_dims.columns:
-                        st.error("⚠️ The file must contain two columns named 'ID' and 'Dimension'")
-                    else:
-                        success_count = 0
-                        for index, row in df_dims.iterrows():
-                            student_id = int(row['ID']) if pd.notnull(row['ID']) else 0
-                            dimension_val = str(row['Dimension']).strip()
-                            
-                            if student_id > 0 and dimension_val and dimension_val != 'nan':
-                                db.query(Student).filter(Student.id == student_id).update(
-                                    {"financial_dimension": dimension_val}
-                                )
-                                success_count += 1
+                with st.spinner("Processing template and sync with Supabase..."):
+                    # حماية برمجية لمنع الشاشة البيضاء أو الحمراء في حالة وجود خطأ في ملف الإكسيل
+                    try:
+                        df_dims = pd.read_excel(dim_file, engine='openpyxl')
                         
-                        db.commit()
-                        st.success(f"✅ Successfully updated financial dimensions for {success_count} students!")
+                        if 'ID' not in df_dims.columns or 'Dimension' not in df_dims.columns:
+                            st.error("⚠️ Validation Error: The uploaded file must contain exactly two columns named 'ID' and 'Dimension'.")
+                        else:
+                            success_count = 0
+                            for index, row in df_dims.iterrows():
+                                if pd.isna(row['ID']) or pd.isna(row['Dimension']):
+                                    continue
+                                    
+                                student_id = int(row['ID'])
+                                dimension_val = str(row['Dimension']).strip()
+                                
+                                if student_id > 0 and dimension_val and dimension_val.lower() != 'nan':
+                                    db.query(Student).filter(Student.id == student_id).update(
+                                        {"financial_dimension": dimension_val}
+                                    )
+                                    success_count += 1
+                            
+                            db.commit()
+                            st.success(f"✅ Successfully updated financial dimensions for {success_count} students!")
+                            st.rerun()
+                            
+                    except Exception as e:
+                        st.error("⚠️ Execution Error: Failed to parse the Excel file. Please ensure 'openpyxl' is added to requirements.txt and you are uploading a valid .xlsx file.")
+                        st.exception(e)
 
         elif action == "📋 Audit Log":
             st.markdown("### 📋 Recent System Activity (last 500 entries)")
