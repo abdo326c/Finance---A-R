@@ -8,25 +8,40 @@ from config import VALID_TERMS, DEFAULT_YEAR
 
 def render(engine, available_years):
     st.subheader("🔄 Dynamics 365 Integration - FTI Export")
-    st.markdown("Extract financial transactions (Invoices/Discounts) in a format ready for direct upload as a Free Text Invoice.")
+    st.markdown("Extract financial transactions (Invoices/Discounts/Fees) in a format ready for direct upload as a Free Text Invoice.")
+
+    # تم نقل هذه الاختيارات خارج الـ Form لكي يتم تحديث الشاشة ديناميكياً
+    col1, col2, col3 = st.columns(3)
+    export_term = col1.selectbox("Term:", VALID_TERMS)
+    export_year = col2.selectbox("Year:", available_years)
+    
+    tx_type_filter = col3.selectbox("Transaction Type:", [
+        "All (Tuition Invoices & Discounts)",
+        "Tuition Invoices Only", 
+        "Discounts Only (Scholarships)",
+        "Other Fees Only"
+    ])
 
     with st.form("d365_export_form"):
-        col1, col2, col3 = st.columns(3)
-        export_term = col1.selectbox("Term:", VALID_TERMS)
-        export_year = col2.selectbox("Year:", available_years)
-        
-        tx_type_filter = col3.selectbox("Transaction Type:", [
-            "All Transactions",
-            "Invoices Only (Tuition & Fees)", 
-            "Discounts Only (Scholarships)"
-        ])
-
-        st.markdown("---")
         st.markdown("### ⚙️ Accounting Routing Settings")
         
-        col_rev, col_disc = st.columns(2)
-        revenue_account = col_rev.text_input("Revenue Ledger Account (For Invoices/Fees) *", value="4101028")
-        discount_account = col_disc.text_input("Discount Ledger Account (For Scholarships) *", value="4104001")
+        revenue_account = None
+        discount_account = None
+        
+        # إظهار الخانات بناءً على الاختيار
+        if tx_type_filter == "All (Tuition Invoices & Discounts)":
+            c1, c2 = st.columns(2)
+            revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101028")
+            discount_account = c2.text_input("Discount Ledger Account *", value="4104001")
+            
+        elif tx_type_filter == "Tuition Invoices Only":
+            revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101028")
+            
+        elif tx_type_filter == "Discounts Only (Scholarships)":
+            discount_account = st.text_input("Discount Ledger Account *", value="4104001")
+            
+        elif tx_type_filter == "Other Fees Only":
+            st.info("💡 **ملاحظة هامة:** رسوم الـ Other Fees متعددة الأنواع (تأخير، كارنيه، أنشطة) ولها حسابات مختلفة. سيتم ترك عمود حساب الأستاذ العام (Ledger Account) فارغاً في الملف لتتمكن من تعبئته يدوياً بناءً على حقل الوصف (Description) لكل حركة.")
         
         col_prof, col_curr = st.columns(2)
         posting_profile = col_prof.text_input("Posting Profile", value="STD")
@@ -34,33 +49,33 @@ def render(engine, available_years):
         
         st.markdown("#### 📅 Invoice & Due Dates")
         col_inv_date, col_due_date = st.columns(2)
-        # التاريخ هيطلع بصيغة YYYY-MM-DD
         invoice_date = col_inv_date.date_input("Invoice Date", datetime.date.today())
         due_date = col_due_date.date_input("Due Date", datetime.date.today())
 
         st.markdown("#### 🔢 Invoice Numbering & References")
         col_fti, col_ref = st.columns(2)
-        # التعديل الرابع: إدخال آخر رقم فاتورة
         last_fti = col_fti.text_input("Last D365 FTI Number (e.g., FTI-0012133) *", value="FTI-0012133")
-        # التعديل الخامس: حقل مرجع العميل
         customer_ref = col_ref.text_input("Customer Reference (Optional)", value="")
 
         submitted = st.form_submit_button("🚀 Generate D365 Template", type="primary")
 
     if submitted:
-        if not revenue_account or not discount_account:
-            st.error("⚠️ Please enter both Revenue and Discount Ledger Account Numbers.")
+        # التحقق من إدخال الحسابات المطلوبة
+        if tx_type_filter in ["All (Tuition Invoices & Discounts)", "Tuition Invoices Only"] and not revenue_account:
+            st.error("⚠️ Please enter the Revenue Ledger Account.")
+            return
+        if tx_type_filter in ["All (Tuition Invoices & Discounts)", "Discounts Only (Scholarships)"] and not discount_account:
+            st.error("⚠️ Please enter the Discount Ledger Account.")
             return
             
         if not last_fti or '-' not in last_fti:
             st.error("⚠️ Please enter a valid Last FTI Number containing a hyphen (e.g., FTI-0012133).")
             return
 
-        # تحليل رقم الفاتورة لفصله عن الحروف وتجهيزه للزيادة التلقائية
         try:
             prefix, num_str = last_fti.rsplit('-', 1)
             fti_counter = int(num_str)
-            num_length = len(num_str) # عشان نحافظ على الأصفار اللي على الشمال (e.g., 0012133)
+            num_length = len(num_str)
         except ValueError:
             st.error("⚠️ The part after the hyphen must be a number.")
             return
@@ -70,10 +85,16 @@ def render(engine, available_years):
                 query = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
                 query = query.filter(Transaction.term == export_term, Transaction.academic_year == export_year)
 
-                if tx_type_filter == "Invoices Only (Tuition & Fees)":
-                    query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees']))
+                # فلترة الحركات بناءً على الاختيار
+                if tx_type_filter == "Tuition Invoices Only":
+                    query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)']))
                 elif tx_type_filter == "Discounts Only (Scholarships)":
                     query = query.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
+                elif tx_type_filter == "Other Fees Only":
+                    query = query.filter(Transaction.transaction_type.in_(['Other Fees', 'Bulk Other Fees']))
+                else: 
+                    # All (Tuition + Scholarships) - Excluding Other Fees
+                    query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Discount', 'Bulk Scholarships']))
 
                 results = query.order_by(Transaction.id).all()
 
@@ -84,21 +105,25 @@ def render(engine, available_years):
                 d365_data = []
                 for idx, (tx, student) in enumerate(results, start=1):
                     is_discount = tx.transaction_type in ['Discount', 'Bulk Scholarships']
+                    is_other_fee = tx.transaction_type in ['Other Fees', 'Bulk Other Fees']
+                    
                     amount = tx.credit if is_discount else tx.debit
                     if amount <= 0: continue 
 
-                    # 1. زيادة رقم الفاتورة (Auto Increment FTI)
                     fti_counter += 1
                     current_fti = f"{prefix}-{str(fti_counter).zfill(num_length)}"
-
-                    # 2. إجبار رقم الطالب ليكون 9 أرقام نصية (Zero-Padded String)
                     student_id_str = str(student.id).zfill(9)
 
-                    target_ledger = discount_account if is_discount else revenue_account
+                    # تحديد حساب الأستاذ العام المناسب
+                    if is_other_fee:
+                        target_ledger = ""
+                    elif is_discount:
+                        target_ledger = discount_account
+                    else:
+                        target_ledger = revenue_account
                     
-                    # 3. استخدام الـ Dimension المسجل للطالب (أو بناء واحد احتياطي لو الطالب ملوش)
                     dim_val = getattr(student, 'financial_dimension', None)
-                    if not dim_val:
+                    if not dim_val or str(dim_val).lower() == 'nan':
                         dim_val = f"Academic||||||||{student.college}|{student.program if student.program else ''}|{student_id_str}|{tx.term}|"
 
                     d365_row = {
@@ -106,11 +131,11 @@ def render(engine, available_years):
                         "LINENUMBER": 1, 
                         "AMOUNTCUR": amount,
                         "CURRENCYCODE": currency_code,
-                        "CUSTOMERACCOUNT": student_id_str, # رقم بـ 9 خانات
-                        "CUSTOMERREFERENCE": customer_ref, # مرجع اختياري
-                        "DEFAULTDIMENSIONDISPLAYVALUE": dim_val, # من الداتا بيز
+                        "CUSTOMERACCOUNT": student_id_str,
+                        "CUSTOMERREFERENCE": customer_ref,
+                        "DEFAULTDIMENSIONDISPLAYVALUE": dim_val,
                         "DESCRIPTION": tx.description,
-                        "DOCUMENTDATE": invoice_date.strftime("%Y-%m-%d"), # فورمات التاريخ 2026-05-21
+                        "DOCUMENTDATE": invoice_date.strftime("%Y-%m-%d"),
                         "DUEDATE": due_date.strftime("%Y-%m-%d"),
                         "HEADERDEFAULTDIMENSIONDISPLAYVALUE": dim_val,
                         "INVOICEACCOUNT": student_id_str,
@@ -132,7 +157,6 @@ def render(engine, available_years):
                     st.download_button(
                         label="📥 Download D365 CSV File",
                         data=csv_buf,
-                        # التعديل الثاني: اسم الملف المطلوب بالضبط
                         file_name="Customer_free_text_invoice.csv", 
                         mime="text/csv",
                         type="primary",
