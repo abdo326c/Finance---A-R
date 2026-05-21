@@ -21,6 +21,7 @@ st.set_page_config(
 seed_default_users()
 
 # ── Custom CSS ────────────────────────────────
+# ── Custom CSS ────────────────────────────────
 st.markdown(
     """
 <style>
@@ -28,6 +29,10 @@ st.markdown(
 header[data-testid="stHeader"] { background: transparent !important; }
 .block-container { padding-top: 2rem !important; padding-bottom: 1rem !important; }
 
+/* إخفاء قائمة ستريمليت الافتراضية لمنع التعارض مع فولدر pages */
+[data-testid="stSidebarNav"] { display: none !important; }
+
+/* تنسيق القائمة المخصصة */
 [data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child { display: none !important; }
 [data-testid="stSidebar"] div[role="radiogroup"] > label {
     padding: 8px 12px; border-radius: 8px; margin-bottom: 4px;
@@ -35,6 +40,13 @@ header[data-testid="stHeader"] { background: transparent !important; }
 }
 [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
     background-color: #f0f2f6; transform: translateX(4px);
+}
+
+/* 🟢 التعديل هنا: تلوين الصفحة النشطة (Active Page) */
+[data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
+    background-color: #eaf1fa !important; color: #004a99 !important; font-weight: 700 !important; 
+    border-left: 4px solid #004a99 !important; border-radius: 0px 8px 8px 0px !important; 
+    padding: 8px 10px !important; width: 100% !important; 
 }
 
 [data-testid="stMetricValue"] { font-size: 32px !important; color: #004a99 !important; }
