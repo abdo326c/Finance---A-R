@@ -30,8 +30,8 @@ def render(engine, available_years):
         
         if tx_type_filter == "All (Tuition Invoices & Discounts)":
             c1, c2 = st.columns(2)
-            revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101028")
-            discount_account = c2.text_input("Discount Ledger Account *", value="4104001")
+            revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101004")
+            discount_account = c2.text_input("Discount Ledger Account *", value="5201005")
             
         elif tx_type_filter == "Tuition Invoices Only":
             revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101028")
