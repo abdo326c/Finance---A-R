@@ -154,7 +154,7 @@ elif selected_tab == "🔄 D365 FTI Export":
     from views.d365_export import render
     render(engine, available_years)
     
- elif selected_tab == "📩 Email Follow-up":
+elif selected_tab == "📩 Email Follow-up":
     from views.email_followup import render
     render(engine, available_years)   
 
