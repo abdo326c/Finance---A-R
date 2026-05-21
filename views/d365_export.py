@@ -34,10 +34,10 @@ def render(engine, available_years):
             discount_account = c2.text_input("Discount Ledger Account *", value="5201005")
             
         elif tx_type_filter == "Tuition Invoices Only":
-            revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101028")
+            revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101004")
             
         elif tx_type_filter == "Discounts Only (Scholarships)":
-            discount_account = st.text_input("Discount Ledger Account *", value="4104001")
+            discount_account = st.text_input("Discount Ledger Account *", value="5201005")
             
         elif tx_type_filter == "Other Fees Only":
             st.info("💡 **Important Note:** Other Fees vary in nature (e.g., late fees, ID cards, activities) and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
