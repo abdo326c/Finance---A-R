@@ -82,7 +82,6 @@ st.markdown(
 )
 st.markdown("---")
 
-# ── Sidebar ───────────────────────────────────
 NAV_OPTIONS = [
     "📊 Dashboard",
     "📜 Student Statement",
@@ -92,7 +91,8 @@ NAV_OPTIONS = [
     "📊 Operations",
     "📤 Bulk Financials",
     "🎓 Scholarships",
-    "🔄 D365 FTI Export",  
+    "🔄 D365 FTI Export",
+    "📩 Email Follow-up", # <--- السطر الجديد
     "👤 Registration",
     "🗑️ Batch Management",
     "⚙️ System Admin",
@@ -153,6 +153,10 @@ elif selected_tab == "🎓 Scholarships":
 elif selected_tab == "🔄 D365 FTI Export":
     from views.d365_export import render
     render(engine, available_years)
+    
+ elif selected_tab == "📩 Email Follow-up":
+    from views.email_followup import render
+    render(engine, available_years)   
 
 elif selected_tab == "👤 Registration":
     from views.registration import render
