@@ -41,7 +41,7 @@ def render(engine, available_years):
             discount_account = st.text_input("Discount Ledger Account *", value="4104001")
             
         elif tx_type_filter == "Other Fees Only":
-            st.info("💡 **ملاحظة هامة:** رسوم الـ Other Fees متعددة الأنواع (تأخير، كارنيه، أنشطة) ولها حسابات مختلفة. سيتم ترك عمود حساب الأستاذ العام (Ledger Account) فارغاً في الملف لتتمكن من تعبئته يدوياً بناءً على حقل الوصف (Description) لكل حركة.")
+            st.info("💡 **Important Note:** Other Fees vary in nature (e.g., late fees, ID cards, activities) and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
         
         col_prof, col_curr = st.columns(2)
         posting_profile = col_prof.text_input("Posting Profile", value="STD")
