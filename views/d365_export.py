@@ -8,18 +8,19 @@ from config import VALID_TERMS, DEFAULT_YEAR
 
 def render(engine, available_years):
     st.subheader("🔄 Dynamics 365 Integration - FTI Export")
-    st.markdown("Extract financial transactions (Invoices/Discounts/Fees) in a format ready for direct upload as a Free Text Invoice.")
+    st.markdown("Extract financial transactions (Invoices/Discounts/Fees/Adjustments) in a format ready for direct upload as a Free Text Invoice.")
 
-    # تم نقل هذه الاختيارات خارج الـ Form لكي يتم تحديث الشاشة ديناميكياً
     col1, col2, col3 = st.columns(3)
     export_term = col1.selectbox("Term:", VALID_TERMS)
     export_year = col2.selectbox("Year:", available_years)
     
+    # إضافة خيار Adjustments Only للقائمة
     tx_type_filter = col3.selectbox("Transaction Type:", [
         "All (Tuition Invoices & Discounts)",
         "Tuition Invoices Only", 
         "Discounts Only (Scholarships)",
-        "Other Fees Only"
+        "Other Fees Only",
+        "Adjustments Only"
     ])
 
     with st.form("d365_export_form"):
@@ -28,7 +29,7 @@ def render(engine, available_years):
         revenue_account = None
         discount_account = None
         
-        # إظهار الخانات بناءً على الاختيار
+        # التحكم في ظهور خانات الحسابات ديناميكياً بناءً على الفلتر
         if tx_type_filter == "All (Tuition Invoices & Discounts)":
             c1, c2 = st.columns(2)
             revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101028")
@@ -42,6 +43,9 @@ def render(engine, available_years):
             
         elif tx_type_filter == "Other Fees Only":
             st.info("💡 **Important Note:** Other Fees vary in nature (e.g., late fees, ID cards, activities) and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
+            
+        elif tx_type_filter == "Adjustments Only":
+            st.info("💡 **Important Note:** Adjustments vary in nature and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
         
         col_prof, col_curr = st.columns(2)
         posting_profile = col_prof.text_input("Posting Profile", value="STD")
@@ -60,7 +64,6 @@ def render(engine, available_years):
         submitted = st.form_submit_button("🚀 Generate D365 Template", type="primary")
 
     if submitted:
-        # التحقق من إدخال الحسابات المطلوبة
         if tx_type_filter in ["All (Tuition Invoices & Discounts)", "Tuition Invoices Only"] and not revenue_account:
             st.error("⚠️ Please enter the Revenue Ledger Account.")
             return
@@ -85,15 +88,16 @@ def render(engine, available_years):
                 query = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
                 query = query.filter(Transaction.term == export_term, Transaction.academic_year == export_year)
 
-                # فلترة الحركات بناءً على الاختيار
+                # فلترة الحركات بناءً على الاختيار الجديد
                 if tx_type_filter == "Tuition Invoices Only":
                     query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)']))
                 elif tx_type_filter == "Discounts Only (Scholarships)":
                     query = query.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
                 elif tx_type_filter == "Other Fees Only":
                     query = query.filter(Transaction.transaction_type.in_(['Other Fees', 'Bulk Other Fees']))
+                elif tx_type_filter == "Adjustments Only":
+                    query = query.filter(Transaction.transaction_type.in_(['Adjustment', 'Bulk Adjustments']))
                 else: 
-                    # All (Tuition + Scholarships) - Excluding Other Fees
                     query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Discount', 'Bulk Scholarships']))
 
                 results = query.order_by(Transaction.id).all()
@@ -106,22 +110,33 @@ def render(engine, available_years):
                 for idx, (tx, student) in enumerate(results, start=1):
                     is_discount = tx.transaction_type in ['Discount', 'Bulk Scholarships']
                     is_other_fee = tx.transaction_type in ['Other Fees', 'Bulk Other Fees']
+                    is_adjustment = tx.transaction_type in ['Adjustment', 'Bulk Adjustments']
                     
-                    amount = tx.credit if is_discount else tx.debit
-                    if amount <= 0: continue 
+                    # 🟢 تطبيق المنطق المحاسبي للإشارات تلقائياً
+                    if is_discount:
+                        amount = -tx.credit  # القيمة سالبة لعمل قيد عكسي تخفيض للعميل Cr. Customer
+                        target_ledger = discount_account
+                    elif is_other_fee:
+                        amount = tx.debit    # القيمة موجبة لإثبات المديونية Dr. Customer
+                        target_ledger = ""
+                    elif is_adjustment:
+                        # التسويات قد تكون مدينة (زيادة حساب) أو دائنة (تخفيض حساب)
+                        if tx.debit > 0:
+                            amount = tx.debit     # موجبة لو بتزود المديونية
+                        else:
+                            amount = -tx.credit   # سالبة لو بتخفض المديونية
+                        target_ledger = ""        # تترك فارغة للتوجيه اليدوي
+                    else: 
+                        amount = tx.debit
+                        target_ledger = revenue_account
+                        
+                    if amount == 0: 
+                        continue 
 
                     fti_counter += 1
                     current_fti = f"{prefix}-{str(fti_counter).zfill(num_length)}"
                     student_id_str = str(student.id).zfill(9)
 
-                    # تحديد حساب الأستاذ العام المناسب
-                    if is_other_fee:
-                        target_ledger = ""
-                    elif is_discount:
-                        target_ledger = discount_account
-                    else:
-                        target_ledger = revenue_account
-                    
                     dim_val = getattr(student, 'financial_dimension', None)
                     if not dim_val or str(dim_val).lower() == 'nan':
                         dim_val = f"Academic||||||||{student.college}|{student.program if student.program else ''}|{student_id_str}|{tx.term}|"
@@ -129,7 +144,7 @@ def render(engine, available_years):
                     d365_row = {
                         "FREETEXTNUMBER": current_fti,
                         "LINENUMBER": 1, 
-                        "AMOUNTCUR": amount,
+                        "AMOUNTCUR": amount, # ستخرج الإشارة سالبة أو موجبة بناءً على التحليل المحاسبي أعلاه
                         "CURRENCYCODE": currency_code,
                         "CUSTOMERACCOUNT": student_id_str,
                         "CUSTOMERREFERENCE": customer_ref,
