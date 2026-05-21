@@ -21,7 +21,6 @@ st.set_page_config(
 seed_default_users()
 
 # ── Custom CSS ────────────────────────────────
-# ── Custom CSS ────────────────────────────────
 st.markdown(
     """
 <style>
@@ -93,7 +92,7 @@ NAV_OPTIONS = [
     "📊 Operations",
     "📤 Bulk Financials",
     "🎓 Scholarships",
-    "🔄 D365 FTI Export",  # <--- السطر الجديد اللي ضفناه
+    "🔄 D365 FTI Export",  
     "👤 Registration",
     "🗑️ Batch Management",
     "⚙️ System Admin",
@@ -120,51 +119,49 @@ st.session_state["_avail_yrs"] = available_years
 
 # ── Page routing ──────────────────────────────
 if selected_tab == "📊 Dashboard":
-    from pages.dashboard import render
+    from views.dashboard import render
     render(engine, available_years)
 
 elif selected_tab == "📜 Student Statement":
-    from pages.statement import render
+    from views.statement import render
     render(engine, available_years)
 
 elif selected_tab == "📈 Reports":
-    from pages.reports import render
+    from views.reports import render
     render(engine, available_years)
 
 elif selected_tab == "📚 Policies & Docs":
-    from pages.policies import render
+    from views.policies import render
     render()
 
 elif selected_tab == "🔍 Student Lookup":
-    from pages.lookup import render
+    from views.lookup import render
     render()
 
 elif selected_tab == "📊 Operations":
-    from pages.operations import render
+    from views.operations import render
     render()
 
 elif selected_tab == "📤 Bulk Financials":
-    from pages.bulk import render
+    from views.bulk import render
     render(engine)
 
 elif selected_tab == "🎓 Scholarships":
-    from pages.scholarships import render
+    from views.scholarships import render
     render(engine)
     
- # ── السطور الجديدة اللي هتضيفها ──
 elif selected_tab == "🔄 D365 FTI Export":
-    from pages.d365_export import render
+    from views.d365_export import render
     render(engine, available_years)
-# ─────────────────────────────────   
 
 elif selected_tab == "👤 Registration":
-    from pages.registration import render
+    from views.registration import render
     render(engine)
 
 elif selected_tab == "🗑️ Batch Management":
-    from pages.batches import render
+    from views.batches import render
     render(engine)
 
 elif selected_tab == "⚙️ System Admin":
-    from pages.admin import render
+    from views.admin import render
     render()
