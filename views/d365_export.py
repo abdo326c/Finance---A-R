@@ -14,7 +14,6 @@ def render(engine, available_years):
     export_term = col1.selectbox("Term:", VALID_TERMS)
     export_year = col2.selectbox("Year:", available_years)
     
-    # إضافة خيار Adjustments Only للقائمة
     tx_type_filter = col3.selectbox("Transaction Type:", [
         "All (Tuition Invoices & Discounts)",
         "Tuition Invoices Only", 
@@ -29,7 +28,6 @@ def render(engine, available_years):
         revenue_account = None
         discount_account = None
         
-        # التحكم في ظهور خانات الحسابات ديناميكياً بناءً على الفلتر
         if tx_type_filter == "All (Tuition Invoices & Discounts)":
             c1, c2 = st.columns(2)
             revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101028")
@@ -88,7 +86,6 @@ def render(engine, available_years):
                 query = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
                 query = query.filter(Transaction.term == export_term, Transaction.academic_year == export_year)
 
-                # فلترة الحركات بناءً على الاختيار الجديد
                 if tx_type_filter == "Tuition Invoices Only":
                     query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)']))
                 elif tx_type_filter == "Discounts Only (Scholarships)":
@@ -112,20 +109,18 @@ def render(engine, available_years):
                     is_other_fee = tx.transaction_type in ['Other Fees', 'Bulk Other Fees']
                     is_adjustment = tx.transaction_type in ['Adjustment', 'Bulk Adjustments']
                     
-                    # 🟢 تطبيق المنطق المحاسبي للإشارات تلقائياً
                     if is_discount:
-                        amount = -tx.credit  # القيمة سالبة لعمل قيد عكسي تخفيض للعميل Cr. Customer
+                        amount = -tx.credit
                         target_ledger = discount_account
                     elif is_other_fee:
-                        amount = tx.debit    # القيمة موجبة لإثبات المديونية Dr. Customer
+                        amount = tx.debit
                         target_ledger = ""
                     elif is_adjustment:
-                        # التسويات قد تكون مدينة (زيادة حساب) أو دائنة (تخفيض حساب)
                         if tx.debit > 0:
-                            amount = tx.debit     # موجبة لو بتزود المديونية
+                            amount = tx.debit
                         else:
-                            amount = -tx.credit   # سالبة لو بتخفض المديونية
-                        target_ledger = ""        # تترك فارغة للتوجيه اليدوي
+                            amount = -tx.credit
+                        target_ledger = ""
                     else: 
                         amount = tx.debit
                         target_ledger = revenue_account
@@ -144,7 +139,7 @@ def render(engine, available_years):
                     d365_row = {
                         "FREETEXTNUMBER": current_fti,
                         "LINENUMBER": 1, 
-                        "AMOUNTCUR": amount, # ستخرج الإشارة سالبة أو موجبة بناءً على التحليل المحاسبي أعلاه
+                        "AMOUNTCUR": amount,
                         "CURRENCYCODE": currency_code,
                         "CUSTOMERACCOUNT": student_id_str,
                         "CUSTOMERREFERENCE": customer_ref,
@@ -168,12 +163,16 @@ def render(engine, available_years):
                     st.success(f"✅ Successfully prepared {len(df_d365)} rows for upload!")
                     st.dataframe(df_d365.head(10), use_container_width=True) 
 
-                    csv_buf = df_d365.to_csv(index=False).encode('utf-8')
+                    # 🟢 التعديل الجديد: التصدير لملف إكسيل بـ Sheet Name ثابت
+                    excel_buffer = io.BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        df_d365.to_excel(writer, index=False, sheet_name='Customer_free_text_invoice')
+                    
                     st.download_button(
-                        label="📥 Download D365 CSV File",
-                        data=csv_buf,
-                        file_name="Customer_free_text_invoice.csv", 
-                        mime="text/csv",
+                        label="📥 Download D365 Excel File (.xlsx)",
+                        data=excel_buffer.getvalue(),
+                        file_name="Customer_free_text_invoice.xlsx", 
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary",
                         use_container_width=True
                     )
