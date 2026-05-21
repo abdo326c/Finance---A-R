@@ -47,17 +47,20 @@ class SystemUser(Base):
 
 class Student(Base):
     __tablename__ = "students"
-    id           = Column(Integer, primary_key=True)
-    name         = Column(String)
-    college      = Column(String)
-    program      = Column(String)
-    birth_date   = Column(Date)
-    email        = Column(String)
-    mobile       = Column(String)
-    national_id  = Column(String)
-    nationality  = Column(String)
-    admit_year   = Column(Integer)
-    price_per_hr = Column(Float)
+    id            = Column(Integer, primary_key=True)
+    name          = Column(String)
+    college       = Column(String)
+    program       = Column(String)
+    birth_date    = Column(Date)
+    email         = Column(String)
+    mobile        = Column(String)
+    national_id   = Column(String)
+    nationality   = Column(String)
+    admit_year    = Column(Integer)
+    price_per_hr  = Column(Float)
+    
+    # 🟢 العمود الجديد الخاص بـ Dynamics 365 Financial Dimension
+    financial_dimension = Column(String, nullable=True)
 
 
 class ScholarshipType(Base):
