@@ -96,12 +96,11 @@ def render():
                 st.success(f"✅ Converted {fixed} scholarship record(s).")
 
             # ---------------------------------------------------------
-            # 🟢 التعديل المطور: توليد التمبلت وحماية رفع الملفات
+            # الأداة المُحسنة: الدفعات السريعة (Bulk Update in Chunks)
             # ---------------------------------------------------------
             st.markdown("---\n### 🛠️ Bulk Update: Financial Dimensions (D365)")
             st.write("Download the verified Excel template, fill your data, and upload it back to sync with Supabase.")
             
-            # 1. إنشاء التمبلت في الذاكرة أوتوماتيك للمستخدم
             sample_data = {
                 "ID": [211000224, 211001595],
                 "Dimension": [
@@ -115,7 +114,6 @@ def render():
             with pd.ExcelWriter(template_buffer, engine='openpyxl') as writer:
                 df_sample.to_excel(writer, index=False, sheet_name='D365_Template')
             
-            # زرار تحميل التمبلت الفوري لضمان تطابق الأعمدة
             st.download_button(
                 label="📥 Download Verified Excel Template",
                 data=template_buffer.getvalue(),
@@ -127,15 +125,14 @@ def render():
             dim_file = st.file_uploader("Upload Completed Dimensions Excel", type=['xlsx'], key="dim_uploader")
             
             if dim_file and st.button("🚀 Update Students Dimensions", type="primary"):
-                with st.spinner("Processing template and sync with Supabase..."):
-                    # حماية برمجية لمنع الشاشة البيضاء أو الحمراء في حالة وجود خطأ في ملف الإكسيل
+                with st.spinner("Processing template and syncing with Supabase in chunks..."):
                     try:
                         df_dims = pd.read_excel(dim_file, engine='openpyxl')
                         
                         if 'ID' not in df_dims.columns or 'Dimension' not in df_dims.columns:
                             st.error("⚠️ Validation Error: The uploaded file must contain exactly two columns named 'ID' and 'Dimension'.")
                         else:
-                            success_count = 0
+                            update_list = []
                             for index, row in df_dims.iterrows():
                                 if pd.isna(row['ID']) or pd.isna(row['Dimension']):
                                     continue
@@ -144,17 +141,27 @@ def render():
                                 dimension_val = str(row['Dimension']).strip()
                                 
                                 if student_id > 0 and dimension_val and dimension_val.lower() != 'nan':
-                                    db.query(Student).filter(Student.id == student_id).update(
-                                        {"financial_dimension": dimension_val}
-                                    )
-                                    success_count += 1
+                                    # نجمع الداتا المطلوبة في قائمة بدل التحديث الفردي
+                                    update_list.append({
+                                        "id": student_id,
+                                        "financial_dimension": dimension_val
+                                    })
                             
-                            db.commit()
-                            st.success(f"✅ Successfully updated financial dimensions for {success_count} students!")
-                            st.rerun()
-                            
+                            if update_list:
+                                # تقسيم التحديثات لـ Chunks (كل 500 طالب في خبطة واحدة)
+                                chunk_size = 500
+                                for i in range(0, len(update_list), chunk_size):
+                                    chunk = update_list[i:i+chunk_size]
+                                    db.bulk_update_mappings(Student, chunk)
+                                    db.commit() # نأكد الحفظ لكل 500 لتجنب الـ Timeout
+                                
+                                st.success(f"✅ Successfully updated financial dimensions for {len(update_list)} students!")
+                            else:
+                                st.warning("⚠️ No valid data found in the uploaded file.")
+                                
                     except Exception as e:
-                        st.error("⚠️ Execution Error: Failed to parse the Excel file. Please ensure 'openpyxl' is added to requirements.txt and you are uploading a valid .xlsx file.")
+                        db.rollback()
+                        st.error("⚠️ Execution Error: Failed to parse or sync the Excel file.")
                         st.exception(e)
 
         elif action == "📋 Audit Log":
