@@ -49,7 +49,7 @@ def render(engine, available_years):
         "s_cnt": len(p["status"]),"stats":tuple(p["status"]) or ("",),
     }
 
-    df = pd.DataFrame()   # defined in every branch; avoids scope leak
+    df = pd.DataFrame()
 
     with st.spinner("Generating report…"):
 
@@ -62,7 +62,10 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR ss.term IN :trms)
                     AND (:y_cnt=0 OR ss.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR ss.status IN :stats)
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND ss.status IN :stats)
+                    )
                 ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
             """)
             df = pd.read_sql(sql, con=engine, params=common)
@@ -88,24 +91,53 @@ def render(engine, available_years):
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
                 WHERE (:c_cnt=0 OR s.college IN :cls)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                 GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr ORDER BY s.id
             """)
             df = pd.read_sql(sql, con=engine, params=common)
             if df.empty:
                 st.warning("No data found.")
             else:
-                num_cols = ["Reg. Hours","Tuition Billed","Other Fees","Discounts","Payments","Adjustments","Balance"]
-                totals   = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                totals["Student Name"] = "🔢 TOTAL"
-                df_show  = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
-                fmt = {"Price/Hr":"{:,.2f}","Reg. Hours":"{:,.1f}","Tuition Billed":"{:,.2f}",
-                       "Other Fees":"{:,.2f}","Discounts":"{:,.2f}","Payments":"{:,.2f}",
-                       "Adjustments":"{:,.2f}","Balance":"{:,.2f}"}
+                num_cols = ["Price/Hr","Reg. Hours","Tuition Billed","Other Fees",
+                            "Discounts","Payments","Adjustments","Balance"]
+
+                totals = {}
+                for c in df.columns:
+                    if c in num_cols:
+                        totals[c] = df[c].sum()
+                    elif c == "Student Name":
+                        totals[c] = "🔢 TOTAL"
+                    else:
+                        totals[c] = ""
+
+                df_show = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+
+                for col in num_cols:
+                    df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
+
+                fmt = {
+                    "Price/Hr":      "{:,.2f}",
+                    "Reg. Hours":    "{:,.1f}",
+                    "Tuition Billed":"{:,.2f}",
+                    "Other Fees":    "{:,.2f}",
+                    "Discounts":     "{:,.2f}",
+                    "Payments":      "{:,.2f}",
+                    "Adjustments":   "{:,.2f}",
+                    "Balance":       "{:,.2f}",
+                }
+
+                last = len(df_show) - 1
                 st.dataframe(
-                    df_show.style.format(fmt)
+                    df_show.style
+                        .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Balance"])
-                        .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
+                        .apply(lambda x: [
+                            "background:#f0f4ff;font-weight:bold" if x.name == last else ""
+                            for _ in x
+                        ], axis=1),
                     use_container_width=True,
                 )
 
@@ -128,7 +160,10 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                     AND t.entry_date BETWEEN :s_date AND :e_date
                 GROUP BY s.id,s.name,s.college
                 HAVING COALESCE(SUM(t.debit),0)>0 OR COALESCE(SUM(t.credit),0)>0
@@ -138,15 +173,35 @@ def render(engine, available_years):
             if df.empty:
                 st.warning("No financial activity in the selected date range.")
             else:
-                num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts","Payments Received","Adjustments","Net Period Change"]
-                totals = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                totals["Student Name"] = "🔢 TOTAL"
+                num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts",
+                            "Payments Received","Adjustments","Net Period Change"]
+
+                totals = {}
+                for c in df.columns:
+                    if c in num_cols:
+                        totals[c] = df[c].sum()
+                    elif c == "Student Name":
+                        totals[c] = "🔢 TOTAL"
+                    else:
+                        totals[c] = ""
+
                 df_show = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
-                fmt = {c:"{:,.2f}" for c in num_cols}; fmt["CH Changed"] = "{:,.1f}"
+
+                for col in num_cols:
+                    df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
+
+                fmt = {c: "{:,.2f}" for c in num_cols}
+                fmt["CH Changed"] = "{:,.1f}"
+
+                last = len(df_show) - 1
                 st.dataframe(
-                    df_show.style.format(fmt)
+                    df_show.style
+                        .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Net Period Change"])
-                        .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
+                        .apply(lambda x: [
+                            "background:#f0f4ff;font-weight:bold" if x.name == last else ""
+                            for _ in x
+                        ], axis=1),
                     use_container_width=True,
                 )
 
@@ -164,7 +219,10 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                     AND (:has_dates=0 OR (t.entry_date BETWEEN :s_date AND :e_date))
                 ORDER BY t.student_id, t.entry_date DESC
             """)
