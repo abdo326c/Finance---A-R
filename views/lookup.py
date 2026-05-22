@@ -56,6 +56,71 @@ def render_info_card(label: str, value: str, icon: str = ""):
     """, unsafe_allow_html=True)
 
 
+def generate_clearance_pdf(student, net_balance):
+    """توليد كشف براءة ذمة مالية معتمد ومختوم للطالب"""
+    import io
+    import datetime
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=54, leftMargin=54, topMargin=54, bottomMargin=54)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    NAVY_HEX = "#0d47a1"
+    
+    title_style = ParagraphStyle('ClearanceTitle', parent=styles['Heading1'], fontSize=24, textColor=colors.HexColor(NAVY_HEX), spaceAfter=20, alignment=1)
+    body_style = ParagraphStyle('ClearanceBody', parent=styles['Normal'], fontSize=12, leading=20, spaceAfter=15)
+    meta_style = ParagraphStyle('ClearanceMeta', parent=styles['Normal'], fontSize=11, leading=16, spaceAfter=8)
+    footer_style = ParagraphStyle('ClearanceFooter', parent=styles['Normal'], fontSize=9, textColor=colors.grey, alignment=1)
+    
+    story.append(Paragraph("Nile University", title_style))
+    story.append(Paragraph("<b>FINANCIAL CLEARANCE CERTIFICATE</b>", ParagraphStyle('Sub', parent=title_style, fontSize=16, spaceAfter=30)))
+    story.append(Spacer(1, 15))
+    
+    serial_no = f"NU-CL-{student.id}-{datetime.date.today().strftime('%Y%m%d')}"
+    
+    story.append(Paragraph(f"<b>Certificate No:</b> {serial_no}", meta_style))
+    story.append(Paragraph(f"<b>Date of Issue:</b> {datetime.date.today().strftime('%d %B %Y')}", meta_style))
+    story.append(Spacer(1, 20))
+    
+    body_text = f"""This is to officially certify that the student listed below has fully settled all financial accounts, tuition fees, and administrative charges with the Finance Department at Nile University.<br/><br/>
+<b>Student Name:</b> {student.name}<br/>
+<b>Student ID:</b> {student.id}<br/>
+<b>College / Department:</b> {student.college} - {student.program or '—'}<br/>
+<b>Current Status:</b> Account Fully Settled and Cleared (Balance: {abs(net_balance):,.2f} EGP credit / balanced).<br/><br/>
+Accordingly, the student is hereby granted full financial clearance, and is cleared of any outstanding liabilities towards the University Accounts Receivable as of this date."""
+    
+    story.append(Paragraph(body_text, body_style))
+    story.append(Spacer(1, 40))
+    
+    sig_data = [
+        ["Prepared By:", "Approved By:"],
+        ["________________________", "________________________"],
+        ["Accounts Receivable Team", "Director of Finance"],
+        ["Nile University", "Nile University"]
+    ]
+    sig_table = Table(sig_data, colWidths=[250, 250])
+    sig_table.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(sig_table)
+    story.append(Spacer(1, 50))
+    
+    story.append(Paragraph("<i>This is an official document issued by Nile University Finance Office. Any alteration voids this certificate.</i>", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 def render():
     c_head, c_btn = st.columns([3, 1])
     c_head.subheader("🔍 Student Data Explorer")
@@ -169,15 +234,19 @@ def render():
         """, unsafe_allow_html=True)
 
         # ── 3. Quick Actions row ──
-        act_col1, act_col2, act_col3 = st.columns([1.5, 1.5, 1])
-        
+        if net_bal <= 0:
+            act_col1, act_col2, act_col3, act_col4 = st.columns([1.5, 1.5, 1.8, 1.2])
+        else:
+            act_col1, act_col2, act_col4 = st.columns([1.5, 1.5, 1.2])
+            act_col3 = None
+            
         with act_col1:
             from views.statement import create_landscape_pdf
             pdf_bytes = create_landscape_pdf(student.id, student.name, student.college, rows, net_bal, total_d, total_c)
             st.download_button(
-                "📄 Download Statement PDF", pdf_bytes,
+                "📄 Download Statement", pdf_bytes,
                 file_name=f"SOA_{student.id}.pdf",
-                type="primary", use_container_width=True,
+                type="primary" if net_bal > 0 else "secondary", use_container_width=True,
                 key=f"quick_pdf_dl_{student.id}_{net_bal}"
             )
             
@@ -238,11 +307,21 @@ Nile University"""
 
                     success, msg = send_quick_statement(student, rows, net_bal)
                     if success:
-                        st.success("✅ Email statement sent successfully to registered address!")
+                        st.success("✅ Email statement sent successfully!")
                     else:
                         st.error(f"❌ Failed to send email: {msg}")
+
+        if act_col3:
+            with act_col3:
+                clearance_bytes = generate_clearance_pdf(student, net_bal)
+                st.download_button(
+                    "🏆 Issue Financial Clearance", clearance_bytes,
+                    file_name=f"Clearance_{student.id}.pdf",
+                    type="primary", use_container_width=True,
+                    key=f"quick_clearance_dl_{student.id}"
+                )
                         
-        with act_col3:
+        with act_col4:
             st.download_button(
                 "📥 Export Profile Excel", buf_single.getvalue(),
                 file_name=f"Student_{student.id}_Profile.xlsx",

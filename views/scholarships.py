@@ -66,6 +66,19 @@ def render(engine):
                 st.info("No scholarships for this term.")
                 return
 
+            # Calculate total active coverage
+            total_pct = sum(_pct(ss.percentage) for ss, _ in rows if ss.is_active)
+            
+            st.write("#### 🎓 Scholarship Stacking Gauge")
+            if total_pct <= 100.0:
+                st.progress(min(total_pct / 100.0, 1.0), text=f"Total Active Coverage: **{total_pct:.1f}%**")
+                st.caption(f"💡 Combined active scholarships cover **{total_pct:.1f}%** of standard tuition rates. Student pays **{max(0.0, 100.0 - total_pct):.1f}%**.")
+            else:
+                st.progress(1.0, text=f"Total Configured: **{total_pct:.1f}%** (Capped!)")
+                st.warning(f"⚠️ **Capping Alert:** The combined active scholarships exceed the 100% cap. Exceeded coverage will be automatically capped at 100% during invoice runs.")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+
             for ss, st_type in rows:
                 pct_disp = _pct(ss.percentage)
                 c1, c2, c3 = st.columns([4, 2, 2])
