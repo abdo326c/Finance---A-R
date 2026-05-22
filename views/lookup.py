@@ -5,7 +5,7 @@ import pandas as pd
 
 from config import VALID_TERMS, VALID_STATUSES, VALID_COLLEGES, DEFAULT_YEAR
 from auth import require_role
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, write_audit
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, write_audit
 
 STATUS_COLORS = {
     "Active":           "background:#d4edda;color:#155724;font-weight:bold;border-radius:5px;",
