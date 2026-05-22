@@ -62,7 +62,11 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR ss.term IN :trms)
                     AND (:y_cnt=0 OR ss.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR ss.status IN :stats)
+                    /* 🟢 التعديل: استبعاد طلاب التيست افتراضياً، وإظهارهم فقط لو تم اختيارهم بالفلتر */
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND ss.status IN :stats)
+                    )
                 ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
             """)
             df = pd.read_sql(sql, con=engine, params=common)
@@ -88,7 +92,11 @@ def render(engine, available_years):
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
                 WHERE (:c_cnt=0 OR s.college IN :cls)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    /* 🟢 التعديل: استبعاد طلاب التيست من ملخص الإيرادات */
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                 GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr ORDER BY s.id
             """)
             df = pd.read_sql(sql, con=engine, params=common)
@@ -128,7 +136,11 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    /* 🟢 التعديل: استبعاد طلاب التيست من تقفيل الفترات المالية */
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                     AND t.entry_date BETWEEN :s_date AND :e_date
                 GROUP BY s.id,s.name,s.college
                 HAVING COALESCE(SUM(t.debit),0)>0 OR COALESCE(SUM(t.credit),0)>0
@@ -164,7 +176,11 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    AND (:s_cnt=0 OR COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    /* 🟢 التعديل: استبعاد طلاب التيست من سجل الحركات التفصيلي */
+                    AND (
+                        (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                        OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    )
                     AND (:has_dates=0 OR (t.entry_date BETWEEN :s_date AND :e_date))
                 ORDER BY t.student_id, t.entry_date DESC
             """)
