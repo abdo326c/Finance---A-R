@@ -24,14 +24,16 @@ def generate_statement_pdf(student, transactions, current_balance, scope_text):
     """دالة فرعية لتوليد ملف الـ PDF الخاص بكشف الحساب التفصيلي في الذاكرة"""
     buffer = io.BytesIO()
     
-    # 🟢 تحويل مستند الميل إلى Landscape بنفس الهوامش
+    # 30 left/right margins, 30 top, 40 bottom
     doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=40)
     story = []
     styles = getSampleStyleSheet()
     
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#004a99"), spaceAfter=12)
-    subtitle_style = ParagraphStyle('DocSubtitle', parent=styles['Heading3'], fontSize=12, textColor=colors.HexColor("#555555"), spaceAfter=15)
-    normal_style = ParagraphStyle('DocNormal', parent=styles['Normal'], fontSize=10, spaceAfter=6)
+    NAVY_HEX = "#0d47a1"
+    
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor(NAVY_HEX), spaceAfter=6)
+    subtitle_style = ParagraphStyle('DocSubtitle', parent=styles['Heading3'], fontSize=11, textColor=colors.HexColor("#555555"), spaceAfter=15)
+    normal_style = ParagraphStyle('DocNormal', parent=styles['Normal'], fontSize=10, leading=14)
     cell_style = ParagraphStyle('CellText', parent=styles['Normal'], fontSize=9, leading=12)
     
     unique_terms = []
@@ -42,17 +44,21 @@ def generate_statement_pdf(student, transactions, current_balance, scope_text):
     terms_display = " | ".join(unique_terms) if unique_terms else scope_text
     
     story.append(Paragraph("Nile University - Finance Department", title_style))
-    story.append(Paragraph(f"Official Statement of Account", subtitle_style))
-    story.append(Spacer(1, 10))
+    story.append(Paragraph("Official Student Statement of Account", subtitle_style))
+    story.append(Spacer(1, 5))
     
-    story.append(Paragraph(f"<b>Student Name:</b> {student.name}", normal_style))
-    story.append(Paragraph(f"<b>Student ID:</b> {student.id}", normal_style))
-    story.append(Paragraph(f"<b>College:</b> {student.college}", normal_style))
-    story.append(Paragraph(f"<b>Statement Date:</b> {datetime.date.today().strftime('%d %B %Y')}", normal_style))
-    story.append(Paragraph(f"<b>Included Terms:</b> {terms_display}", normal_style))
-    story.append(Spacer(1, 15))
+    # ── 1. Student Info Box (Left) ──
+    info_text = f"""<b>Student Name:</b> {student.name}<br/>
+<b>Student ID:</b> {student.id}<br/>
+<b>College:</b> {student.college}<br/>
+<b>Statement Date:</b> {datetime.date.today().strftime('%d %B %Y')}<br/>
+<b>Included Terms:</b> {terms_display}"""
     
-    # 🟢 بناء الـ 7 أعمدة بالتفصيل لمنع التداخل
+    info_p = Paragraph(info_text, normal_style)
+    story.append(info_p)
+    story.append(Spacer(1, 20))
+    
+    # ── 2. Table Data Construction ──
     table_data = [["Date", "Reference", "Type", "Description", "Term / Year", "Debit (EGP)", "Credit (EGP)"]]
     
     sum_debit = 0.0
@@ -65,26 +71,32 @@ def generate_statement_pdf(student, transactions, current_balance, scope_text):
         type_p = Paragraph(tx.transaction_type, cell_style)
         desc_p = Paragraph(tx.description or "", cell_style)
         
+        debit_str = f"{tx.debit:,.2f}" if tx.debit > 0 else "—"
+        credit_str = f"{tx.credit:,.2f}" if tx.credit > 0 else "—"
+        
         table_data.append([
             tx_date,
             tx.reference_no,
             type_p,
             desc_p,
             f"{tx.term} {tx.academic_year}",
-            f"{tx.debit:,.2f}" if tx.debit > 0 else "0.00",
-            f"{tx.credit:,.2f}" if tx.credit > 0 else "0.00"
+            debit_str,
+            credit_str
         ])
     
-    # 🟢 سطر المجاميع الملموم والمحاذي تحت عمود الساعات والتاريخ بالظبط
+    # Totals Row
     table_data.append(["", "", "", "", "Totals:", f"{sum_debit:,.2f}", f"{sum_credit:,.2f}"])
     
-    # 🟢 سطر صافي الرصيد الملموم المدمج
-    table_data.append(["", "", "", "", "Net Balance Due:", f"{current_balance:,.2f} EGP", ""])
+    # Net Balance Row
+    balance_label = "Account Balanced:" if current_balance <= 0 else "Net Balance Due:"
+    balance_val = f"{current_balance:,.2f} EGP" if current_balance >= 0 else f"({abs(current_balance):,.2f}) EGP Credit"
+    table_data.append(["", "", "", "", balance_label, balance_val, ""])
     
     t = Table(table_data, colWidths=[70, 85, 95, 192, 90, 100, 100])
     
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")),
+    # Base styling
+    t_style = [
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor(NAVY_HEX)),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
         ('ALIGN', (5,0), (6,-1), 'RIGHT'),
@@ -92,39 +104,50 @@ def generate_statement_pdf(student, transactions, current_balance, scope_text):
         ('BOTTOMPADDING', (0,0), (-1,0), 8),
         ('TOPPADDING', (0,0), (-1,0), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        
-        ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
-        
-        # 🟢 تنسيق الـ Totals الملموم الصغير
+        ('GRID', (0,0), (-1,-3), 0.5, colors.HexColor("#dcdee6")),
+    ]
+    
+    # Alternating light row backgrounds
+    for idx in range(1, len(transactions) + 1):
+        if idx % 2 == 1:
+            t_style.append(('BACKGROUND', (0, idx), (-1, idx), colors.HexColor("#f8f9fa")))
+            
+    # Totals Row Styling
+    t_style.extend([
         ('ALIGN', (4,-2), (4,-2), 'RIGHT'), 
-        ('BACKGROUND', (4,-2), (-1,-2), colors.HexColor("#f5f5f5")),
+        ('BACKGROUND', (4,-2), (-1,-2), colors.HexColor("#ebf0fa")),
         ('FONTNAME', (4,-2), (-1,-2), 'Helvetica-Bold'),
         ('BOTTOMPADDING', (4,-2), (-1,-2), 8),
         ('TOPPADDING', (4,-2), (-1,-2), 8),
-        ('BOX', (4,-2), (-1,-2), 1, colors.black),
-        ('INNERGRID', (4,-2), (-1,-2), 0.5, colors.grey),
-        
-        # 🟢 تنسيق الـ Net Balance Due المتسنتر والمحدد
+        ('BOX', (4,-2), (-1,-2), 1, colors.HexColor(NAVY_HEX)),
+        ('INNERGRID', (4,-2), (-1,-2), 0.5, colors.HexColor("#b3c6ff")),
+    ])
+    
+    # Net Balance Row Styling
+    balance_bg = colors.HexColor("#d4edda") if current_balance <= 0 else colors.HexColor("#f8d7da")
+    balance_text = colors.HexColor("#155724") if current_balance <= 0 else colors.HexColor("#721c24")
+    
+    t_style.extend([
         ('ALIGN', (4,-1), (4,-1), 'RIGHT'),
         ('SPAN', (5,-1), (6,-1)), 
         ('ALIGN', (5,-1), (6,-1), 'CENTER'),
-        ('BACKGROUND', (4,-1), (-1,-1), colors.HexColor("#d4edda")),
+        ('BACKGROUND', (4,-1), (-1,-1), balance_bg),
         ('FONTNAME', (4,-1), (-1,-1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (4,-1), (-1,-1), colors.HexColor("#155724")),
+        ('TEXTCOLOR', (4,-1), (-1,-1), balance_text),
         ('BOTTOMPADDING', (4,-1), (-1,-1), 10),
         ('TOPPADDING', (4,-1), (-1,-1), 10),
-        ('BOX', (4,-1), (-1,-1), 1, colors.black),
-        ('INNERGRID', (4,-1), (-1,-1), 0.5, colors.grey),
-    ]))
+        ('BOX', (4,-1), (-1,-1), 1.5, balance_text),
+    ])
     
+    t.setStyle(TableStyle(t_style))
     story.append(t)
     
-    # 🟢 رسم الـ Footer المخصص للميل في أسفل الصفحة
+    # ── رسم الـ Footer المخصص للميل في أسفل الصفحة
     def add_footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('Helvetica-Bold', 10)
-        canvas.setFillColor(colors.HexColor("#004a99"))
-        footer_text = "Finance Department | A/R Team ♥"
+        canvas.setFillColor(colors.HexColor(NAVY_HEX))
+        footer_text = "Nile University Finance Department | Accounts Receivable Team ♥"
         canvas.drawCentredString(doc.pagesize[0]/2, 20, footer_text)
         canvas.restoreState()
 
