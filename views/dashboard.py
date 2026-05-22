@@ -17,9 +17,12 @@ def render(engine, available_years):
     st.markdown("<br>", unsafe_allow_html=True)
 
     with get_db() as db:
-        base_q    = db.query(Transaction).join(Student, Transaction.student_id == Student.id)
-        status_q  = db.query(StudentStatus).filter(StudentStatus.status == "Active")
-        student_q = db.query(Student)
+        # 🟢 التعديل الأول: فلتر لاستبعاد طلاب التيست من جميع حسابات الداشبورد (KPIs)
+        exclude_test_sql = text("COALESCE((SELECT status FROM student_statuses WHERE student_id=students.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test'")
+        
+        base_q    = db.query(Transaction).join(Student, Transaction.student_id == Student.id).filter(exclude_test_sql)
+        status_q  = db.query(StudentStatus).filter(StudentStatus.status == "Active") # بطبيعة الحال الـ Active مش هيجيب الـ Test
+        student_q = db.query(Student).filter(exclude_test_sql)
 
         if term_f != "All Terms":
             base_q   = base_q.filter(Transaction.term == term_f)
@@ -104,6 +107,8 @@ def render(engine, available_years):
                     AND (:tf='All Terms' OR t.term=:tf)
                     AND (:yf='All Years' OR t.academic_year=:yv)
                 WHERE (:cf='All Colleges' OR s.college=:cf)
+                    /* 🟢 التعديل الثاني: استبعاد طلاب التيست من جدول تفصيل الإيرادات */
+                    AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test'
                 GROUP BY s.college ORDER BY s.college
             """),
             con=engine,
