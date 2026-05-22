@@ -120,13 +120,27 @@ def render(engine):
             add_year = c3.number_input("Year:", value=DEFAULT_YEAR, step=1)
             add_type = st.selectbox("Scholarship Type:", list(sch_map.keys()) or ["—"])
             add_pct  = st.number_input("Percentage (0–100):", min_value=0.0, max_value=100.0, step=5.0)
+            
+            # 🟢 حقل مخفي لمعالجة شرط الأخوات
+            sibling_id_input = ""
+            if add_type == "SCH: Sibiling %":
+                sibling_id_input = st.text_input("⚠️ Enter Sibling ID (Required)", placeholder="e.g. 25100999")
+                
             if st.form_submit_button("➕ Add"):
                 with get_db() as db:
-                    if not db.get(Student, int(add_sid)):
+                    student = db.get(Student, int(add_sid))
+                    if not student:
                         st.error("Student not found.")
                     elif add_type not in sch_map:
                         st.error("Invalid scholarship type.")
+                    # 🟢 التحقق من خصم الأخوات
+                    elif add_type == "SCH: Sibiling %" and not sibling_id_input.strip().isdigit():
+                        st.error("🛑 Sibling ID is REQUIRED when applying 'SCH: Sibiling %'.")
                     else:
+                        # تحديث بيانات الطالب إذا تم إدخال رقم الأخ
+                        if add_type == "SCH: Sibiling %" and not student.sibling_id:
+                            student.sibling_id = int(sibling_id_input.strip())
+                            
                         s_type_id = sch_map[add_type]
                         existing  = db.query(StudentScholarship).filter_by(
                             student_id=int(add_sid), scholarship_type_id=s_type_id,
@@ -182,9 +196,13 @@ def render(engine):
                     trm      = str(row.get("Term", VALID_TERMS[1])).strip()
                     yr       = int(row.get("Academic Year", DEFAULT_YEAR))
                     s_type_id= sch_map.get(s_name)
+                    
+                    # 🟢 ملاحظة للـ Bulk: السيستم هيقبل الـ Sibling Discount هنا بس مش هيجبر على إدخال الـ ID لأنه رفع جماعي، 
+                    # الـ ID ممكن يتحدث من الـ Profile بعدين لو احتاجه.
                     if sid <= 0 or sid not in valid_ids or not s_type_id or pct <= 0:
                         failed.append(row.to_dict())
                         continue
+                        
                     ex = db.query(StudentScholarship).filter_by(
                         student_id=sid, scholarship_type_id=s_type_id, term=trm, academic_year=yr).first()
                     if ex:
