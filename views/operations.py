@@ -1,6 +1,7 @@
 # pages/operations.py
 import streamlit as st
 from datetime import datetime
+from sqlalchemy.sql import func
 
 from config import VALID_TERMS, DEFAULT_YEAR
 from auth import require_role
@@ -10,9 +11,7 @@ from models import (
 )
 from helpers import build_auto_discount_transactions
 
-# 🟢 تم إضافة "Invoice" للقائمة لتطابق متطلبات التصدير لـ D365
 TX_TYPES = ["Payment Receipt", "Invoice", "Credit Hours Adjustment", "Other Fees", "General Adjustment"]
-
 
 def render():
     st.subheader("Post Manual Transaction")
@@ -30,16 +29,17 @@ def render():
         term = c2.selectbox("Term", VALID_TERMS)
         year = c3.number_input("Year", value=DEFAULT_YEAR, step=1)
 
-        dr, cr, dsc, h_change, b_name, b_ref = 0.0, 0.0, "", 0.0, "", ""
+        dr, cr, dsc, h_change, b_name, b_ref, reg_hours = 0.0, 0.0, "", 0.0, "", "", 0.0
 
         if action == "Payment Receipt":
             b_name = st.text_input("Bank Name")
             b_ref  = st.text_input("Bank Ref No")
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
             
-        elif action == "Invoice": # 🟢 واجهة إدخال الفاتورة اليدوية
-            dr  = st.number_input("Tuition Amount (EGP)", min_value=0.0)
-            dsc = st.text_input("Description", value="Manual Tuition Invoice")
+        elif action == "Invoice":
+            # 🟢 التعديل الأول: إدخال عدد الساعات بدلاً من المبلغ الثابت
+            reg_hours = st.number_input("Registered Credit Hours", min_value=0.0, step=1.0)
+            dsc = st.text_input("Description", value="Tuition Invoice")
             
         elif action == "Credit Hours Adjustment":
             h_change = st.number_input("Hours Delta (+/−)")
@@ -75,26 +75,55 @@ def render():
 
         if action == "Payment Receipt":
             pfx, dsc = "PAY", f"Bank: {b_name} | Ref: {b_ref}"
-        elif action == "Invoice": # 🟢 بادئة الفاتورة
+            
+        elif action == "Invoice":
+            # 🟢 حساب الفاتورة بناءً على الساعات وسعر الطالب
             pfx = "INV"
+            h_change = reg_hours
+            val = reg_hours * rate
+            dr, cr = val, 0.0
+            dsc = f"Tuition: {h_change} CH @ {rate:,.2f} | {dsc}"
+            
+            # 🟢 توليد المنح والخصومات أوتوماتيك مع الفاتورة
+            start = next_ref_block(db, 1 + 50)
+            extra_txs = build_auto_discount_transactions(
+                db, sid, val, term, int(year), ed, ref_start=start+1
+            )
+            
         elif action == "Credit Hours Adjustment":
+            # 🟢 التعديل الثاني: التأكد من وجود ساعات سابقة للطالب في هذا التيرم
+            existing_hours = db.query(func.sum(Transaction.hours_change)).filter(
+                Transaction.student_id == sid,
+                Transaction.term == term,
+                Transaction.academic_year == int(year)
+            ).scalar() or 0.0
+
+            if existing_hours <= 0:
+                st.error(f"🛑 Cannot process adjustment: Student has NO registered hours in {term} {year}.")
+                return
+                
+            if h_change < 0 and abs(h_change) > existing_hours:
+                st.error(f"🛑 Invalid Adjustment: Trying to drop {abs(h_change)} hours, but student only has {existing_hours} hours in {term} {year}.")
+                return
+
             pfx       = "ADJ"
             val       = abs(h_change * rate)
             dr, cr    = (val, 0.0) if h_change > 0 else (0.0, val)
             dsc       = f"Adj: {h_change} CH @ {rate:,.2f}"
-            start     = next_ref_block(db, 1 + 50)   # reserve space for discounts
+            start     = next_ref_block(db, 1 + 50)
             extra_txs = build_auto_discount_transactions(
                 db, sid, val, term, int(year), ed, ref_start=start+1
             )
             if h_change < 0:
                 for t in extra_txs:
                     t.debit, t.credit = t.credit, t.debit
+                    
         elif action == "Other Fees":
-            pfx = "FEE" # تم التعديل لتفرقتها عن الـ Invoice في الـ Reference
+            pfx = "FEE"
         elif action == "General Adjustment":
             pfx = "TXN"
 
-        if action != "Credit Hours Adjustment":
+        if action not in ["Credit Hours Adjustment", "Invoice"]:
             start = next_ref_block(db, 1)
 
         # Duplicate check
