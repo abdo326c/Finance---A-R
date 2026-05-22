@@ -10,8 +10,8 @@ from models import (
 )
 from helpers import build_auto_discount_transactions
 
-
-TX_TYPES = ["Payment Receipt", "Credit Hours Adjustment", "Other Fees", "General Adjustment"]
+# 🟢 تم إضافة "Invoice" للقائمة لتطابق متطلبات التصدير لـ D365
+TX_TYPES = ["Payment Receipt", "Invoice", "Credit Hours Adjustment", "Other Fees", "General Adjustment"]
 
 
 def render():
@@ -36,11 +36,18 @@ def render():
             b_name = st.text_input("Bank Name")
             b_ref  = st.text_input("Bank Ref No")
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
+            
+        elif action == "Invoice": # 🟢 واجهة إدخال الفاتورة اليدوية
+            dr  = st.number_input("Tuition Amount (EGP)", min_value=0.0)
+            dsc = st.text_input("Description", value="Manual Tuition Invoice")
+            
         elif action == "Credit Hours Adjustment":
             h_change = st.number_input("Hours Delta (+/−)")
+            
         elif action == "Other Fees":
             dr  = st.number_input("Fee Amount (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
+            
         elif action == "General Adjustment":
             gc1, gc2 = st.columns(2)
             dr  = gc1.number_input("Debit (EGP)",  min_value=0.0)
@@ -68,6 +75,8 @@ def render():
 
         if action == "Payment Receipt":
             pfx, dsc = "PAY", f"Bank: {b_name} | Ref: {b_ref}"
+        elif action == "Invoice": # 🟢 بادئة الفاتورة
+            pfx = "INV"
         elif action == "Credit Hours Adjustment":
             pfx       = "ADJ"
             val       = abs(h_change * rate)
@@ -81,7 +90,7 @@ def render():
                 for t in extra_txs:
                     t.debit, t.credit = t.credit, t.debit
         elif action == "Other Fees":
-            pfx = "INV"
+            pfx = "FEE" # تم التعديل لتفرقتها عن الـ Invoice في الـ Reference
         elif action == "General Adjustment":
             pfx = "TXN"
 
