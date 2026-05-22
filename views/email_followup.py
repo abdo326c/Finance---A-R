@@ -20,12 +20,12 @@ def render(engine, available_years):
         c1, c2 = st.columns(2)
         sender_email = c1.text_input("Sender Email Address")
         
-        # كلمة مرور التطبيق (App Password) من إعدادات حساب مايكروسوفت
+        # كلمة مرور التطبيق (App Password)
         sender_password = c2.text_input("App Password", type="password") 
         
         c3, c4 = st.columns(2)
-        # 🟢 تم التعديل هنا: السيرفر الافتراضي أصبح Office 365
-        smtp_server = c3.text_input("SMTP Server", value="smtp.office365.com")
+        # تم إرجاع السيرفر الافتراضي لجوجل عشان التجربة بتاعتك
+        smtp_server = c3.text_input("SMTP Server", value="smtp.gmail.com")
         smtp_port = c4.number_input("SMTP Port", value=587, step=1)
 
     # 2. الفلترة واختيار الطلاب
@@ -81,7 +81,9 @@ Nile University
             # الاتصال بالسيرفر
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
-            server.login(sender_email, sender_password)
+            
+            # 🟢 التعديل الأهم: مسح أي مسافات مخفية أوتوماتيكيا باستخدام strip()
+            server.login(sender_email.strip(), sender_password.strip())
             
             total_students = len(selected_student_keys)
             
@@ -128,13 +130,13 @@ Nile University
 
                     msg = MIMEMultipart("alternative")
                     msg["Subject"] = email_subject
-                    msg["From"] = f"Finance Department <{sender_email}>"
+                    msg["From"] = f"Finance Department <{sender_email.strip()}>"
                     msg["To"] = student.email
                     
                     msg.attach(MIMEText(html_content, "html"))
 
                     # إرسال الإيميل
-                    server.sendmail(sender_email, student.email, msg.as_string())
+                    server.sendmail(sender_email.strip(), student.email, msg.as_string())
                     success_count += 1
                     
                     # تحديث شريط التقدم وعمل فاصل زمني (عشان ميتعملناش حظر)
