@@ -1,4 +1,5 @@
 # pages/lookup.py
+import io
 import streamlit as st
 import pandas as pd
 
@@ -14,13 +15,40 @@ STATUS_COLORS = {
     "Program Withdraw": "background:#e2e3e5;color:#383d41;font-weight:bold;border-radius:5px;",
 }
 
+# 🟢 دالة سريعة مكيشة لتوليد شيت إكسيل لكل الطلاب
+@st.cache_data(ttl=300)
+def get_all_students_excel():
+    with get_db() as db:
+        all_students = db.query(Student).all()
+        if not all_students:
+            return None
+        df_all = pd.DataFrame([{
+            "Student ID": s.id, "Name": s.name, "College": s.college, "Program": s.program,
+            "Email": s.email, "Mobile": s.mobile, "National ID": s.national_id,
+            "Nationality": s.nationality, "Admit Year": s.admit_year,
+            "Price / Hr (EGP)": s.price_per_hr, "Is Sponsored": s.is_sponsored,
+            "Sponsor Name": s.sponsor_name, "Sibling ID": s.sibling_id,
+            "General Notes": s.general_notes
+        } for s in all_students])
+        buf = io.BytesIO()
+        df_all.to_excel(buf, index=False)
+        return buf.getvalue()
+
+
 def render():
-    st.subheader("🔍 Student Data Explorer")
+    c_head, c_btn = st.columns([3, 1])
+    c_head.subheader("🔍 Student Data Explorer")
+    
+    # 🟢 زرار تنزيل بيانات كل الطلاب
+    all_excel_data = get_all_students_excel()
+    if all_excel_data:
+        c_btn.download_button("📥 Download All Students", all_excel_data, file_name="All_Students_Master_Data.xlsx", type="primary", use_container_width=True)
 
     with st.form("lookup_form", clear_on_submit=False):
         default = str(st.session_state.get("lookup_id","")) if st.session_state.get("lookup_id",0)>0 else ""
         sid_raw   = st.text_input("Student ID:", value=default, placeholder="e.g. 26100123")
         submitted = st.form_submit_button("🔍 Lookup Profile")
+        
     if submitted:
         st.session_state["lookup_id"] = int(sid_raw) if sid_raw.strip().isdigit() else 0
 
@@ -34,7 +62,23 @@ def render():
             st.warning("⚠️ No student found with this ID.")
             return
 
-        st.info(f"✅ Profile: **{student.name}**")
+        # 🟢 تجهيز شيت إكسيل مخصص للطالب الحالي فقط
+        df_single = pd.DataFrame([{
+            "Student ID": student.id, "Name": student.name, "College": student.college, "Program": student.program,
+            "Email": student.email, "Mobile": student.mobile, "National ID": student.national_id,
+            "Nationality": student.nationality, "Admit Year": student.admit_year,
+            "Price / Hr (EGP)": student.price_per_hr, "Is Sponsored": student.is_sponsored,
+            "Sponsor Name": student.sponsor_name, "Sibling ID": student.sibling_id,
+            "General Notes": student.general_notes
+        }])
+        buf_single = io.BytesIO()
+        df_single.to_excel(buf_single, index=False)
+
+        # عرض الترويسة وزرار تنزيل بروفايل الطالب
+        c_prof1, c_prof2 = st.columns([3, 1])
+        c_prof1.info(f"✅ Profile: **{student.name}**")
+        c_prof2.download_button("📥 Export Profile", buf_single.getvalue(), file_name=f"Student_{student.id}_Profile.xlsx", use_container_width=True)
+
         c1, c2, c3 = st.columns(3)
         c1.metric("College",        student.college or "—")
         c2.metric("Program",        student.program or "—")
@@ -49,7 +93,6 @@ def render():
             r.write(f"**Nationality:** {student.nationality}")
             r.write(f"**Birth Date:** {student.birth_date}")
             
-            # 🟢 عرض حالة الرعاية (Sponsorship) وملاحظات الطالب في الـ Profile Viewer
             st.markdown("---")
             sl, sr = st.columns(2)
             if student.is_sponsored:
@@ -129,7 +172,6 @@ def render():
             if st.toggle("🔓 Unlock Edit Mode"):
                 st.warning("⚠️ You are modifying master student data.")
                 
-                # 🟢 تحويل نموذج التعديل لـ Form لضمان إدخال كافة البيانات بسلاسة
                 with st.form("edit_master_data_form"):
                     e1, e2, e3 = st.columns(3)
                     e_name    = e1.text_input("Full Name",  value=student.name or "")
@@ -144,7 +186,6 @@ def render():
                     e_program = e6.text_input("Program", value=student.program or "")
                     
                     st.markdown("#### 💼 Additional Data (Sponsorship & Notes)")
-                    # 🟢 الحقول الجديدة (Sponsorship, Sibling ID, General Notes)
                     c_s1, c_s2, c_s3 = st.columns([1, 2, 1])
                     e_is_sponsored = c_s1.checkbox("Is Sponsored?", value=student.is_sponsored)
                     e_sponsor_name = c_s2.text_input("Sponsor Name", value=student.sponsor_name or "", placeholder="e.g. MISR El Kheir")
@@ -154,7 +195,6 @@ def render():
 
                     if st.form_submit_button("💾 Save Changes", type="primary"):
                         try:
-                            # 🟢 تنظيف ومعالجة الـ Sibling ID
                             sib_id = None
                             if e_sibling_id_raw and e_sibling_id_raw.strip().isdigit():
                                 sib_id = int(e_sibling_id_raw.strip())
@@ -162,7 +202,6 @@ def render():
                             student.name, student.college, student.price_per_hr = e_name, e_college, e_price
                             student.email, student.mobile, student.program       = e_email, e_mobile, e_program
                             
-                            # حفظ التعديلات الجديدة
                             student.is_sponsored = e_is_sponsored
                             student.sponsor_name = e_sponsor_name if e_is_sponsored else None
                             student.general_notes = e_notes
@@ -171,6 +210,9 @@ def render():
                             write_audit(db, st.session_state["logged_in_user"],
                                         "EDIT_STUDENT", f"student_id={sid}", "Master data & Notes updated")
                             db.commit()
+                            
+                            # مسح الكاش عشان الداتا الجديدة تظهر لو اليوزر نزل شيت الماستر تاني
+                            st.cache_data.clear() 
                             st.session_state["flash_msg"] = "Student data updated successfully!"
                             st.rerun()
                         except Exception as e:
