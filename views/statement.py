@@ -55,29 +55,33 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
     # داتا الجدول
     for t, _ in rows:
         tx_date = t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date)
+        
+        # 🟢 التعديل الأهم: جعل عمود النوع Paragraph لمنع التداخل
+        type_p = Paragraph(t.transaction_type, cell_style)
         desc_p = Paragraph(t.description or "", cell_style)
         
         table_data.append([
             tx_date,
             t.reference_no,
-            t.transaction_type,
+            type_p,
             desc_p,
             f"{t.term} {t.academic_year}",
             f"{t.debit:,.2f}" if t.debit > 0 else "0.00",
             f"{t.credit:,.2f}" if t.credit > 0 else "0.00"
         ])
     
-    # صف المجاميع
-    table_data.append(["", "", "", "", "Totals:", f"{total_d:,.2f}", f"{total_c:,.2f}"])
+    # 🟢 تعديل صف المجاميع عشان يمتد بعرض الجدول ويكون شكله متناسق
+    table_data.append(["Totals:", "", "", "", "", f"{total_d:,.2f}", f"{total_c:,.2f}"])
     
-    # صف صافي الرصيد
-    table_data.append(["", "", "", "", "Net Balance Due:", f"{current_balance:,.2f} EGP", ""])
+    # 🟢 تعديل صف الرصيد النهائي
+    table_data.append(["Net Balance Due:", "", "", "", "", f"{current_balance:,.2f} EGP", ""])
     
-    # إعداد الجدول وعرض الأعمدة
-    t = Table(table_data, colWidths=[65, 75, 80, 215, 85, 100, 100])
+    # إعداد الجدول وعرض الأعمدة (الإجمالي 732 نقطة)
+    t = Table(table_data, colWidths=[70, 85, 95, 202, 80, 100, 100])
     
     # تنسيقات الجدول
     t.setStyle(TableStyle([
+        # الهيدر
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
@@ -87,25 +91,32 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
         ('TOPPADDING', (0,0), (-1,0), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         
+        # الشبكة الداخلية
         ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
         
-        # تنسيق سطر الـ Totals
-        ('BACKGROUND', (4,-2), (-1,-2), colors.HexColor("#f5f5f5")),
-        ('FONTNAME', (4,-2), (-1,-2), 'Helvetica-Bold'),
-        ('LINEABOVE', (4,-2), (-1,-2), 1, colors.black),
-        ('BOTTOMPADDING', (4,-2), (-1,-2), 6),
-        ('TOPPADDING', (4,-2), (-1,-2), 6),
+        # 🟢 تنسيق سطر الـ Totals
+        ('SPAN', (0,-2), (4,-2)), # دمج أول 5 خلايا لاسم التوتال
+        ('ALIGN', (0,-2), (4,-2), 'RIGHT'), # محاذاة الكلمة لليمين
+        ('BACKGROUND', (0,-2), (-1,-2), colors.HexColor("#f5f5f5")),
+        ('FONTNAME', (0,-2), (-1,-2), 'Helvetica-Bold'),
+        ('LINEABOVE', (0,-2), (-1,-2), 1, colors.black),
+        ('BOTTOMPADDING', (0,-2), (-1,-2), 8),
+        ('TOPPADDING', (0,-2), (-1,-2), 8),
+        ('BOX', (0,-2), (-1,-2), 1, colors.black),
+        ('INNERGRID', (0,-2), (-1,-2), 0.5, colors.grey),
         
-        # تنسيق سطر الـ Net Balance (تم دمج الخليتين لظبط الكلمة والرقم)
-        ('BACKGROUND', (4,-1), (-1,-1), colors.HexColor("#d4edda")),
-        ('FONTNAME', (4,-1), (-1,-1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (4,-1), (-1,-1), colors.HexColor("#155724")),
-        ('SPAN', (5,-1), (6,-1)), 
+        # 🟢 تنسيق سطر الـ Net Balance
+        ('SPAN', (0,-1), (4,-1)), # دمج أول 5 خلايا للكلمة
+        ('ALIGN', (0,-1), (4,-1), 'RIGHT'),
+        ('SPAN', (5,-1), (6,-1)), # دمج خليتين الرقم للرصيد
         ('ALIGN', (5,-1), (6,-1), 'CENTER'),
-        ('BOTTOMPADDING', (4,-1), (-1,-1), 8),
-        ('TOPPADDING', (4,-1), (-1,-1), 8),
-        ('BOX', (4,-2), (-1,-1), 1, colors.black),
-        ('INNERGRID', (4,-2), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#d4edda")),
+        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (0,-1), (-1,-1), colors.HexColor("#155724")),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 10),
+        ('TOPPADDING', (0,-1), (-1,-1), 10),
+        ('BOX', (0,-1), (-1,-1), 1, colors.black),
+        ('INNERGRID', (0,-1), (-1,-1), 0.5, colors.grey),
     ]))
     
     story.append(t)
