@@ -1,12 +1,12 @@
-# pages/operations.py
 import streamlit as st
 from datetime import datetime
 from sqlalchemy.sql import func
+from sqlalchemy.exc import IntegrityError
 
 from config import VALID_TERMS, DEFAULT_YEAR
 from auth import require_role
 from models import (
-    get_db, Student, Transaction,
+    get_db, Student, Transaction, RefCounter,
     next_ref_block, write_audit,
 )
 from helpers import build_auto_discount_transactions
@@ -37,7 +37,6 @@ def render():
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
             
         elif action == "Invoice":
-            # 🟢 التعديل الأول: إدخال عدد الساعات بدلاً من المبلغ الثابت
             reg_hours = st.number_input("Registered Credit Hours", min_value=0.0, step=1.0)
             dsc = st.text_input("Description", value="Tuition Invoice")
             
@@ -70,6 +69,14 @@ def render():
             st.error("Student ID not found. Register the student first.")
             return
 
+        # 🛠️ التعديل الأول: أداة التصحيح الذاتي لعداد القيود (Auto-Heal)
+        # لو العداد الداخلي متأخر بسبب رفع شيتات إكسيل قبل كده، السيستم هيحدثه فوراً قبل ما يبدأ
+        max_tx_id = db.query(func.max(Transaction.id)).scalar() or 0
+        ref_row = db.get(RefCounter, 1)
+        if ref_row and ref_row.seq <= max_tx_id:
+            ref_row.seq = max_tx_id + 500
+            db.flush()
+
         rate = student.price_per_hr or 0.0
         extra_txs = []
 
@@ -77,21 +84,18 @@ def render():
             pfx, dsc = "PAY", f"Bank: {b_name} | Ref: {b_ref}"
             
         elif action == "Invoice":
-            # 🟢 حساب الفاتورة بناءً على الساعات وسعر الطالب
             pfx = "INV"
             h_change = reg_hours
             val = reg_hours * rate
             dr, cr = val, 0.0
             dsc = f"Tuition: {h_change} CH @ {rate:,.2f} | {dsc}"
             
-            # 🟢 توليد المنح والخصومات أوتوماتيك مع الفاتورة
             start = next_ref_block(db, 1 + 50)
             extra_txs = build_auto_discount_transactions(
                 db, sid, val, term, int(year), ed, ref_start=start+1
             )
             
         elif action == "Credit Hours Adjustment":
-            # 🟢 التعديل الثاني: التأكد من وجود ساعات سابقة للطالب في هذا التيرم
             existing_hours = db.query(func.sum(Transaction.hours_change)).filter(
                 Transaction.student_id == sid,
                 Transaction.term == term,
@@ -126,7 +130,6 @@ def render():
         if action not in ["Credit Hours Adjustment", "Invoice"]:
             start = next_ref_block(db, 1)
 
-        # Duplicate check
         check_val = dr if dr > 0 else cr
         if not bypass_dup and check_val > 0:
             dup = db.query(Transaction).filter(
@@ -162,8 +165,13 @@ def render():
             "POST_TX", f"student_id={sid}",
             f"{action} | {new_tx.reference_no} | dr={dr} cr={cr}",
         )
-        db.commit()
-
-        suffix = f" + {len(extra_txs)} auto-discount(s)" if extra_txs else ""
-        st.session_state["flash_msg"] = f"Posted {new_tx.reference_no} for {student.name}{suffix}!"
-        st.rerun()
+        
+        # 🛠️ التعديل الثاني: حماية الاعتماد (Commit) من انهيار النظام
+        try:
+            db.commit()
+            suffix = f" + {len(extra_txs)} auto-discount(s)" if extra_txs else ""
+            st.session_state["flash_msg"] = f"Posted {new_tx.reference_no} for {student.name}{suffix}!"
+            st.rerun()
+        except IntegrityError:
+            db.rollback()
+            st.error("🛑 Database Integrity Error: The generated Reference Number already exists. The system has automatically synced the counter. Please click 'Process Transaction' again.")
