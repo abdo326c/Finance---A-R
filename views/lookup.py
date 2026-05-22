@@ -6,7 +6,6 @@ from config import VALID_TERMS, VALID_STATUSES, VALID_COLLEGES, DEFAULT_YEAR
 from auth import require_role
 from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, write_audit
 
-
 STATUS_COLORS = {
     "Active":           "background:#d4edda;color:#155724;font-weight:bold;border-radius:5px;",
     "Semester Withdraw":"background:#fff3cd;color:#856404;font-weight:bold;border-radius:5px;",
@@ -14,7 +13,6 @@ STATUS_COLORS = {
     "Graduated":        "background:#d1ecf1;color:#0c5460;font-weight:bold;border-radius:5px;",
     "Program Withdraw": "background:#e2e3e5;color:#383d41;font-weight:bold;border-radius:5px;",
 }
-
 
 def render():
     st.subheader("🔍 Student Data Explorer")
@@ -50,6 +48,22 @@ def render():
             r.write(f"**National ID:** {student.national_id}")
             r.write(f"**Nationality:** {student.nationality}")
             r.write(f"**Birth Date:** {student.birth_date}")
+            
+            # 🟢 عرض حالة الرعاية (Sponsorship) وملاحظات الطالب في الـ Profile Viewer
+            st.markdown("---")
+            sl, sr = st.columns(2)
+            if student.is_sponsored:
+                sl.success(f"🤝 **Sponsored Student** (By: {student.sponsor_name})")
+            else:
+                sl.write("**Sponsorship:** None")
+                
+            if student.sibling_id:
+                sr.info(f"👨‍👩‍👧 **Sibling ID:** {student.sibling_id}")
+            else:
+                sr.write("**Sibling ID:** None")
+                
+            if student.general_notes:
+                st.warning(f"📌 **General Notes:** {student.general_notes}")
 
         # ── Academic status ──
         st.markdown("---\n### 📌 Academic Status")
@@ -114,25 +128,51 @@ def render():
             st.markdown("---")
             if st.toggle("🔓 Unlock Edit Mode"):
                 st.warning("⚠️ You are modifying master student data.")
-                e1, e2, e3 = st.columns(3)
-                e_name    = e1.text_input("Full Name",  value=student.name or "")
-                try:    col_idx = VALID_COLLEGES.index(str(student.college).strip().upper())
-                except: col_idx = 0
-                e_college = e2.selectbox("College", VALID_COLLEGES, index=col_idx)
-                e_price   = e3.number_input("Price/Hr (EGP)", value=float(student.price_per_hr or 0), step=100.0)
-                e4, e5, e6 = st.columns(3)
-                e_email   = e4.text_input("Email",   value=student.email   or "")
-                e_mobile  = e5.text_input("Mobile",  value=student.mobile  or "")
-                e_program = e6.text_input("Program", value=student.program or "")
-                if st.button("💾 Save Changes", type="primary"):
-                    try:
-                        student.name, student.college, student.price_per_hr = e_name, e_college, e_price
-                        student.email, student.mobile, student.program       = e_email, e_mobile, e_program
-                        write_audit(db, st.session_state["logged_in_user"],
-                                    "EDIT_STUDENT", f"student_id={sid}", "Master data updated")
-                        db.commit()
-                        st.session_state["flash_msg"] = "Student data updated!"
-                        st.rerun()
-                    except Exception:
-                        db.rollback()
-                        st.error("Save failed. Check the values and try again.")
+                
+                # 🟢 تحويل نموذج التعديل لـ Form لضمان إدخال كافة البيانات بسلاسة
+                with st.form("edit_master_data_form"):
+                    e1, e2, e3 = st.columns(3)
+                    e_name    = e1.text_input("Full Name",  value=student.name or "")
+                    try:    col_idx = VALID_COLLEGES.index(str(student.college).strip().upper())
+                    except: col_idx = 0
+                    e_college = e2.selectbox("College", VALID_COLLEGES, index=col_idx)
+                    e_price   = e3.number_input("Price/Hr (EGP)", value=float(student.price_per_hr or 0), step=100.0)
+                    
+                    e4, e5, e6 = st.columns(3)
+                    e_email   = e4.text_input("Email",   value=student.email   or "")
+                    e_mobile  = e5.text_input("Mobile",  value=student.mobile  or "")
+                    e_program = e6.text_input("Program", value=student.program or "")
+                    
+                    st.markdown("#### 💼 Additional Data (Sponsorship & Notes)")
+                    # 🟢 الحقول الجديدة (Sponsorship, Sibling ID, General Notes)
+                    c_s1, c_s2, c_s3 = st.columns([1, 2, 1])
+                    e_is_sponsored = c_s1.checkbox("Is Sponsored?", value=student.is_sponsored)
+                    e_sponsor_name = c_s2.text_input("Sponsor Name", value=student.sponsor_name or "", placeholder="e.g. MISR El Kheir")
+                    e_sibling_id_raw = c_s3.text_input("Sibling ID (Optional)", value=str(student.sibling_id) if student.sibling_id else "")
+                    
+                    e_notes = st.text_area("General Notes (Internal use)", value=student.general_notes or "", placeholder="Add any specific conditions, notes or instructions regarding this student...")
+
+                    if st.form_submit_button("💾 Save Changes", type="primary"):
+                        try:
+                            # 🟢 تنظيف ومعالجة الـ Sibling ID
+                            sib_id = None
+                            if e_sibling_id_raw and e_sibling_id_raw.strip().isdigit():
+                                sib_id = int(e_sibling_id_raw.strip())
+                                
+                            student.name, student.college, student.price_per_hr = e_name, e_college, e_price
+                            student.email, student.mobile, student.program       = e_email, e_mobile, e_program
+                            
+                            # حفظ التعديلات الجديدة
+                            student.is_sponsored = e_is_sponsored
+                            student.sponsor_name = e_sponsor_name if e_is_sponsored else None
+                            student.general_notes = e_notes
+                            student.sibling_id = sib_id
+                            
+                            write_audit(db, st.session_state["logged_in_user"],
+                                        "EDIT_STUDENT", f"student_id={sid}", "Master data & Notes updated")
+                            db.commit()
+                            st.session_state["flash_msg"] = "Student data updated successfully!"
+                            st.rerun()
+                        except Exception as e:
+                            db.rollback()
+                            st.error(f"Save failed. Error: {str(e)}")
