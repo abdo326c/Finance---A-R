@@ -40,7 +40,7 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
     story.append(Paragraph("Official Student Statement of Account", subtitle_style))
     story.append(Spacer(1, 5))
     
-    # ── 1. Student Info Box (Left) & PAID Stamp Box (Right) ──
+    # ── 1. Student Info Box (Left) ──
     info_text = f"""<b>Student Name:</b> {student_name}<br/>
 <b>Student ID:</b> {student_id}<br/>
 <b>College:</b> {student_college}<br/>
@@ -48,39 +48,7 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
 <b>Included Terms:</b> {terms_display}"""
     
     info_p = Paragraph(info_text, normal_style)
-    
-    # Custom Pill Stamp Box
-    if current_balance <= 0:
-        stamp_html = f"""<para align="center"><b><font color="#155724" size="14">FULLY PAID</font></b><br/><font color="#155724" size="9">No Outstanding Balance</font></para>"""
-        stamp_bg = colors.HexColor("#d4edda")
-        stamp_border = colors.HexColor("#28a745")
-    else:
-        stamp_html = f"""<para align="center"><b><font color="#721c24" size="14">OUTSTANDING DUE</font></b><br/><font color="#721c24" size="9">Please settle immediately</font></para>"""
-        stamp_bg = colors.HexColor("#f8d7da")
-        stamp_border = colors.HexColor("#dc3545")
-        
-    stamp_p = Paragraph(stamp_html, ParagraphStyle('StampText', parent=styles['Normal'], alignment=1))
-    
-    # Create Stamp Table
-    stamp_table = Table([[stamp_p]], colWidths=[200], rowHeights=[45])
-    stamp_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), stamp_bg),
-        ('BOX', (0,0), (-1,-1), 1.5, stamp_border),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-    ]))
-    
-    # Parent Header Table
-    header_table = Table([[info_p, stamp_table]], colWidths=[500, 232])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('ALIGN', (1,0), (1,0), 'RIGHT'),
-        ('LEFTPADDING', (0,0), (-1,-1), 0),
-        ('RIGHTPADDING', (0,0), (-1,-1), 0),
-    ]))
-    
-    story.append(header_table)
+    story.append(info_p)
     story.append(Spacer(1, 20))
     
     # ── 2. Table Data Construction ──
