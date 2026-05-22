@@ -61,13 +61,12 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
             f"{t.credit:,.2f}" if t.credit > 0 else "0.00"
         ])
     
-    # 🟢 نقلنا المجاميع للعمود الخامس عشان المربع يبقى قد الكلمة والأرقام بس
+    # 🟢 المجاميع للعمود الخامس 
     table_data.append(["", "", "", "", "Totals:", f"{total_d:,.2f}", f"{total_c:,.2f}"])
     
-    # 🟢 نقلنا الرصيد النهائي للعمود الخامس برضه
+    # 🟢 الرصيد النهائي للعمود الخامس 
     table_data.append(["", "", "", "", "Net Balance Due:", f"{current_balance:,.2f} EGP", ""])
     
-    # وسعنا العمود الخامس (90) على حساب الرابع عشان كلمة Net Balance تاخد راحتها
     t = Table(table_data, colWidths=[70, 85, 95, 192, 90, 100, 100])
     
     t.setStyle(TableStyle([
@@ -82,7 +81,7 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
         
         ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
         
-        # 🟢 تنسيق مربع الـ Totals (يبدأ من العمود 4 اللي هو الخامس فعلياً)
+        # 🟢 تنسيق مربع الـ Totals 
         ('ALIGN', (4,-2), (4,-2), 'RIGHT'), 
         ('BACKGROUND', (4,-2), (-1,-2), colors.HexColor("#f5f5f5")),
         ('FONTNAME', (4,-2), (-1,-2), 'Helvetica-Bold'),
@@ -93,7 +92,7 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
         
         # 🟢 تنسيق مربع الـ Net Balance 
         ('ALIGN', (4,-1), (4,-1), 'RIGHT'),
-        ('SPAN', (5,-1), (6,-1)), # دمج خليتين للرصيد
+        ('SPAN', (5,-1), (6,-1)), 
         ('ALIGN', (5,-1), (6,-1), 'CENTER'),
         ('BACKGROUND', (4,-1), (-1,-1), colors.HexColor("#d4edda")),
         ('FONTNAME', (4,-1), (-1,-1), 'Helvetica-Bold'),
@@ -165,17 +164,24 @@ def render(engine, available_years):
         st.warning("⚠️ No transactions found matching these criteria.")
         return
 
+    # 🟢 التعديل: إضافة Internal Note و Sibling ID لملف الإكسيل فقط، ومخفية في الواجهة والـ PDF
     df = pd.DataFrame([{
-        "Student ID": s.id, "Name": s.name, "Ref No": t.reference_no,
-        "Date": t.entry_date, "Term": t.term, "Year": t.academic_year,
+        "Student ID": s.id, "Name": s.name, "College": s.college,
+        "Is Sponsored": s.is_sponsored, "Sponsor Name": s.sponsor_name, 
+        "Sibling ID": s.sibling_id, "General Notes": s.general_notes,
+        "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, "Year": t.academic_year,
         "Type": t.transaction_type, "Description": t.description,
+        "Internal Note": t.internal_note, # 🟢 عمود النوتس الداخلي
         "Debit": t.debit, "Credit": t.credit,
     } for t, s in rows])
 
-    st.dataframe(df, use_container_width=True, column_config={
-        "Debit":  st.column_config.NumberColumn(format="%,.2f"),
-        "Credit": st.column_config.NumberColumn(format="%,.2f"),
-    })
+    # 🟢 نعرض الداتا الأساسية في شاشة السيستم بس عشان الزحمة (نفس شكل الـ PDF تقريباً)
+    st.dataframe(df[["Student ID", "Name", "Ref No", "Date", "Term", "Year", "Type", "Description", "Debit", "Credit"]], 
+                 use_container_width=True, 
+                 column_config={
+                     "Debit":  st.column_config.NumberColumn(format="%,.2f"),
+                     "Credit": st.column_config.NumberColumn(format="%,.2f"),
+                 })
 
     if p["sid"] > 0:
         total_d = sum(t.debit  for t, _ in rows)
@@ -197,8 +203,9 @@ def render(engine, available_years):
         with b2:
             df_xl = df.copy()
             df_xl.loc[len(df_xl)] = {
-                "Student ID":"","Name":"","Ref No":"","Date":"","Term":"","Year":"",
-                "Type":"","Description":"TOTALS","Debit":total_d,"Credit":total_c,
+                "Student ID":"","Name":"","College":"","Is Sponsored":"","Sponsor Name":"",
+                "Sibling ID":"","General Notes":"","Ref No":"","Date":"","Term":"","Year":"",
+                "Type":"","Description":"TOTALS","Internal Note":"","Debit":total_d,"Credit":total_c,
             }
             buf = io.BytesIO()
             df_xl.to_excel(buf, index=False)
