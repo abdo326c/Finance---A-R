@@ -12,24 +12,20 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.platypus.flowables import KeepTogether
 
 def create_landscape_pdf(student_id, student_name, student_college, rows, current_balance, total_d, total_c):
-    """توليد ملف PDF احترافي Landscape مع Footer"""
+    """توليد ملف PDF احترافي Landscape مع Footer ومربع مجاميع منظم"""
     buffer = io.BytesIO()
     
-    # تحضير مستند الـ PDF
     doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=40)
     story = []
     styles = getSampleStyleSheet()
     
-    # تنسيقات النصوص
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#004a99"), spaceAfter=12)
     subtitle_style = ParagraphStyle('DocSubtitle', parent=styles['Heading3'], fontSize=12, textColor=colors.HexColor("#555555"), spaceAfter=15)
     normal_style = ParagraphStyle('DocNormal', parent=styles['Normal'], fontSize=10, spaceAfter=6)
     cell_style = ParagraphStyle('CellText', parent=styles['Normal'], fontSize=9, leading=12)
     
-    # استخراج التيرمات المتضمنة في هذا الكشف
     unique_terms = []
     for t, _ in rows:
         t_name = f"{t.term} {t.academic_year}"
@@ -37,7 +33,6 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
             unique_terms.append(t_name)
     terms_display = " | ".join(unique_terms) if unique_terms else "All Terms"
     
-    # ترويسة الكشف
     story.append(Paragraph("Nile University - Finance Department", title_style))
     story.append(Paragraph(f"Official Statement of Account", subtitle_style))
     story.append(Spacer(1, 10))
@@ -49,14 +44,10 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
     story.append(Paragraph(f"<b>Included Terms:</b> {terms_display}", normal_style))
     story.append(Spacer(1, 15))
     
-    # رأس الجدول
     table_data = [["Date", "Reference", "Type", "Description", "Term / Year", "Debit (EGP)", "Credit (EGP)"]]
     
-    # داتا الجدول
     for t, _ in rows:
         tx_date = t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date)
-        
-        # 🟢 التعديل الأهم: جعل عمود النوع Paragraph لمنع التداخل
         type_p = Paragraph(t.transaction_type, cell_style)
         desc_p = Paragraph(t.description or "", cell_style)
         
@@ -70,18 +61,15 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
             f"{t.credit:,.2f}" if t.credit > 0 else "0.00"
         ])
     
-    # 🟢 تعديل صف المجاميع عشان يمتد بعرض الجدول ويكون شكله متناسق
-    table_data.append(["Totals:", "", "", "", "", f"{total_d:,.2f}", f"{total_c:,.2f}"])
+    # 🟢 تعديل صف المجاميع: خلينا أول 3 خانات فاضيين تماماً، والكلمة تبدأ من العمود الرابع
+    table_data.append(["", "", "", "Totals:", "", f"{total_d:,.2f}", f"{total_c:,.2f}"])
     
-    # 🟢 تعديل صف الرصيد النهائي
-    table_data.append(["Net Balance Due:", "", "", "", "", f"{current_balance:,.2f} EGP", ""])
+    # 🟢 تعديل صف الرصيد النهائي بنفس الطريقة
+    table_data.append(["", "", "", "Net Balance Due:", "", f"{current_balance:,.2f} EGP", ""])
     
-    # إعداد الجدول وعرض الأعمدة (الإجمالي 732 نقطة)
     t = Table(table_data, colWidths=[70, 85, 95, 202, 80, 100, 100])
     
-    # تنسيقات الجدول
     t.setStyle(TableStyle([
-        # الهيدر
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
@@ -91,37 +79,36 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
         ('TOPPADDING', (0,0), (-1,0), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         
-        # الشبكة الداخلية
+        # إطار الحركات العادية فقط (يتوقف قبل المجاميع)
         ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
         
-        # 🟢 تنسيق سطر الـ Totals
-        ('SPAN', (0,-2), (4,-2)), # دمج أول 5 خلايا لاسم التوتال
-        ('ALIGN', (0,-2), (4,-2), 'RIGHT'), # محاذاة الكلمة لليمين
-        ('BACKGROUND', (0,-2), (-1,-2), colors.HexColor("#f5f5f5")),
-        ('FONTNAME', (0,-2), (-1,-2), 'Helvetica-Bold'),
-        ('LINEABOVE', (0,-2), (-1,-2), 1, colors.black),
-        ('BOTTOMPADDING', (0,-2), (-1,-2), 8),
-        ('TOPPADDING', (0,-2), (-1,-2), 8),
-        ('BOX', (0,-2), (-1,-2), 1, colors.black),
-        ('INNERGRID', (0,-2), (-1,-2), 0.5, colors.grey),
+        # 🟢 تنسيق مربع الـ Totals (عائم على اليمين)
+        ('SPAN', (3,-2), (4,-2)), # دمج خليتين للكلمة
+        ('ALIGN', (3,-2), (4,-2), 'RIGHT'), 
+        ('BACKGROUND', (3,-2), (-1,-2), colors.HexColor("#f5f5f5")),
+        ('FONTNAME', (3,-2), (-1,-2), 'Helvetica-Bold'),
+        ('LINEABOVE', (3,-2), (-1,-2), 1, colors.black),
+        ('BOTTOMPADDING', (3,-2), (-1,-2), 8),
+        ('TOPPADDING', (3,-2), (-1,-2), 8),
+        ('BOX', (3,-2), (-1,-2), 1, colors.black),
+        ('INNERGRID', (3,-2), (-1,-2), 0.5, colors.grey),
         
-        # 🟢 تنسيق سطر الـ Net Balance
-        ('SPAN', (0,-1), (4,-1)), # دمج أول 5 خلايا للكلمة
-        ('ALIGN', (0,-1), (4,-1), 'RIGHT'),
-        ('SPAN', (5,-1), (6,-1)), # دمج خليتين الرقم للرصيد
+        # 🟢 تنسيق مربع الـ Net Balance (عائم على اليمين)
+        ('SPAN', (3,-1), (4,-1)), # دمج خليتين للكلمة
+        ('ALIGN', (3,-1), (4,-1), 'RIGHT'),
+        ('SPAN', (5,-1), (6,-1)), # دمج خليتين للرصيد
         ('ALIGN', (5,-1), (6,-1), 'CENTER'),
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#d4edda")),
-        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (0,-1), (-1,-1), colors.HexColor("#155724")),
-        ('BOTTOMPADDING', (0,-1), (-1,-1), 10),
-        ('TOPPADDING', (0,-1), (-1,-1), 10),
-        ('BOX', (0,-1), (-1,-1), 1, colors.black),
-        ('INNERGRID', (0,-1), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (3,-1), (-1,-1), colors.HexColor("#d4edda")),
+        ('FONTNAME', (3,-1), (-1,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (3,-1), (-1,-1), colors.HexColor("#155724")),
+        ('BOTTOMPADDING', (3,-1), (-1,-1), 10),
+        ('TOPPADDING', (3,-1), (-1,-1), 10),
+        ('BOX', (3,-1), (-1,-1), 1, colors.black),
+        ('INNERGRID', (3,-1), (-1,-1), 0.5, colors.grey),
     ]))
     
     story.append(t)
     
-    # دالة لرسم الـ Footer في كل صفحة
     def add_footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('Helvetica-Bold', 10)
@@ -175,7 +162,6 @@ def render(engine, available_years):
         if p["terms"]:             q = q.filter(Transaction.term.in_(p["terms"]))
         if p["years"]:             q = q.filter(Transaction.academic_year.in_(p["years"]))
 
-        # ترتيب الحركات تصاعديا بالزمن عشان الكشف يكون منطقي من الأقدم للأحدث
         rows = q.order_by(Transaction.entry_date.asc()).limit(5000).all()
 
     if not rows:
@@ -203,7 +189,6 @@ def render(engine, available_years):
         m2.metric("Total Credit",    f"{total_c:,.2f} EGP")
         m3.metric("Net Balance Due", f"{net:,.2f} EGP")
 
-        # دمج استدعاء الـ PDF الجديد
         student_name = rows[0][1].name
         student_college = rows[0][1].college
 
