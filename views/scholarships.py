@@ -117,7 +117,7 @@ def render(engine):
         st.markdown("#### Assign New Scholarship")
         
         c1, c2, c3 = st.columns(3)
-        add_sid  = c1.number_input("Student ID:",placeholder="251000120", min_value=1, step=1)
+        add_sid  = c1.number_input("Student ID:",placeholder="e.g 251000120", step=1)
         add_term = c2.selectbox("Term:", VALID_TERMS)
         add_year = c3.number_input("Year:", value=DEFAULT_YEAR, step=1)
         add_type = st.selectbox("Scholarship Type:", list(sch_map.keys()) or ["—"])
