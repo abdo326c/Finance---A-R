@@ -77,7 +77,7 @@ def render():
         # عرض الترويسة وزرار تنزيل بروفايل الطالب
         c_prof1, c_prof2 = st.columns([3, 1])
         c_prof1.info(f"✅ Profile: **{student.name}**")
-        c_prof2.download_button("📥 Export Profile", buf_single.getvalue(), file_name=f"Student_{student.id}_Profile.xlsx", use_container_width=True)
+        c_prof2.download_button("📥 Export Profile", buf_single.getvalue(), file_name=f"Student_{student.id}_Profile.xlsx", type="primary" ,use_container_width=True)
 
         c1, c2, c3 = st.columns(3)
         c1.metric("College",        student.college or "—")
