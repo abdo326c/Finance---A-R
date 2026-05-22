@@ -101,21 +101,43 @@ def render(engine, available_years):
             if df.empty:
                 st.warning("No data found.")
             else:
-                num_cols = ["Reg. Hours","Tuition Billed","Other Fees","Discounts","Payments","Adjustments","Balance"]
-                totals   = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                df_show  = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+                num_cols = ["Price/Hr","Reg. Hours","Tuition Billed","Other Fees",
+                            "Discounts","Payments","Adjustments","Balance"]
+
+                totals = {}
+                for c in df.columns:
+                    if c in num_cols:
+                        totals[c] = df[c].sum()
+                    elif c == "Student Name":
+                        totals[c] = "🔢 TOTAL"
+                    else:
+                        totals[c] = ""
+
+                df_show = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
 
                 for col in num_cols:
                     df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
 
-                fmt = {"Price/Hr":"{:,.2f}","Reg. Hours":"{:,.1f}","Tuition Billed":"{:,.2f}",
-                       "Other Fees":"{:,.2f}","Discounts":"{:,.2f}","Payments":"{:,.2f}",
-                       "Adjustments":"{:,.2f}","Balance":"{:,.2f}"}
+                fmt = {
+                    "Price/Hr":      "{:,.2f}",
+                    "Reg. Hours":    "{:,.1f}",
+                    "Tuition Billed":"{:,.2f}",
+                    "Other Fees":    "{:,.2f}",
+                    "Discounts":     "{:,.2f}",
+                    "Payments":      "{:,.2f}",
+                    "Adjustments":   "{:,.2f}",
+                    "Balance":       "{:,.2f}",
+                }
+
+                last = len(df_show) - 1
                 st.dataframe(
                     df_show.style
                         .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Balance"])
-                        .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
+                        .apply(lambda x: [
+                            "background:#f0f4ff;font-weight:bold" if x.name == last else ""
+                            for _ in x
+                        ], axis=1),
                     use_container_width=True,
                 )
 
@@ -151,20 +173,35 @@ def render(engine, available_years):
             if df.empty:
                 st.warning("No financial activity in the selected date range.")
             else:
-                num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts","Payments Received","Adjustments","Net Period Change"]
-                totals   = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                df_show  = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+                num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts",
+                            "Payments Received","Adjustments","Net Period Change"]
+
+                totals = {}
+                for c in df.columns:
+                    if c in num_cols:
+                        totals[c] = df[c].sum()
+                    elif c == "Student Name":
+                        totals[c] = "🔢 TOTAL"
+                    else:
+                        totals[c] = ""
+
+                df_show = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
 
                 for col in num_cols:
                     df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
 
                 fmt = {c: "{:,.2f}" for c in num_cols}
                 fmt["CH Changed"] = "{:,.1f}"
+
+                last = len(df_show) - 1
                 st.dataframe(
                     df_show.style
                         .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Net Period Change"])
-                        .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
+                        .apply(lambda x: [
+                            "background:#f0f4ff;font-weight:bold" if x.name == last else ""
+                            for _ in x
+                        ], axis=1),
                     use_container_width=True,
                 )
 
