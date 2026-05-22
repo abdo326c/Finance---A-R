@@ -1,16 +1,19 @@
 # auth.py
 # ─────────────────────────────────────────────
 # Authentication: bcrypt hashing + login form
-# + session-timeout check
+# + session-timeout check + Cookie persistence
 # ─────────────────────────────────────────────
 import time
 import bcrypt
 import streamlit as st
 from sqlalchemy.sql import func
+from streamlit_cookies_controller import CookieController
 
 from config import TIMEOUT_MIN
 from models import get_db, SystemUser
 
+# تعريف الكنترولر المسؤول عن قراءة وحفظ الكوكيز
+controller = CookieController()
 
 # ── Password hashing (bcrypt, salted) ─────────
 def hash_pw(plain: str) -> str:
@@ -35,6 +38,20 @@ def verify_pw(plain: str, hashed: str) -> bool:
 
 # ── Session helpers ───────────────────────────
 def init_session():
+    # 🟢 1. قراءة الكوكيز من المتصفح أولاً
+    cookie_user = controller.get('logged_in_user')
+    cookie_role = controller.get('user_role')
+
+    # لو الكوكيز موجودة واليوزر مش مسجل دخول في الجلسة الحالية، دخله أوتوماتيك
+    if cookie_user and cookie_role and not st.session_state.get("authenticated"):
+        st.session_state["authenticated"] = True
+        st.session_state["logged_in_user"] = cookie_user
+        st.session_state["user_role"] = cookie_role
+        st.session_state["last_activity"] = time.time()
+        st.session_state["lookup_id"] = 0
+        return # خلاص دخل، مفيش داعي نكمل
+
+    # 🟢 2. لو مفيش كوكيز، حط القيم الافتراضية (تسجيل خروج)
     defaults = {
         "authenticated": False,
         "logged_in_user": None,
@@ -54,7 +71,6 @@ def check_timeout():
         
     elapsed = time.time() - st.session_state.get("last_activity", 0)
     
-    # التعديل هنا: إضافة زرار إعادة الاتصال بعد انتهاء الجلسة
     if elapsed > TIMEOUT_MIN * 60:
         logout()
         st.warning(f"⚠️ Session expired after {TIMEOUT_MIN} minutes of inactivity. Please log in again.")
@@ -73,6 +89,10 @@ def logout():
     st.session_state["authenticated"] = False
     st.session_state["logged_in_user"] = None
     st.session_state["user_role"] = None
+    
+    # 🟢 مسح الكوكيز من المتصفح عند تسجيل الخروج
+    controller.remove('logged_in_user')
+    controller.remove('user_role')
 
 
 def require_role(*roles: str):
@@ -119,10 +139,16 @@ def login_form():
                     if not user.password_hash.startswith(("$2b$", "$2a$")):
                         user.password_hash = hash_pw(password)
                         db.commit()
+                        
                     st.session_state["authenticated"]  = True
                     st.session_state["logged_in_user"] = user.username
                     st.session_state["user_role"]      = user.role
                     st.session_state["last_activity"]  = time.time()
+                    
+                    # 🟢 حفظ البيانات في المتصفح لمدة 30 يوم (2592000 ثانية)
+                    controller.set('logged_in_user', user.username, max_age=2592000)
+                    controller.set('user_role', user.role, max_age=2592000)
+                    
                     st.rerun()
                 else:
                     st.error("❌ Invalid username / password, or account disabled.")

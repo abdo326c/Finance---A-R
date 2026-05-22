@@ -58,9 +58,13 @@ class Student(Base):
     nationality   = Column(String)
     admit_year    = Column(Integer)
     price_per_hr  = Column(Float)
-    
-    # 🟢 العمود الجديد الخاص بـ Dynamics 365 Financial Dimension
     financial_dimension = Column(String, nullable=True)
+    
+    # 🟢 التعديلات الجديدة في الـ Master Data للطالب
+    is_sponsored  = Column(Boolean, default=False)
+    sponsor_name  = Column(String, nullable=True)
+    general_notes = Column(String, nullable=True)
+    sibling_id    = Column(Integer, ForeignKey("students.id"), nullable=True)
 
 
 class ScholarshipType(Base):
@@ -99,6 +103,10 @@ class Transaction(Base):
     scholarship_type_id = Column(Integer, ForeignKey("scholarship_types.id"), nullable=True)
     transaction_type = Column(String, nullable=False)
     description      = Column(String)
+    
+    # 🟢 حقل الـ Internal Note (للملاحظات المخفية عن الطالب في الـ PDF)
+    internal_note    = Column(String, nullable=True)
+    
     hours_change     = Column(Float, default=0.0)
     debit            = Column(Float, default=0)
     credit           = Column(Float, default=0)
@@ -160,10 +168,7 @@ Index("ix_stat_student",StudentStatus.student_id)
 # ── Schema creation ───────────────────────────
 Base.metadata.create_all(engine)
 
-
 # ── Seed default users (first run only) ───────
-# NOTE: passwords are seeded via auth.hash_pw which uses bcrypt.
-# We import lazily to avoid a circular import at module load time.
 def seed_default_users():
     from auth import hash_pw
     with get_db() as db:
@@ -180,17 +185,12 @@ def seed_default_users():
                 role="Editor",
                 is_active=True,
             ))
-            # Seed the ref counter row
             db.add(RefCounter(id=1, seq=0))
             db.commit()
 
 
 # ── Ref-counter helper (replaces full table scan) ──
 def next_ref_sequence(db) -> int:
-    """
-    Atomically increments the ref counter and returns the NEW value.
-    Call once per batch to get the starting sequence number.
-    """
     row = db.get(RefCounter, 1)
     if row is None:
         row = RefCounter(id=1, seq=0)
@@ -202,10 +202,6 @@ def next_ref_sequence(db) -> int:
 
 
 def next_ref_block(db, count: int) -> int:
-    """
-    Reserve `count` sequential reference numbers atomically.
-    Returns the FIRST number in the block.
-    """
     row = db.get(RefCounter, 1)
     if row is None:
         row = RefCounter(id=1, seq=0)
@@ -230,7 +226,13 @@ def get_static_lookups():
         sch_map  = {sch.name: sch.id for sch in s.query(ScholarshipType).all()}
         colleges = [c[0] for c in s.query(Student.college).distinct().all() if c[0]]
         years    = [y[0] for y in s.query(Transaction.academic_year).distinct().all() if y[0]]
-        return sch_map, colleges, years or [DEFAULT_YEAR]
+        
+        # حماية بسيطة لو years رجعت فاضية
+        if not years:
+            from config import DEFAULT_YEAR
+            years = [DEFAULT_YEAR]
+            
+        return sch_map, colleges, years
 
 
 def highlight_negatives(val):

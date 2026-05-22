@@ -1,18 +1,18 @@
 # pages/operations.py
 import streamlit as st
 from datetime import datetime
+from sqlalchemy.sql import func
+from sqlalchemy.exc import IntegrityError
 
 from config import VALID_TERMS, DEFAULT_YEAR
 from auth import require_role
 from models import (
-    get_db, Student, Transaction,
+    get_db, Student, Transaction, RefCounter, ScholarshipType,
     next_ref_block, write_audit,
 )
 from helpers import build_auto_discount_transactions
 
-
-TX_TYPES = ["Payment Receipt", "Credit Hours Adjustment", "Other Fees", "General Adjustment"]
-
+TX_TYPES = ["Payment Receipt", "Invoice", "Credit Hours Adjustment", "Other Fees", "General Adjustment", "Manual Scholarship"]
 
 def render():
     st.subheader("Post Manual Transaction")
@@ -30,22 +30,55 @@ def render():
         term = c2.selectbox("Term", VALID_TERMS)
         year = c3.number_input("Year", value=DEFAULT_YEAR, step=1)
 
-        dr, cr, dsc, h_change, b_name, b_ref = 0.0, 0.0, "", 0.0, "", ""
+        dr, cr, dsc, h_change, b_name, b_ref, reg_hours = 0.0, 0.0, "", 0.0, "", "", 0.0
+        internal_note = ""
+        sch_id = None
+        sibling_id_input = ""
+        selected_sch = ""
+        sch_options = {}
 
         if action == "Payment Receipt":
             b_name = st.text_input("Bank Name")
             b_ref  = st.text_input("Bank Ref No")
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
+            internal_note = st.text_input("Internal Note (Optional)")
+            
+        elif action == "Invoice":
+            reg_hours = st.number_input("Registered Credit Hours", min_value=0.0, step=1.0)
+            dsc = st.text_input("Description", value="Tuition Invoice")
+            internal_note = st.text_input("Internal Note (Optional)")
+            
         elif action == "Credit Hours Adjustment":
             h_change = st.number_input("Hours Delta (+/−)")
+            internal_note = st.text_input("Internal Note (Optional)")
+            
         elif action == "Other Fees":
             dr  = st.number_input("Fee Amount (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
+            internal_note = st.text_input("Internal Note (Optional)")
+            
         elif action == "General Adjustment":
             gc1, gc2 = st.columns(2)
             dr  = gc1.number_input("Debit (EGP)",  min_value=0.0)
             cr  = gc2.number_input("Credit (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
+            internal_note = st.text_input("Internal Note (Optional)")
+            
+        # 🟢 إضافة نوع "منحة يدوية" لمعالجة شرط خصم الأخوات
+        elif action == "Manual Scholarship":
+            with get_db() as db:
+                sch_types = db.query(ScholarshipType).all()
+                sch_options = {s.name: s.id for s in sch_types}
+                
+            selected_sch = st.selectbox("Scholarship Type", list(sch_options.keys()))
+            cr = st.number_input("Discount Amount (EGP)", min_value=0.0)
+            
+            # 🟢 شرط لو اختار خصم الأخوات، يطلب منه الـ Sibling ID إجباري
+            if selected_sch == "SCH: Sibiling %":
+                sibling_id_input = st.text_input("⚠️ Enter Sibling ID (Required)", placeholder="e.g. 25100999")
+            
+            dsc = st.text_input("Description", value=f"Discount - {selected_sch}")
+            internal_note = st.text_input("Internal Note (Hidden from PDF)")
 
         submitted = st.form_submit_button("🚀 Process Transaction")
 
@@ -63,32 +96,78 @@ def render():
             st.error("Student ID not found. Register the student first.")
             return
 
+        # 🟢 تحقق (Validation) إضافي لو الحركة عبارة عن خصم أخوات
+        if action == "Manual Scholarship" and selected_sch == "SCH: Sibiling %":
+            if not sibling_id_input or not sibling_id_input.strip().isdigit():
+                st.error("🛑 Sibling ID is REQUIRED when applying 'SCH: Sibiling %'. Transaction aborted.")
+                return
+            # تحديث مباشر لبيانات الطالب هنا لربط الأخوات
+            if not student.sibling_id:
+                student.sibling_id = int(sibling_id_input.strip())
+                st.toast("✅ Sibling ID automatically linked to student profile.")
+
+        max_tx_id = db.query(func.max(Transaction.id)).scalar() or 0
+        ref_row = db.get(RefCounter, 1)
+        if ref_row and ref_row.seq <= max_tx_id:
+            ref_row.seq = max_tx_id + 500
+            db.flush()
+
         rate = student.price_per_hr or 0.0
         extra_txs = []
 
         if action == "Payment Receipt":
             pfx, dsc = "PAY", f"Bank: {b_name} | Ref: {b_ref}"
+            
+        elif action == "Invoice":
+            pfx = "INV"
+            h_change = reg_hours
+            val = reg_hours * rate
+            dr, cr = val, 0.0
+            dsc = f"Tuition: {h_change} CH @ {rate:,.2f} | {dsc}"
+            
+            start = next_ref_block(db, 1 + 50)
+            extra_txs = build_auto_discount_transactions(
+                db, sid, val, term, int(year), ed, ref_start=start+1
+            )
+            
         elif action == "Credit Hours Adjustment":
+            existing_hours = db.query(func.sum(Transaction.hours_change)).filter(
+                Transaction.student_id == sid,
+                Transaction.term == term,
+                Transaction.academic_year == int(year)
+            ).scalar() or 0.0
+
+            if existing_hours <= 0:
+                st.error(f"🛑 Cannot process adjustment: Student has NO registered hours in {term} {year}.")
+                return
+                
+            if h_change < 0 and abs(h_change) > existing_hours:
+                st.error(f"🛑 Invalid Adjustment: Trying to drop {abs(h_change)} hours, but student only has {existing_hours} hours in {term} {year}.")
+                return
+
             pfx       = "ADJ"
             val       = abs(h_change * rate)
             dr, cr    = (val, 0.0) if h_change > 0 else (0.0, val)
             dsc       = f"Adj: {h_change} CH @ {rate:,.2f}"
-            start     = next_ref_block(db, 1 + 50)   # reserve space for discounts
+            start     = next_ref_block(db, 1 + 50)
             extra_txs = build_auto_discount_transactions(
                 db, sid, val, term, int(year), ed, ref_start=start+1
             )
             if h_change < 0:
                 for t in extra_txs:
                     t.debit, t.credit = t.credit, t.debit
+                    
         elif action == "Other Fees":
-            pfx = "INV"
+            pfx = "FEE"
         elif action == "General Adjustment":
             pfx = "TXN"
+        elif action == "Manual Scholarship":
+            pfx = "SCH"
+            sch_id = sch_options[selected_sch]
 
-        if action != "Credit Hours Adjustment":
+        if action not in ["Credit Hours Adjustment", "Invoice"]:
             start = next_ref_block(db, 1)
 
-        # Duplicate check
         check_val = dr if dr > 0 else cr
         if not bypass_dup and check_val > 0:
             dup = db.query(Transaction).filter(
@@ -107,8 +186,10 @@ def render():
         new_tx = Transaction(
             reference_no     = f"{pfx}-{start:06d}",
             student_id       = sid,
-            transaction_type = action,
+            transaction_type = action if action != "Manual Scholarship" else "Discount",
+            scholarship_type_id = sch_id,
             description      = dsc,
+            internal_note    = internal_note, # 🟢 حفظ الملاحظة الداخلية
             debit=dr, credit=cr,
             hours_change     = h_change,
             entry_date       = ed,
@@ -124,8 +205,12 @@ def render():
             "POST_TX", f"student_id={sid}",
             f"{action} | {new_tx.reference_no} | dr={dr} cr={cr}",
         )
-        db.commit()
-
-        suffix = f" + {len(extra_txs)} auto-discount(s)" if extra_txs else ""
-        st.session_state["flash_msg"] = f"Posted {new_tx.reference_no} for {student.name}{suffix}!"
-        st.rerun()
+        
+        try:
+            db.commit()
+            suffix = f" + {len(extra_txs)} auto-discount(s)" if extra_txs else ""
+            st.session_state["flash_msg"] = f"Posted {new_tx.reference_no} for {student.name}{suffix}!"
+            st.rerun()
+        except IntegrityError:
+            db.rollback()
+            st.error("🛑 Database Integrity Error: The generated Reference Number already exists. The system has automatically synced the counter. Please click 'Process Transaction' again.")

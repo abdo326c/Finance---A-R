@@ -113,51 +113,67 @@ def render(engine):
 
     # ── ADD SINGLE ──
     elif action == "Add Scholarship":
-        with st.form("add_sch_form", clear_on_submit=True):
-            c1, c2, c3 = st.columns(3)
-            add_sid  = c1.number_input("Student ID:", min_value=1, step=1)
-            add_term = c2.selectbox("Term:", VALID_TERMS)
-            add_year = c3.number_input("Year:", value=DEFAULT_YEAR, step=1)
-            add_type = st.selectbox("Scholarship Type:", list(sch_map.keys()) or ["—"])
-            add_pct  = st.number_input("Percentage (0–100):", min_value=0.0, max_value=100.0, step=5.0)
-            if st.form_submit_button("➕ Add"):
-                with get_db() as db:
-                    if not db.get(Student, int(add_sid)):
-                        st.error("Student not found.")
-                    elif add_type not in sch_map:
-                        st.error("Invalid scholarship type.")
+        # 🟢 شلنا الـ st.form من هنا عشان القائمة تسمع وتظهر الخانة في نفس اللحظة
+        st.markdown("#### Assign New Scholarship")
+        
+        c1, c2, c3 = st.columns(3)
+        add_sid  = c1.number_input("Student ID:",placeholder="e.g 251000120", step=1)
+        add_term = c2.selectbox("Term:", VALID_TERMS)
+        add_year = c3.number_input("Year:", value=DEFAULT_YEAR, step=1)
+        add_type = st.selectbox("Scholarship Type:", list(sch_map.keys()) or ["—"])
+        add_pct  = st.number_input("Percentage (0–100):", min_value=0.0, max_value=100.0, step=5.0)
+        
+        # 🟢 حقل مخفي لمعالجة شرط الأخوات (هيشتغل لايف دلوقتي)
+        sibling_id_input = ""
+        if add_type == "SCH: Sibiling %":
+            sibling_id_input = st.text_input("⚠️ Enter Sibling ID (Required)", placeholder="e.g. 25100999")
+            
+        if st.button("➕ Add Scholarship", type="primary"):
+            with get_db() as db:
+                student = db.get(Student, int(add_sid))
+                if not student:
+                    st.error("Student not found.")
+                elif add_type not in sch_map:
+                    st.error("Invalid scholarship type.")
+                # التحقق من خصم الأخوات
+                elif add_type == "SCH: Sibiling %" and not sibling_id_input.strip().isdigit():
+                    st.error("🛑 Sibling ID is REQUIRED when applying 'SCH: Sibiling %'.")
+                else:
+                    # تحديث بيانات الطالب إذا تم إدخال رقم الأخ
+                    if add_type == "SCH: Sibiling %" and not student.sibling_id:
+                        student.sibling_id = int(sibling_id_input.strip())
+                        
+                    s_type_id = sch_map[add_type]
+                    existing  = db.query(StudentScholarship).filter_by(
+                        student_id=int(add_sid), scholarship_type_id=s_type_id,
+                        term=add_term, academic_year=int(add_year)).first()
+                    if existing:
+                        existing.percentage, existing.is_active = add_pct, True
                     else:
-                        s_type_id = sch_map[add_type]
-                        existing  = db.query(StudentScholarship).filter_by(
+                        db.add(StudentScholarship(
                             student_id=int(add_sid), scholarship_type_id=s_type_id,
-                            term=add_term, academic_year=int(add_year)).first()
-                        if existing:
-                            existing.percentage, existing.is_active = add_pct, True
-                        else:
-                            db.add(StudentScholarship(
-                                student_id=int(add_sid), scholarship_type_id=s_type_id,
-                                percentage=add_pct, term=add_term,
-                                academic_year=int(add_year), is_active=True,
-                            ))
-                        enforce_scholarship_cap(db, int(add_sid), add_term, int(add_year))
-                        db.commit()
-                        still_active = db.query(StudentScholarship.is_active).filter_by(
-                            student_id=int(add_sid), scholarship_type_id=s_type_id,
-                            term=add_term, academic_year=int(add_year)).scalar()
-                        if still_active:
-                            seq  = next_ref_block(db, 1)
-                            r_tx = get_retroactive_scholarship_tx(
-                                db, int(add_sid), add_term, int(add_year),
-                                s_type_id, add_type, add_pct, seq,
-                            )
-                            if r_tx:
-                                db.add(r_tx)
-                        write_audit(db, st.session_state["logged_in_user"],
-                                    "ADD_SCHOLARSHIP", f"student_id={add_sid}",
-                                    f"{add_type} {add_pct}% {add_term} {int(add_year)}")
-                        db.commit()
-                        st.session_state["flash_msg"] = "Scholarship added/updated!"
-                        st.rerun()
+                            percentage=add_pct, term=add_term,
+                            academic_year=int(add_year), is_active=True,
+                        ))
+                    enforce_scholarship_cap(db, int(add_sid), add_term, int(add_year))
+                    db.commit()
+                    still_active = db.query(StudentScholarship.is_active).filter_by(
+                        student_id=int(add_sid), scholarship_type_id=s_type_id,
+                        term=add_term, academic_year=int(add_year)).scalar()
+                    if still_active:
+                        seq  = next_ref_block(db, 1)
+                        r_tx = get_retroactive_scholarship_tx(
+                            db, int(add_sid), add_term, int(add_year),
+                            s_type_id, add_type, add_pct, seq,
+                        )
+                        if r_tx:
+                            db.add(r_tx)
+                    write_audit(db, st.session_state["logged_in_user"],
+                                "ADD_SCHOLARSHIP", f"student_id={add_sid}",
+                                f"{add_type} {add_pct}% {add_term} {int(add_year)}")
+                    db.commit()
+                    st.session_state["flash_msg"] = "Scholarship added/updated!"
+                    st.rerun()
 
     # ── BULK UPLOAD ──
     elif action == "Bulk Upload Scholarships":
@@ -182,9 +198,11 @@ def render(engine):
                     trm      = str(row.get("Term", VALID_TERMS[1])).strip()
                     yr       = int(row.get("Academic Year", DEFAULT_YEAR))
                     s_type_id= sch_map.get(s_name)
+                    
                     if sid <= 0 or sid not in valid_ids or not s_type_id or pct <= 0:
                         failed.append(row.to_dict())
                         continue
+                        
                     ex = db.query(StudentScholarship).filter_by(
                         student_id=sid, scholarship_type_id=s_type_id, term=trm, academic_year=yr).first()
                     if ex:

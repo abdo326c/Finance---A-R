@@ -8,9 +8,8 @@ from config import VALID_TERMS, DEFAULT_YEAR
 
 def render(engine, available_years):
     st.subheader("🔄 Dynamics 365 Integration - FTI Export")
-    st.markdown("Extract financial transactions (Invoices/Discounts/Fees) in a format ready for direct upload as a Free Text Invoice.")
+    st.markdown("Extract financial transactions (Invoices/Discounts/Fees/Adjustments) in a format ready for direct upload as a Free Text Invoice.")
 
-    # تم نقل هذه الاختيارات خارج الـ Form لكي يتم تحديث الشاشة ديناميكياً
     col1, col2, col3 = st.columns(3)
     export_term = col1.selectbox("Term:", VALID_TERMS)
     export_year = col2.selectbox("Year:", available_years)
@@ -19,7 +18,8 @@ def render(engine, available_years):
         "All (Tuition Invoices & Discounts)",
         "Tuition Invoices Only", 
         "Discounts Only (Scholarships)",
-        "Other Fees Only"
+        "Other Fees Only",
+        "Adjustments Only"
     ])
 
     with st.form("d365_export_form"):
@@ -28,20 +28,22 @@ def render(engine, available_years):
         revenue_account = None
         discount_account = None
         
-        # إظهار الخانات بناءً على الاختيار
         if tx_type_filter == "All (Tuition Invoices & Discounts)":
             c1, c2 = st.columns(2)
-            revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101028")
-            discount_account = c2.text_input("Discount Ledger Account *", value="4104001")
+            revenue_account = c1.text_input("Tuition Revenue Ledger Account *", value="4101004")
+            discount_account = c2.text_input("Discount Ledger Account *", value="5201005")
             
         elif tx_type_filter == "Tuition Invoices Only":
-            revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101028")
+            revenue_account = st.text_input("Tuition Revenue Ledger Account *", value="4101004")
             
         elif tx_type_filter == "Discounts Only (Scholarships)":
-            discount_account = st.text_input("Discount Ledger Account *", value="4104001")
+            discount_account = st.text_input("Discount Ledger Account *", value="5201005")
             
         elif tx_type_filter == "Other Fees Only":
             st.info("💡 **Important Note:** Other Fees vary in nature (e.g., late fees, ID cards, activities) and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
+            
+        elif tx_type_filter == "Adjustments Only":
+            st.info("💡 **Important Note:** Adjustments vary in nature and require different ledger accounts. The Ledger Account column will be left blank in the generated file, allowing you to fill it manually based on the Description of each transaction.")
         
         col_prof, col_curr = st.columns(2)
         posting_profile = col_prof.text_input("Posting Profile", value="STD")
@@ -60,7 +62,6 @@ def render(engine, available_years):
         submitted = st.form_submit_button("🚀 Generate D365 Template", type="primary")
 
     if submitted:
-        # التحقق من إدخال الحسابات المطلوبة
         if tx_type_filter in ["All (Tuition Invoices & Discounts)", "Tuition Invoices Only"] and not revenue_account:
             st.error("⚠️ Please enter the Revenue Ledger Account.")
             return
@@ -85,15 +86,15 @@ def render(engine, available_years):
                 query = db.query(Transaction, Student).join(Student, Transaction.student_id == Student.id)
                 query = query.filter(Transaction.term == export_term, Transaction.academic_year == export_year)
 
-                # فلترة الحركات بناءً على الاختيار
                 if tx_type_filter == "Tuition Invoices Only":
                     query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)']))
                 elif tx_type_filter == "Discounts Only (Scholarships)":
                     query = query.filter(Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships']))
                 elif tx_type_filter == "Other Fees Only":
                     query = query.filter(Transaction.transaction_type.in_(['Other Fees', 'Bulk Other Fees']))
+                elif tx_type_filter == "Adjustments Only":
+                    query = query.filter(Transaction.transaction_type.in_(['Adjustment', 'Bulk Adjustments']))
                 else: 
-                    # All (Tuition + Scholarships) - Excluding Other Fees
                     query = query.filter(Transaction.transaction_type.in_(['Invoice', 'Bulk Invoices (Tuition)', 'Discount', 'Bulk Scholarships']))
 
                 results = query.order_by(Transaction.id).all()
@@ -106,22 +107,31 @@ def render(engine, available_years):
                 for idx, (tx, student) in enumerate(results, start=1):
                     is_discount = tx.transaction_type in ['Discount', 'Bulk Scholarships']
                     is_other_fee = tx.transaction_type in ['Other Fees', 'Bulk Other Fees']
+                    is_adjustment = tx.transaction_type in ['Adjustment', 'Bulk Adjustments']
                     
-                    amount = tx.credit if is_discount else tx.debit
-                    if amount <= 0: continue 
+                    if is_discount:
+                        amount = -tx.credit
+                        target_ledger = discount_account
+                    elif is_other_fee:
+                        amount = tx.debit
+                        target_ledger = ""
+                    elif is_adjustment:
+                        if tx.debit > 0:
+                            amount = tx.debit
+                        else:
+                            amount = -tx.credit
+                        target_ledger = ""
+                    else: 
+                        amount = tx.debit
+                        target_ledger = revenue_account
+                        
+                    if amount == 0: 
+                        continue 
 
                     fti_counter += 1
                     current_fti = f"{prefix}-{str(fti_counter).zfill(num_length)}"
                     student_id_str = str(student.id).zfill(9)
 
-                    # تحديد حساب الأستاذ العام المناسب
-                    if is_other_fee:
-                        target_ledger = ""
-                    elif is_discount:
-                        target_ledger = discount_account
-                    else:
-                        target_ledger = revenue_account
-                    
                     dim_val = getattr(student, 'financial_dimension', None)
                     if not dim_val or str(dim_val).lower() == 'nan':
                         dim_val = f"Academic||||||||{student.college}|{student.program if student.program else ''}|{student_id_str}|{tx.term}|"
@@ -153,12 +163,16 @@ def render(engine, available_years):
                     st.success(f"✅ Successfully prepared {len(df_d365)} rows for upload!")
                     st.dataframe(df_d365.head(10), use_container_width=True) 
 
-                    csv_buf = df_d365.to_csv(index=False).encode('utf-8')
+                    # 🟢 التعديل الجديد: التصدير لملف إكسيل بـ Sheet Name ثابت
+                    excel_buffer = io.BytesIO()
+                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+                        df_d365.to_excel(writer, index=False, sheet_name='Customer_free_text_invoice')
+                    
                     st.download_button(
-                        label="📥 Download D365 CSV File",
-                        data=csv_buf,
-                        file_name="Customer_free_text_invoice.csv", 
-                        mime="text/csv",
+                        label="📥 Download D365 Excel File (.xlsx)",
+                        data=excel_buffer.getvalue(),
+                        file_name="Customer_free_text_invoice.xlsx", 
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         type="primary",
                         use_container_width=True
                     )
