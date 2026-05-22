@@ -358,99 +358,51 @@ Nile University"""
                 st.info("No scholarships found.")
 
         with tab3:
-            st.markdown("### 💳 Visual Financial Ledger Timeline")
-            st.write("Chronological transaction timeline showing the visual lifecycle of debits, credits, and running balance.")
+            st.markdown("### 💳 Student Ledger Account")
+            st.write("Complete transaction history for this student, including debits, credits, and running balance.")
             
-            # Construct interactive visual timeline
             if not rows:
                 st.info("⚠️ No financial transactions posted yet for this student.")
             else:
+                # Build ledger dataframe
+                ledger_data = []
                 running_balance = 0.0
+                for t, _ in rows:
+                    running_balance += (t.debit - t.credit)
+                    ledger_data.append({
+                        "Date": t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date),
+                        "Reference No": t.reference_no,
+                        "Type": t.transaction_type,
+                        "Description": t.description or "—",
+                        "Term": t.term,
+                        "Year": t.academic_year,
+                        "Debit (EGP)": t.debit if t.debit > 0 else 0.0,
+                        "Credit (EGP)": t.credit if t.credit > 0 else 0.0,
+                        "Running Balance (EGP)": running_balance
+                    })
                 
-                # Render Net Balance Due at the top of the timeline
+                df_ledger = pd.DataFrame(ledger_data)
+                
+                st.dataframe(
+                    df_ledger,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Debit (EGP)": st.column_config.NumberColumn(format="%,.2f"),
+                        "Credit (EGP)": st.column_config.NumberColumn(format="%,.2f"),
+                        "Running Balance (EGP)": st.column_config.NumberColumn(format="%,.2f"),
+                    }
+                )
+                
+                # Render Net Balance Box below the table
                 bal_card_style = "background-color: #d4edda; color: #155724; border: 1.5px solid #28a745;" if net_bal <= 0 else "background-color: #f8d7da; color: #721c24; border: 1.5px solid #dc3545;"
                 bal_card_text = f"Balanced / In Credit: {abs(net_bal):,.2f} EGP" if net_bal <= 0 else f"Outstanding Balance Due: {net_bal:,.2f} EGP"
                 
                 st.markdown(f"""
-                <div style="padding: 16px; border-radius: 12px; font-weight: 700; text-align: center; font-size: 16px; margin-bottom: 24px; {bal_card_style}">
+                <div style="padding: 12px; border-radius: 8px; font-weight: 700; text-align: center; font-size: 15px; margin-top: 15px; {bal_card_style}">
                     ⚖️ Current {bal_card_text}
                 </div>
                 """, unsafe_allow_html=True)
-                
-                for t, _ in rows:
-                    running_balance += (t.debit - t.credit)
-                    is_debit = t.debit > 0
-                    
-                    # Colors and icons based on transaction type
-                    if is_debit:
-                        bg_color = "#fff5f5"
-                        border_color = "#feb2b2"
-                        text_color = "#9b2c2c"
-                        badge_bg = "#fed7d7"
-                        badge_text = "DEBIT / CHARGE"
-                        amt_sign = "+"
-                        amt_val = t.debit
-                        icon = "📄"
-                    else:
-                        bg_color = "#f0fff4"
-                        border_color = "#9ae6b4"
-                        text_color = "#22543d"
-                        badge_bg = "#c6f6d5"
-                        badge_text = "CREDIT / PAYMENT"
-                        amt_sign = "-"
-                        amt_val = t.credit
-                        icon = "💰"
-                        
-                    if "Adjustment" in t.transaction_type or "ADJ" in t.reference_no:
-                        icon = "⚙️"
-                    elif "Discount" in t.transaction_type or "SCH" in t.reference_no:
-                        icon = "🎓"
-
-                    tx_date = t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date)
-
-                    st.markdown(f"""
-                    <div style="
-                        background-color: {bg_color};
-                        border: 1px solid {border_color};
-                        padding: 16px;
-                        border-radius: 10px;
-                        margin-bottom: 12px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        box-shadow: 0 2px 4px rgba(0,0,0,0.01);
-                    ">
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <div style="font-size: 24px;">{icon}</div>
-                            <div>
-                                <span style="
-                                    font-size: 10px;
-                                    font-weight: 700;
-                                    padding: 3px 8px;
-                                    border-radius: 4px;
-                                    background-color: {badge_bg};
-                                    color: {text_color};
-                                    text-transform: uppercase;
-                                    letter-spacing: 0.5px;
-                                ">
-                                    {badge_text}
-                                </span>
-                                <h4 style="margin: 8px 0 4px; color: #1a202c; font-size: 15px;">{t.description or t.transaction_type}</h4>
-                                <span style="font-size: 12px; color: #718096;">
-                                    Ref: <b>{t.reference_no}</b> &nbsp;|&nbsp; Date: {tx_date} &nbsp;|&nbsp; Term: {t.term} {t.academic_year}
-                                </span>
-                            </div>
-                        </div>
-                        <div style="text-align: right;">
-                            <h3 style="margin: 0; color: {text_color}; font-size: 18px; font-weight: 700;">
-                                {amt_sign}{amt_val:,.2f} EGP
-                            </h3>
-                            <span style="font-size: 11px; color: #718096; font-style: italic;">
-                                Running Bal: {running_balance:,.2f} EGP
-                            </span>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
 
         # ── Edit Master Data ──
         if st.session_state.get("user_role") in ["Admin", "Editor"]:
