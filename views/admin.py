@@ -16,7 +16,7 @@ def render():
 
     action = st.radio(
         "Action:",
-        ["👥 Manage Users", "➕ Add New User", "🛠️ Database Fixes", "📋 Audit Log"],
+        ["👥 Manage Users", "➕ Add New User", "🛠️ Database Fixes", "⚙️ System Settings", "📋 Audit Log"],
         horizontal=True,
     )
 
@@ -162,6 +162,51 @@ def render():
                     except Exception as e:
                         db.rollback()
                         st.error("⚠️ Execution Error: Failed to parse or sync the Excel file.")
+                        st.exception(e)
+
+        elif action == "⚙️ System Settings":
+            st.markdown("### ⚙️ System Settings & Configurations")
+            st.write("Dynamic system parameters (changes reflect instantly throughout the system).")
+            
+            from models import SystemConfig
+            
+            # Load current DB configurations
+            keys = ["VALID_TERMS", "VALID_STATUSES", "VALID_COLLEGES", "VALID_ROLES", "DEFAULT_YEAR"]
+            current_vals = {}
+            for k in keys:
+                row = db.query(SystemConfig).filter_by(key=k).first()
+                current_vals[k] = row.value if row else ""
+            
+            with st.form("system_settings_form"):
+                colleges_input = st.text_input("Valid Colleges (comma-separated)", value=current_vals.get("VALID_COLLEGES", ""))
+                terms_input = st.text_input("Valid Terms (comma-separated)", value=current_vals.get("VALID_TERMS", ""))
+                statuses_input = st.text_area("Valid Student Statuses (comma-separated)", value=current_vals.get("VALID_STATUSES", ""), height=100)
+                roles_input = st.text_input("Valid Roles (comma-separated)", value=current_vals.get("VALID_ROLES", ""))
+                year_input = st.number_input("Default Academic Year", value=int(current_vals.get("DEFAULT_YEAR", 2026)), step=1)
+                
+                if st.form_submit_button("💾 Save System Configurations", type="primary"):
+                    try:
+                        updates = {
+                            "VALID_COLLEGES": colleges_input.strip(),
+                            "VALID_TERMS": terms_input.strip(),
+                            "VALID_STATUSES": statuses_input.strip(),
+                            "VALID_ROLES": roles_input.strip(),
+                            "DEFAULT_YEAR": str(year_input)
+                        }
+                        for k, v in updates.items():
+                            row = db.query(SystemConfig).filter_by(key=k).first()
+                            if row:
+                                row.value = v
+                            else:
+                                db.add(SystemConfig(key=k, value=v))
+                        
+                        db.commit()
+                        st.cache_data.clear() # Clear Streamlit cache instantly!
+                        st.session_state["flash_msg"] = "System settings updated successfully!"
+                        st.rerun()
+                    except Exception as e:
+                        db.rollback()
+                        st.error("Failed to save settings. Please verify inputs.")
                         st.exception(e)
 
         elif action == "📋 Audit Log":

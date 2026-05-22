@@ -11,7 +11,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 from contextlib import contextmanager
-from config import DB_URL
+
+DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
 
 
 # ── Engine ────────────────────────────────────
@@ -155,6 +156,12 @@ class AuditLog(Base):
     target     = Column(String)                   # e.g. "student_id=26100123"
     detail     = Column(String)                   # free-text summary
     created_at = Column(DateTime, server_default=func.now())
+
+
+class SystemConfig(Base):
+    __tablename__ = "system_configs"
+    key           = Column(String, primary_key=True)
+    value         = Column(String, nullable=False)
 
 
 # ── Indexes (performance) ─────────────────────
