@@ -6,10 +6,11 @@ from sqlalchemy import text
 from sqlalchemy.sql import func
 
 from config import VALID_TERMS, VALID_COLLEGES, DEFAULT_YEAR
-from models import get_db, Transaction, Student, StudentStatus, highlight_negatives
+# 🟢 التعديل هنا: استوردنا engine عشان نستخدمه مباشرة جوه دوال الكاش
+from models import get_db, Transaction, Student, StudentStatus, highlight_negatives, engine
 
 
-# 🟢 تفعيل الكاش لمدة 10 دقائق عشان نخفف الحمل عن Supabase
+# تفعيل الكاش لمدة 10 دقائق عشان نخفف الحمل عن Supabase
 @st.cache_data(ttl=600)
 def fetch_dashboard_metrics(term_f, year_f, college_f):
     with get_db() as db:
@@ -62,33 +63,34 @@ def fetch_dashboard_metrics(term_f, year_f, college_f):
             "active_count": active_count
         }
 
-# 🟢 تفعيل الكاش لجدول تفاصيل الكليات عشان ميبطأش تحميل الصفحة
+# 🟢 التعديل الأهم: الدالة بتاخد الفلاتر بس، وبتفتح اتصال رسمي من engine المعتمد
 @st.cache_data(ttl=600)
-def fetch_college_breakdown(engine_str, term_f, year_f, college_f):
-    df = pd.read_sql(
-        text("""
-            SELECT s.college AS "College", COUNT(DISTINCT s.id) AS "Students",
-                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END),0) AS "Tuition Billed (EGP)",
-                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount','Bulk Scholarships') THEN t.credit-t.debit ELSE 0 END),0) AS "Discounts (EGP)",
-                COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt','Bulk Payments') THEN t.credit ELSE 0 END),0) AS "Payments (EGP)",
-                COALESCE(SUM(t.debit)-SUM(t.credit),0) AS "Net Balance (EGP)"
-            FROM students s LEFT JOIN transactions t ON s.id=t.student_id
-                AND (:tf='All Terms' OR t.term=:tf)
-                AND (:yf='All Years' OR t.academic_year=:yv)
-            WHERE (:cf='All Colleges' OR s.college=:cf)
-                AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test'
-            GROUP BY s.college ORDER BY s.college
-        """),
-        con=engine_str, # نمرر الـ engine كـ string عشان الكاش يشتغل من غير مشاكل
-        params={"tf": term_f, "yf": year_f,
-                "yv": int(year_f) if year_f != "All Years" else 0,
-                "cf": college_f},
-    )
+def fetch_college_breakdown(term_f, year_f, college_f):
+    with engine.connect() as conn:
+        df = pd.read_sql(
+            text("""
+                SELECT s.college AS "College", COUNT(DISTINCT s.id) AS "Students",
+                    COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END),0) AS "Tuition Billed (EGP)",
+                    COALESCE(SUM(CASE WHEN t.transaction_type IN ('Discount','Bulk Scholarships') THEN t.credit-t.debit ELSE 0 END),0) AS "Discounts (EGP)",
+                    COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt','Bulk Payments') THEN t.credit ELSE 0 END),0) AS "Payments (EGP)",
+                    COALESCE(SUM(t.debit)-SUM(t.credit),0) AS "Net Balance (EGP)"
+                FROM students s LEFT JOIN transactions t ON s.id=t.student_id
+                    AND (:tf='All Terms' OR t.term=:tf)
+                    AND (:yf='All Years' OR t.academic_year=:yv)
+                WHERE (:cf='All Colleges' OR s.college=:cf)
+                    AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test'
+                GROUP BY s.college ORDER BY s.college
+            """),
+            con=conn, # بنستخدم الـ connection الآمن هنا
+            params={"tf": term_f, "yf": year_f,
+                    "yv": int(year_f) if year_f != "All Years" else 0,
+                    "cf": college_f},
+        )
     return df
 
 
-def render(engine, available_years):
-    # 🟢 إضافة زر لتحديث البيانات (مسح الكاش)
+def render(engine_param, available_years):
+    # إضافة زر لتحديث البيانات (مسح الكاش)
     c_head, c_btn = st.columns([4, 1])
     c_head.subheader("📊 Financial Dashboard")
     if c_btn.button("🔄 Refresh Data", help="Fetch the latest live data from the database"):
@@ -105,6 +107,7 @@ def render(engine, available_years):
     metrics = fetch_dashboard_metrics(term_f, year_f, college_f)
 
     # ── KPI row 1 ──
+    st.markdown("### 💰 Financial Summary")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     cards = [
         (kpi1, "#1a73e8", "#0d47a1", "📈 Gross Billed",        metrics["gross_billed"]),
@@ -146,8 +149,8 @@ def render(engine, available_years):
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### 📋 Revenue Breakdown by College")
 
-    # جلب جدول الكليات من الدالة المخبأة (باستخدام URL الداتابيز عشان الكاش يشتغل)
-    df = fetch_college_breakdown(str(engine.url), term_f, year_f, college_f)
+    # 🟢 التعديل: استدعاء الدالة بدون ما نبعتلها الـ engine_str
+    df = fetch_college_breakdown(term_f, year_f, college_f)
 
     if not df.empty:
         totals = {c: df[c].sum() if df[c].dtype != object else ("🔢 TOTAL" if c=="College" else "") for c in df.columns}
