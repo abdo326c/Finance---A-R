@@ -203,7 +203,7 @@ Nile University
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
-            server.login(sender_email.strip(), sender_password.strip())
+            server.login(sender_email.strip(), sender_password.replace(" ", ""))
             
             total_students = len(selected_student_keys)
             
