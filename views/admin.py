@@ -210,7 +210,7 @@ def render():
                         st.exception(e)
 
         elif action == "📋 Audit Log":
-            st.markdown("### 📋 Recent System Activity (last 500 entries)")
+            st.markdown("### 📋 Recent System Activity & Analytics")
             logs = (
                 db.query(AuditLog)
                 .order_by(AuditLog.created_at.desc())
@@ -218,6 +218,7 @@ def render():
                 .all()
             )
             if logs:
+                import plotly.express as px
                 df = pd.DataFrame([{
                     "Time":    l.created_at.strftime("%Y-%m-%d %H:%M:%S"),
                     "User":    l.username,
@@ -225,6 +226,46 @@ def render():
                     "Target":  l.target,
                     "Detail":  l.detail,
                 } for l in logs])
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                
+                # Render Visual Analytics
+                st.markdown("#### 📊 Activity Analytics (Past 500 Logs)")
+                an_col1, an_col2 = st.columns(2)
+                
+                with an_col1:
+                    # Donut chart: Action types
+                    action_counts = df["Action"].value_counts().reset_index()
+                    action_counts.columns = ["Action Type", "Logs Count"]
+                    fig_actions = px.pie(
+                        action_counts,
+                        names="Action Type",
+                        values="Logs Count",
+                        hole=0.4,
+                        title="🎛️ Logs Count by Action Type",
+                        color_discrete_sequence=["#0d47a1", "#00897b", "#fb8c00", "#5e35b1", "#e53935"]
+                    )
+                    fig_actions.update_layout(
+                        margin=dict(l=20, r=20, t=40, b=20),
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5)
+                    )
+                    st.plotly_chart(fig_actions, use_container_width=True)
+                    
+                with an_col2:
+                    # Bar chart: User activity
+                    user_counts = df["User"].value_counts().reset_index()
+                    user_counts.columns = ["User", "Action Count"]
+                    fig_users = px.bar(
+                        user_counts,
+                        x="Action Count",
+                        y="User",
+                        orientation="h",
+                        title="👥 User Activity Volume",
+                        color_discrete_sequence=["#00897b"]
+                    )
+                    fig_users.update_layout(margin=dict(l=20, r=20, t=40, b=20))
+                    st.plotly_chart(fig_users, use_container_width=True)
+                
+                st.markdown("---")
+                st.markdown("#### 📋 Raw Audit Logs list")
+                st.dataframe(df[["Time", "User", "Action", "Target", "Detail"]], use_container_width=True, hide_index=True)
             else:
                 st.info("No audit entries yet.")
