@@ -41,7 +41,7 @@ def render():
             b_name = st.text_input("Bank Name")
             b_ref  = st.text_input("Bank Ref No")
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+            internal_note = st.text_input("Internal Note")
             
         elif action == "Invoice":
             reg_hours = st.number_input("Registered Credit Hours", min_value=0.0, step=1.0)
