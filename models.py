@@ -167,27 +167,6 @@ Index("ix_stat_student",StudentStatus.student_id)
 
 # ── Schema creation ───────────────────────────
 Base.metadata.create_all(engine)
-# ── Auto-Migration (Adding new columns to existing DB safely) ──
-with engine.begin() as conn:
-    try:
-        conn.execute(text("ALTER TABLE students ADD COLUMN is_sponsored BOOLEAN DEFAULT 0;"))
-    except Exception: pass
-    
-    try:
-        conn.execute(text("ALTER TABLE students ADD COLUMN sponsor_name VARCHAR;"))
-    except Exception: pass
-    
-    try:
-        conn.execute(text("ALTER TABLE students ADD COLUMN general_notes VARCHAR;"))
-    except Exception: pass
-    
-    try:
-        conn.execute(text("ALTER TABLE students ADD COLUMN sibling_id INTEGER;"))
-    except Exception: pass
-    
-    try:
-        conn.execute(text("ALTER TABLE transactions ADD COLUMN internal_note VARCHAR;"))
-    except Exception: pass
 
 # ── Seed default users (first run only) ───────
 def seed_default_users():
