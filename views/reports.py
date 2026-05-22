@@ -49,7 +49,7 @@ def render(engine, available_years):
         "s_cnt": len(p["status"]),"stats":tuple(p["status"]) or ("",),
     }
 
-    df = pd.DataFrame()   # defined in every branch; avoids scope leak
+    df = pd.DataFrame()
 
     with st.spinner("Generating report…"):
 
@@ -62,7 +62,6 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR ss.term IN :trms)
                     AND (:y_cnt=0 OR ss.academic_year IN :yrs)
-                    /* 🟢 التعديل: استبعاد طلاب التيست افتراضياً، وإظهارهم فقط لو تم اختيارهم بالفلتر */
                     AND (
                         (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
                         OR (:s_cnt>0 AND ss.status IN :stats)
@@ -92,7 +91,6 @@ def render(engine, available_years):
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
                 WHERE (:c_cnt=0 OR s.college IN :cls)
-                    /* 🟢 التعديل: استبعاد طلاب التيست من ملخص الإيرادات */
                     AND (
                         (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
                         OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
@@ -105,13 +103,17 @@ def render(engine, available_years):
             else:
                 num_cols = ["Reg. Hours","Tuition Billed","Other Fees","Discounts","Payments","Adjustments","Balance"]
                 totals   = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                totals["Student Name"] = "🔢 TOTAL"
                 df_show  = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+
+                for col in num_cols:
+                    df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
+
                 fmt = {"Price/Hr":"{:,.2f}","Reg. Hours":"{:,.1f}","Tuition Billed":"{:,.2f}",
                        "Other Fees":"{:,.2f}","Discounts":"{:,.2f}","Payments":"{:,.2f}",
                        "Adjustments":"{:,.2f}","Balance":"{:,.2f}"}
                 st.dataframe(
-                    df_show.style.format(fmt)
+                    df_show.style
+                        .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Balance"])
                         .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
                     use_container_width=True,
@@ -136,7 +138,6 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    /* 🟢 التعديل: استبعاد طلاب التيست من تقفيل الفترات المالية */
                     AND (
                         (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
                         OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
@@ -151,12 +152,17 @@ def render(engine, available_years):
                 st.warning("No financial activity in the selected date range.")
             else:
                 num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts","Payments Received","Adjustments","Net Period Change"]
-                totals = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
-                totals["Student Name"] = "🔢 TOTAL"
-                df_show = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
-                fmt = {c:"{:,.2f}" for c in num_cols}; fmt["CH Changed"] = "{:,.1f}"
+                totals   = {c: df[c].sum() if c in num_cols else ("🔢 TOTAL" if c=="Student Name" else "") for c in df.columns}
+                df_show  = pd.concat([df, pd.DataFrame([totals])], ignore_index=True)
+
+                for col in num_cols:
+                    df_show[col] = pd.to_numeric(df_show[col], errors="coerce")
+
+                fmt = {c: "{:,.2f}" for c in num_cols}
+                fmt["CH Changed"] = "{:,.1f}"
                 st.dataframe(
-                    df_show.style.format(fmt)
+                    df_show.style
+                        .format(fmt, na_rep="")
                         .map(highlight_negatives, subset=["Net Period Change"])
                         .apply(lambda x: ["background:#f0f4ff;font-weight:bold" if x.name==len(df_show)-1 else "" for _ in x], axis=1),
                     use_container_width=True,
@@ -176,7 +182,6 @@ def render(engine, available_years):
                 WHERE (:c_cnt=0 OR s.college IN :cls)
                     AND (:t_cnt=0 OR t.term IN :trms)
                     AND (:y_cnt=0 OR t.academic_year IN :yrs)
-                    /* 🟢 التعديل: استبعاد طلاب التيست من سجل الحركات التفصيلي */
                     AND (
                         (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
                         OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
