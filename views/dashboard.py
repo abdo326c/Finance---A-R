@@ -2,6 +2,7 @@
 import io
 import pandas as pd
 import streamlit as st
+import plotly.express as px
 from sqlalchemy import text
 from sqlalchemy.sql import func
 
@@ -127,6 +128,59 @@ def render(engine, available_years):
         df.to_excel(buf, index=False)
         st.download_button("📗 Download College Report (Excel)", buf.getvalue(),
                            file_name=f"Dashboard_Report.xlsx")
+
+        # -- Plotly Visual Analytics --
+        st.markdown("---")
+        st.markdown("### 📊 Visual Analytics")
+        ch_col1, ch_col2 = st.columns(2)
+
+        with ch_col1:
+            # 1. Bar Chart: Tuition, Discounts, Payments by College
+            df_melted = df.melt(
+                id_vars=["College"],
+                value_vars=["Tuition Billed (EGP)", "Discounts (EGP)", "Payments (EGP)"],
+                var_name="Financial Category",
+                value_name="Amount (EGP)"
+            )
+            fig_bar = px.bar(
+                df_melted,
+                x="College",
+                y="Amount (EGP)",
+                color="Financial Category",
+                barmode="group",
+                title="💳 Financial Breakdown by College",
+                color_discrete_map={
+                    "Tuition Billed (EGP)": "#0d47a1",  # Nile Navy
+                    "Discounts (EGP)": "#e53935",       # Crimson Red
+                    "Payments (EGP)": "#00897b"         # Teal
+                },
+                text_auto=".2s"
+            )
+            fig_bar.update_layout(
+                margin=dict(l=20, r=20, t=40, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with ch_col2:
+            # 2. Donut Chart: Student Distribution by College
+            fig_donut = px.pie(
+                df,
+                names="College",
+                values="Students",
+                hole=0.4,
+                title="👥 Student Distribution by College",
+                color_discrete_sequence=["#0d47a1", "#00897b", "#fb8c00", "#5e35b1"],
+            )
+            fig_donut.update_traces(textinfo='percent+label')
+            fig_donut.update_layout(
+                margin=dict(l=20, r=20, t=40, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                paper_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_donut, use_container_width=True)
     else:
         st.info("⚠️ No financial data found for the selected filters.")
 
