@@ -41,28 +41,28 @@ def render():
             b_name = st.text_input("Bank Name")
             b_ref  = st.text_input("Bank Ref No")
             cr     = st.number_input("Amount Paid (EGP)", min_value=0.0)
-            internal_note = st.text_input("Internal Note")
+            internal_note = st.text_input("Internal Note (Optional)")
             
         elif action == "Invoice":
             reg_hours = st.number_input("Registered Credit Hours", min_value=0.0, step=1.0)
             dsc = st.text_input("Description", value="Tuition Invoice")
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+            internal_note = st.text_input("Internal Note (Optional)")
             
         elif action == "Credit Hours Adjustment":
             h_change = st.number_input("Hours Delta (+/−)")
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+            internal_note = st.text_input("Internal Note (Optional)")
             
         elif action == "Other Fees":
             dr  = st.number_input("Fee Amount (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+            internal_note = st.text_input("Internal Note (Optional)")
             
         elif action == "General Adjustment":
             gc1, gc2 = st.columns(2)
             dr  = gc1.number_input("Debit (EGP)",  min_value=0.0)
             cr  = gc2.number_input("Credit (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+            internal_note = st.text_input("Internal Note (Optional)")
             
         # 🟢 إضافة نوع "منحة يدوية" لمعالجة شرط خصم الأخوات
         elif action == "Manual Scholarship":
