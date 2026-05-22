@@ -15,7 +15,7 @@ from auth import require_role
 from config import VALID_TERMS
 
 # استيراد أدوات بناء الـ PDF
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape # 🟢 تم إضافة landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -23,59 +23,103 @@ from reportlab.lib import colors
 def generate_statement_pdf(student, transactions, current_balance, scope_text):
     """دالة فرعية لتوليد ملف الـ PDF الخاص بكشف الحساب التفصيلي في الذاكرة"""
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    # 🟢 1. تحويل الصفحة لـ Landscape للحصول على عرض أكبر للجدول
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
     story = []
     styles = getSampleStyleSheet()
     
-    # تنسيقات مخصصة للكشف الرياضي/المالي
+    # تنسيقات النصوص
     title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=22, textColor=colors.HexColor("#004a99"), spaceAfter=12)
     subtitle_style = ParagraphStyle('DocSubtitle', parent=styles['Heading3'], fontSize=12, textColor=colors.HexColor("#555555"), spaceAfter=15)
     normal_style = ParagraphStyle('DocNormal', parent=styles['Normal'], fontSize=10, spaceAfter=6)
+    cell_style = ParagraphStyle('CellText', parent=styles['Normal'], fontSize=9, leading=12) # ستايل مخصص لخلايا الجدول
+    
+    # 🟢 2. استخراج جميع التيرمات الموجودة في الكشف حصرياً بدون تكرار
+    unique_terms = []
+    for tx in transactions:
+        t_name = f"{tx.term} {tx.academic_year}"
+        if t_name not in unique_terms:
+            unique_terms.append(t_name)
+    terms_display = " | ".join(unique_terms) if unique_terms else scope_text
     
     # الهيدر الأساسي للجامعة
     story.append(Paragraph("Nile University - Finance Department", title_style))
-    story.append(Paragraph(f"Official Statement of Account ({scope_text})", subtitle_style))
+    story.append(Paragraph(f"Official Statement of Account", subtitle_style))
     story.append(Spacer(1, 10))
     
-    # بيانات الطالب
+    # بيانات الطالب والتيرمات
     story.append(Paragraph(f"<b>Student Name:</b> {student.name}", normal_style))
     story.append(Paragraph(f"<b>Student ID:</b> {student.id}", normal_style))
     story.append(Paragraph(f"<b>College:</b> {student.college}", normal_style))
     story.append(Paragraph(f"<b>Statement Date:</b> {datetime.date.today().strftime('%d %B %Y')}", normal_style))
+    story.append(Paragraph(f"<b>Included Terms:</b> {terms_display}", normal_style)) # 🟢 إظهار كل التيرمات هنا
     story.append(Spacer(1, 15))
     
     # بناء جدول الحركات التفصيلية
     table_data = [["Date", "Reference", "Description", "Term / Year", "Debit (EGP)", "Credit (EGP)"]]
     
+    sum_debit = 0.0
+    sum_credit = 0.0
+    
     for tx in transactions:
+        sum_debit += tx.debit
+        sum_credit += tx.credit
         tx_date = tx.entry_date.strftime("%Y-%m-%d") if hasattr(tx.entry_date, 'strftime') else str(tx.entry_date)
+        
+        # 🟢 استخدام Paragraph للوصف عشان يعمل Text Wrap لو الكلام طويل ميبوظش الجدول
+        desc_p = Paragraph(tx.description or "", cell_style)
+        
         table_data.append([
             tx_date,
             tx.reference_no,
-            tx.description or "",
+            desc_p,
             f"{tx.term} {tx.academic_year}",
             f"{tx.debit:,.2f}" if tx.debit > 0 else "0.00",
             f"{tx.credit:,.2f}" if tx.credit > 0 else "0.00"
         ])
     
-    # سطر المجموع النهائي للرصيد
-    table_data.append(["", "", "", "Outstanding Balance:", f"{current_balance:,.2f} EGP", ""])
+    # 🟢 3. سطر المجاميع (Total Debit & Total Credit)
+    table_data.append(["", "", "", "Totals:", f"{sum_debit:,.2f}", f"{sum_credit:,.2f}"])
     
-    # تحديد عرض الأعمدة ليكون متناسقاً مع حجم الصفحة
-    t = Table(table_data, colWidths=[65, 75, 155, 75, 85, 85])
+    # 🟢 4. سطر صافي الرصيد (Net Balance)
+    table_data.append(["", "", "", "Net Balance Due:", f"{current_balance:,.2f} EGP", ""])
+    
+    # تحديد عرض الأعمدة (مجموع العرض يتناسب مع الـ Landscape 732 points)
+    t = Table(table_data, colWidths=[70, 80, 290, 85, 100, 100])
+    
+    # 🟢 تنسيقات الجدول الاحترافية
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")), # اللون الأزرق لهوية الجامعة
+        # هيدر الجدول
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'LEFT'),
+        ('ALIGN', (4,0), (5,-1), 'RIGHT'), # محاذاة الأرقام لليمين
         ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0,0), (-1,0), 6),
-        ('TOPPADDING', (0,0), (-1,0), 6),
-        ('GRID', (0,0), (-1,-2), 0.5, colors.lightgrey),
-        # تنسيق سطر المجموع النهائي
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#f0f4ff")),
-        ('FONTNAME', (0,-1), (-1,-1), 'Helvetica-Bold'),
-        ('LINEABOVE', (0,-1), (-1,-1), 1.5, colors.HexColor("#004a99")),
-        ('TOPPADDING', (0,-1), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,0), 8),
+        ('TOPPADDING', (0,0), (-1,0), 8),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        
+        # خطوط الحركات العادية
+        ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
+        
+        # تنسيق سطر الـ Totals
+        ('BACKGROUND', (3,-2), (-1,-2), colors.HexColor("#f5f5f5")),
+        ('FONTNAME', (3,-2), (-1,-2), 'Helvetica-Bold'),
+        ('LINEABOVE', (3,-2), (-1,-2), 1, colors.black),
+        ('BOTTOMPADDING', (3,-2), (-1,-2), 6),
+        ('TOPPADDING', (3,-2), (-1,-2), 6),
+        
+        # تنسيق سطر الـ Net Balance
+        ('BACKGROUND', (3,-1), (-1,-1), colors.HexColor("#d4edda")), # خلفية خضراء فاتحة
+        ('FONTNAME', (3,-1), (-1,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (3,-1), (-1,-1), colors.HexColor("#155724")), # لون النص أخضر غامق
+        ('SPAN', (4,-1), (5,-1)), # دمج خليتين الـ Debit والـ Credit للرصيد
+        ('ALIGN', (4,-1), (5,-1), 'CENTER'), # توسيط رقم الرصيد في الخليتين المدموجتين
+        ('BOTTOMPADDING', (3,-1), (-1,-1), 8),
+        ('TOPPADDING', (3,-1), (-1,-1), 8),
+        ('BOX', (3,-2), (-1,-1), 1, colors.black), # إطار حوالين المجاميع والرصيد
+        ('INNERGRID', (3,-2), (-1,-1), 0.5, colors.grey),
     ]))
     
     story.append(t)
@@ -89,7 +133,6 @@ def render(engine, available_years):
     st.markdown("Send real-time statement of accounts with detailed PDF attachments to students.")
     require_role("Admin", "Editor")
 
-    # 1. إعدادات السيرفر والإيميل المرسل
     with st.expander("⚙️ SMTP Email Settings", expanded=False):
         c1, c2 = st.columns(2)
         sender_email = c1.text_input("Sender Email Address")
@@ -99,7 +142,6 @@ def render(engine, available_years):
         smtp_server = c3.text_input("SMTP Server", value="smtp.gmail.com")
         smtp_port = c4.number_input("SMTP Port", value=587, step=1)
 
-    # 🟢 2. اوبشن تحديد نطاق الرصيد (التيرمات)
     st.markdown("### 🔍 Balance Scope Settings")
     c_scope, c_t, c_y = st.columns([2, 1, 1])
     balance_scope = c_scope.selectbox(
@@ -116,7 +158,6 @@ def render(engine, available_years):
         selected_year = c_y.selectbox("Select Year:", available_years)
         scope_text = f"{selected_term} {selected_year}"
 
-    # 3. اختيار الطلاب
     st.markdown("### 👥 Select Students")
     with get_db() as db:
         all_students = db.query(Student).all()
@@ -127,7 +168,6 @@ def render(engine, available_years):
             options=list(student_options.keys())
         )
 
-    # 4. إعداد نص الرسالة
     st.markdown("### 📝 Email Template")
     st.info("💡 Placeholders: `{name}`, `{id}`, `{balance}`, `{date}`, `{scope}`")
     
@@ -145,7 +185,6 @@ Nile University
     email_subject = st.text_input("Subject", value=default_subject)
     email_body = st.text_area("Message Body", value=default_body, height=200)
 
-    # 5. زر الإرسال واللوجيك
     if st.button("🚀 Send Follow-up Emails", type="primary"):
         if not sender_email or not sender_password:
             st.error("⚠️ Please configure your SMTP Settings first.")
@@ -177,7 +216,6 @@ Nile University
                         skipped_count += 1
                         continue
 
-                    # 🟢 سحب الحركات بناءً على النطاق المحدد (كل التيرمات أو تيرم محدد)
                     tx_query = db_session.query(Transaction).filter(Transaction.student_id == student.id)
                     if balance_scope == "Specific Term Only":
                         tx_query = tx_query.filter(
@@ -187,18 +225,15 @@ Nile University
                     
                     student_txs = tx_query.order_by(Transaction.entry_date.asc()).all()
                     
-                    # حساب الرصيد الخاص بالنطاق المحدد
                     total_debit = sum(t.debit for t in student_txs)
                     total_credit = sum(t.credit for t in student_txs)
                     current_balance = total_debit - total_credit
                     
-                    # تجاوز الطالب لو الرصيد صفر أو دائن
                     if current_balance <= 0:
                         st.toast(f"⏭️ Skipped {student.name} (Zero or Credit Balance)")
                         skipped_count += 1
                         continue
 
-                    # تجهيز نص الرسالة الديناميكي
                     formatted_body = email_body.format(
                         name=student.name,
                         id=student.id,
@@ -220,18 +255,16 @@ Nile University
                     </html>
                     """
 
-                    # بناء الإيميل والمرفقات
                     msg = MIMEMultipart("mixed")
                     msg["Subject"] = email_subject
                     msg["From"] = f"Finance Department <{sender_email.strip()}>"
                     msg["To"] = student.email
                     
-                    # الجزء النصي (HTML)
                     msg_alternative = MIMEMultipart("alternative")
                     msg_alternative.attach(MIMEText(html_content, "html"))
                     msg.attach(msg_alternative)
 
-                    # 🟢 توليد وإرفاق ملف الـ PDF
+                    # توليد وإرفاق ملف الـ PDF بالتحديثات الجديدة
                     pdf_bytes = generate_statement_pdf(student, student_txs, current_balance, scope_text)
                     part = MIMEBase('application', "octet-stream")
                     part.set_payload(pdf_bytes)
@@ -239,7 +272,6 @@ Nile University
                     part.add_header('Content-Disposition', f'attachment; filename="Statement_{student.id}.pdf"')
                     msg.attach(part)
 
-                    # إرسال الحزمة بالكامل
                     server.sendmail(sender_email.strip(), student.email, msg.as_string())
                     success_count += 1
                     
@@ -250,7 +282,7 @@ Nile University
             progress_bar.empty()
             
             if success_count > 0:
-                st.success(f"✅ Successfully sent {success_count} emails with PDF statements attached!")
+                st.success(f"✅ Successfully sent {success_count} emails with formatted PDF statements!")
             if skipped_count > 0:
                 st.info(f"💡 {skipped_count} students were skipped (Either have 0 balance or missing email).")
 
