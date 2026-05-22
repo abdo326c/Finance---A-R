@@ -17,6 +17,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# 🟢 التعديل الأهم: قراءة الكوكيز وتحضير الجلسة قبل رسم أي حاجة على الشاشة
+init_session()
+
 # ── Seed DB on first run ───────────────────────
 seed_default_users()
 
@@ -41,7 +44,7 @@ header[data-testid="stHeader"] { background: transparent !important; }
     background-color: #f0f2f6; transform: translateX(4px);
 }
 
-/* 🟢 التعديل هنا: تلوين الصفحة النشطة (Active Page) */
+/* تلوين الصفحة النشطة (Active Page) */
 [data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
     background-color: #eaf1fa !important; color: #004a99 !important; font-weight: 700 !important; 
     border-left: 4px solid #004a99 !important; border-radius: 0px 8px 8px 0px !important; 
@@ -60,10 +63,8 @@ header[data-testid="stHeader"] { background: transparent !important; }
     unsafe_allow_html=True,
 )
 
-# ── Session init + auth guard ─────────────────
-init_session()
-
-if not st.session_state["authenticated"]:
+# ── Auth guard ────────────────────────────────
+if not st.session_state.get("authenticated"):
     login_form()
     st.stop()
 
@@ -92,7 +93,7 @@ NAV_OPTIONS = [
     "📤 Bulk Financials",
     "🎓 Scholarships",
     "🔄 D365 FTI Export",
-    "📩 Email Follow-up", # <--- السطر الجديد
+    "📩 Email Follow-up",
     "👤 Registration",
     "🗑️ Batch Management",
     "⚙️ System Admin",
@@ -113,7 +114,6 @@ try:
 except Exception:
     sch_map, all_colleges, available_years = {}, [], [DEFAULT_YEAR]
 
-# Expose to pages via session state (avoids re-import of heavy cache)
 st.session_state["_sch_map"]   = sch_map
 st.session_state["_avail_yrs"] = available_years
 
