@@ -140,8 +140,8 @@ def render(engine, available_years):
 
     with st.expander("⚙️ SMTP Email Settings", expanded=False):
         c1, c2 = st.columns(2)
-        sender_email = c1.text_input("Sender Email Address")
-        sender_password = c2.text_input("App Password", type="password") 
+        sender_email = c1.text_input("Sender Email Address", value="abdo.325c@gmail.com")
+        sender_password = c2.text_input("App Password", type="password", value="ivpxvvnyyamgqavg") 
         
         c3, c4 = st.columns(2)
         smtp_server = c3.text_input("SMTP Server", value="smtp.gmail.com")
