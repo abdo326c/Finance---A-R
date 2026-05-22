@@ -14,7 +14,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
 def create_landscape_pdf(student_id, student_name, student_college, rows, current_balance, total_d, total_c):
-    """توليد ملف PDF احترافي Landscape مع Footer ومربع مجاميع منظم"""
+    """توليد ملف PDF احترافي Landscape مع مربع مجاميع ملموم"""
     buffer = io.BytesIO()
     
     doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=40)
@@ -61,13 +61,14 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
             f"{t.credit:,.2f}" if t.credit > 0 else "0.00"
         ])
     
-    # 🟢 تعديل صف المجاميع: خلينا أول 3 خانات فاضيين تماماً، والكلمة تبدأ من العمود الرابع
-    table_data.append(["", "", "", "Totals:", "", f"{total_d:,.2f}", f"{total_c:,.2f}"])
+    # 🟢 نقلنا المجاميع للعمود الخامس عشان المربع يبقى قد الكلمة والأرقام بس
+    table_data.append(["", "", "", "", "Totals:", f"{total_d:,.2f}", f"{total_c:,.2f}"])
     
-    # 🟢 تعديل صف الرصيد النهائي بنفس الطريقة
-    table_data.append(["", "", "", "Net Balance Due:", "", f"{current_balance:,.2f} EGP", ""])
+    # 🟢 نقلنا الرصيد النهائي للعمود الخامس برضه
+    table_data.append(["", "", "", "", "Net Balance Due:", f"{current_balance:,.2f} EGP", ""])
     
-    t = Table(table_data, colWidths=[70, 85, 95, 202, 80, 100, 100])
+    # وسعنا العمود الخامس (90) على حساب الرابع عشان كلمة Net Balance تاخد راحتها
+    t = Table(table_data, colWidths=[70, 85, 95, 192, 90, 100, 100])
     
     t.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#004a99")),
@@ -79,32 +80,28 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
         ('TOPPADDING', (0,0), (-1,0), 8),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         
-        # إطار الحركات العادية فقط (يتوقف قبل المجاميع)
         ('GRID', (0,0), (-1,-3), 0.5, colors.lightgrey),
         
-        # 🟢 تنسيق مربع الـ Totals (عائم على اليمين)
-        ('SPAN', (3,-2), (4,-2)), # دمج خليتين للكلمة
-        ('ALIGN', (3,-2), (4,-2), 'RIGHT'), 
-        ('BACKGROUND', (3,-2), (-1,-2), colors.HexColor("#f5f5f5")),
-        ('FONTNAME', (3,-2), (-1,-2), 'Helvetica-Bold'),
-        ('LINEABOVE', (3,-2), (-1,-2), 1, colors.black),
-        ('BOTTOMPADDING', (3,-2), (-1,-2), 8),
-        ('TOPPADDING', (3,-2), (-1,-2), 8),
-        ('BOX', (3,-2), (-1,-2), 1, colors.black),
-        ('INNERGRID', (3,-2), (-1,-2), 0.5, colors.grey),
+        # 🟢 تنسيق مربع الـ Totals (يبدأ من العمود 4 اللي هو الخامس فعلياً)
+        ('ALIGN', (4,-2), (4,-2), 'RIGHT'), 
+        ('BACKGROUND', (4,-2), (-1,-2), colors.HexColor("#f5f5f5")),
+        ('FONTNAME', (4,-2), (-1,-2), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (4,-2), (-1,-2), 8),
+        ('TOPPADDING', (4,-2), (-1,-2), 8),
+        ('BOX', (4,-2), (-1,-2), 1, colors.black),
+        ('INNERGRID', (4,-2), (-1,-2), 0.5, colors.grey),
         
-        # 🟢 تنسيق مربع الـ Net Balance (عائم على اليمين)
-        ('SPAN', (3,-1), (4,-1)), # دمج خليتين للكلمة
-        ('ALIGN', (3,-1), (4,-1), 'RIGHT'),
+        # 🟢 تنسيق مربع الـ Net Balance 
+        ('ALIGN', (4,-1), (4,-1), 'RIGHT'),
         ('SPAN', (5,-1), (6,-1)), # دمج خليتين للرصيد
         ('ALIGN', (5,-1), (6,-1), 'CENTER'),
-        ('BACKGROUND', (3,-1), (-1,-1), colors.HexColor("#d4edda")),
-        ('FONTNAME', (3,-1), (-1,-1), 'Helvetica-Bold'),
-        ('TEXTCOLOR', (3,-1), (-1,-1), colors.HexColor("#155724")),
-        ('BOTTOMPADDING', (3,-1), (-1,-1), 10),
-        ('TOPPADDING', (3,-1), (-1,-1), 10),
-        ('BOX', (3,-1), (-1,-1), 1, colors.black),
-        ('INNERGRID', (3,-1), (-1,-1), 0.5, colors.grey),
+        ('BACKGROUND', (4,-1), (-1,-1), colors.HexColor("#d4edda")),
+        ('FONTNAME', (4,-1), (-1,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR', (4,-1), (-1,-1), colors.HexColor("#155724")),
+        ('BOTTOMPADDING', (4,-1), (-1,-1), 10),
+        ('TOPPADDING', (4,-1), (-1,-1), 10),
+        ('BOX', (4,-1), (-1,-1), 1, colors.black),
+        ('INNERGRID', (4,-1), (-1,-1), 0.5, colors.grey),
     ]))
     
     story.append(t)
