@@ -93,6 +93,7 @@ NAV_OPTIONS = [
     "📤 Bulk Financials",
     "🎓 Scholarships",
     "🔄 D365 FTI Export",
+    "🔄 Reconciliation",
     "📩 Email Follow-up",
     "👤 Registration",
     "🗑️ Batch Management",
@@ -152,6 +153,10 @@ elif selected_tab == "🎓 Scholarships":
     
 elif selected_tab == "🔄 D365 FTI Export":
     from views.d365_export import render
+    render(engine, available_years)
+
+elif selected_tab == "🔄 Reconciliation":
+    from views.reconciliation import render
     render(engine, available_years)
     
 elif selected_tab == "📩 Email Follow-up":
