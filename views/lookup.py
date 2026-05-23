@@ -231,9 +231,9 @@ def render():
 
         # ── 3. Quick Actions row ──
         if net_bal <= 0:
-            act_col1, act_col2, act_col3, act_col4 = st.columns([1.5, 1.5, 1.8, 1.2])
+            act_col1, act_col3, act_col4 = st.columns([1.5, 1.8, 1.2])
         else:
-            act_col1, act_col2, act_col4 = st.columns([1.5, 1.5, 1.2])
+            act_col1, act_col4 = st.columns([1.5, 1.2])
             act_col3 = None
             
         with act_col1:
@@ -245,67 +245,6 @@ def render():
                 type="primary" if net_bal > 0 else "secondary", use_container_width=True,
                 key=f"quick_pdf_dl_{student.id}_{net_bal}"
             )
-            
-        with act_col2:
-            if st.button("📩 Email Statement", type="secondary", use_container_width=True, key=f"quick_email_btn_{student.id}"):
-                with st.spinner("Preparing and sending email..."):
-                    # Quick email helper
-                    def send_quick_statement(std, txs, bal):
-                        import smtplib
-                        from email.mime.multipart import MIMEMultipart
-                        from email.mime.text import MIMEText
-                        from email.mime.base import MIMEBase
-                        from email import encoders
-                        from views.email_followup import generate_statement_pdf
-                        
-                        sender_email = st.secrets.get("SMTP_USER", "abdo.325c@gmail.com")
-                        sender_password = st.secrets.get("SMTP_PASS", "ivpxvvnyyamgqavg")
-                        
-                        if not std.email:
-                            return False, "Student does not have an email address registered."
-                            
-                        try:
-                            server = smtplib.SMTP("smtp.gmail.com", 587)
-                            server.starttls()
-                            server.login(sender_email.strip(), sender_password.replace(" ", ""))
-                            
-                            tx_list = [t for t, _ in txs]
-                            pdf_attachment = generate_statement_pdf(std, tx_list, bal, "All Terms")
-                            
-                            msg = MIMEMultipart("mixed")
-                            msg["Subject"] = "Nile University - Student Statement of Account"
-                            msg["From"] = f"Finance Department <{sender_email.strip()}>"
-                            msg["To"] = std.email
-                            
-                            body = f"""Dear {std.name},
-
-Please find attached your updated Statement of Account as of today.
-
-Outstanding Balance: {bal:,.2f} EGP.
-
-Best Regards,
-Finance Department
-Nile University"""
-
-                            msg.attach(MIMEText(body, "plain"))
-                            
-                            part = MIMEBase('application', "octet-stream")
-                            part.set_payload(pdf_attachment)
-                            encoders.encode_base64(part)
-                            part.add_header('Content-Disposition', f'attachment; filename="Statement_{std.id}.pdf"')
-                            msg.attach(part)
-                            
-                            server.sendmail(sender_email.strip(), std.email, msg.as_string())
-                            server.quit()
-                            return True, "Email sent successfully!"
-                        except Exception as ex:
-                            return False, str(ex)
-
-                    success, msg = send_quick_statement(student, rows, net_bal)
-                    if success:
-                        st.toast("✅ Email statement sent successfully!", icon="✅")
-                    else:
-                        st.error(f"❌ Failed to send email: {msg}")
 
         if act_col3:
             with act_col3:
@@ -328,7 +267,7 @@ Nile University"""
         st.markdown("<br>", unsafe_allow_html=True)
 
         # ── 4. CRM Tabbed Structure ──
-        tab1, tab2, tab3 = st.tabs(["📝 Profile Details", "🎓 Scholarships", "💳 Financial Ledger Timeline"])
+        tab1, tab2 = st.tabs(["📝 Profile Details", "🎓 Scholarships"])
 
         with tab1:
             # ── 3 core metrics ──
@@ -432,52 +371,7 @@ Nile University"""
             else:
                 st.info("No scholarships found.")
 
-        with tab3:
-            st.markdown("### 💳 Student Ledger Account")
-            st.write("Complete transaction history for this student, including debits, credits, and running balance.")
-            
-            if not rows:
-                st.info("⚠️ No financial transactions posted yet for this student.")
-            else:
-                # Build ledger dataframe
-                ledger_data = []
-                running_balance = 0.0
-                for t, _ in rows:
-                    running_balance += (t.debit - t.credit)
-                    ledger_data.append({
-                        "Date": t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date),
-                        "Reference No": t.reference_no,
-                        "Type": t.transaction_type,
-                        "Description": t.description or "—",
-                        "Term": t.term,
-                        "Year": t.academic_year,
-                        "Debit (EGP)": t.debit if t.debit > 0 else 0.0,
-                        "Credit (EGP)": t.credit if t.credit > 0 else 0.0,
-                        "Running Balance (EGP)": running_balance
-                    })
-                
-                df_ledger = pd.DataFrame(ledger_data)
-                
-                st.dataframe(
-                    df_ledger,
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Debit (EGP)": st.column_config.NumberColumn(format="%,.2f"),
-                        "Credit (EGP)": st.column_config.NumberColumn(format="%,.2f"),
-                        "Running Balance (EGP)": st.column_config.NumberColumn(format="%,.2f"),
-                    }
-                )
-                
-                # Render Net Balance Box below the table
-                bal_card_style = "background-color: #d4edda; color: #155724; border: 1.5px solid #28a745;" if net_bal <= 0 else "background-color: #f8d7da; color: #721c24; border: 1.5px solid #dc3545;"
-                bal_card_text = f"Balanced / In Credit: {abs(net_bal):,.2f} EGP" if net_bal <= 0 else f"Outstanding Balance Due: {net_bal:,.2f} EGP"
-                
-                st.markdown(f"""
-                <div style="padding: 12px; border-radius: 8px; font-weight: 700; text-align: center; font-size: 15px; margin-top: 15px; {bal_card_style}">
-                    ⚖️ Current {bal_card_text}
-                </div>
-                """, unsafe_allow_html=True)
+
 
         # ── Edit Master Data ──
         if st.session_state.get("user_role") in ["Admin", "Editor"]:
