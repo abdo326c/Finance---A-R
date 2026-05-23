@@ -303,7 +303,7 @@ Nile University"""
 
                     success, msg = send_quick_statement(student, rows, net_bal)
                     if success:
-                        st.success("✅ Email statement sent successfully!")
+                        st.toast("✅ Email statement sent successfully!", icon="✅")
                     else:
                         st.error(f"❌ Failed to send email: {msg}")
 
@@ -366,7 +366,7 @@ Nile University"""
             sl, sr = st.columns(2)
             with sl:
                 if student.is_sponsored:
-                    st.success(f"🤝 **Sponsored Student** (By: {student.sponsor_name})")
+                    st.toast(f"🤝 **Sponsored Student** (By: {student.sponsor_name}, icon="✅")")
                 else:
                     st.write("💼 **Sponsorship:** None")
             with sr:

@@ -40,7 +40,7 @@ def render():
                                 u.password_hash = hash_pw(new_pwd)
                             u.role, u.is_active = new_role, new_active
                             db.commit()
-                            st.success(f"'{u.username}' updated.")
+                            st.toast(f"'{u.username}' updated.", icon="✅")
                             st.rerun()
 
         elif action == "➕ Add New User":
@@ -79,9 +79,9 @@ def render():
                         fixed += 1
                 db.commit()
                 if fixed:
-                    st.success(f"✅ Fixed {fixed} records.")
+                    st.toast(f"✅ Fixed {fixed} records.", icon="✅")
                 else:
-                    st.success("✅ No issues found — database is clean.")
+                    st.toast("✅ No issues found — database is clean.", icon="✅")
 
             st.markdown("---\n### 🔢 Scholarship Percentage Normalisation")
             st.write("Converts any percentage stored as a decimal (0.60 → 60.0) to 0–100 format.")
@@ -93,7 +93,7 @@ def render():
                         ss.percentage = round(ss.percentage * 100.0, 4)
                         fixed += 1
                 db.commit()
-                st.success(f"✅ Converted {fixed} scholarship record(s).")
+                st.toast(f"✅ Converted {fixed} scholarship record(s, icon="✅").")
 
             # ---------------------------------------------------------
             # الأداة المُحسنة: الدفعات السريعة (Bulk Update in Chunks)
@@ -155,7 +155,7 @@ def render():
                                     db.bulk_update_mappings(Student, chunk)
                                     db.commit() # نأكد الحفظ لكل 500 لتجنب الـ Timeout
                                 
-                                st.success(f"✅ Successfully updated financial dimensions for {len(update_list)} students!")
+                                st.toast(f"✅ Successfully updated financial dimensions for {len(update_list, icon="✅")} students!")
                             else:
                                 st.warning("⚠️ No valid data found in the uploaded file.")
                                 

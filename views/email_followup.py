@@ -311,7 +311,7 @@ Nile University
             progress_bar.empty()
             
             if success_count > 0:
-                st.success(f"✅ Successfully sent {success_count} emails with formatted PDF statements!")
+                st.toast(f"✅ Successfully sent {success_count} emails with formatted PDF statements!", icon="✅")
             if skipped_count > 0:
                 st.info(f"💡 {skipped_count} students were skipped (Either have 0 balance or missing email).")
 

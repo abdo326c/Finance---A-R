@@ -9,3 +9,5 @@ plotly
 bcrypt
 reportlab
 streamlit-cookies-controller
+polars
+python-json-logger

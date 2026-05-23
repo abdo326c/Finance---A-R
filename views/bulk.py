@@ -102,7 +102,7 @@ def render(engine):
                 write_audit(db, st.session_state["logged_in_user"],
                             "BULK_RATE_UPDATE", "batch", f"{success} students updated")
                 db.commit()
-                st.success(f"✅ Updated rates for {success} students.")
+                st.toast(f"✅ Updated rates for {success} students.", icon="✅")
 
         else:
             # How many refs do we need?  ~2× rows to be safe (1 invoice + 1 discount each)
@@ -190,7 +190,7 @@ def render(engine):
                             "BULK_TX", batch_id,
                             f"{b_type} | {success} rows | batch={batch_id}")
                 db.commit()
-                st.success(f"✅ Batch posted! {success} transactions in {batch_id}.")
+                st.toast(f"✅ Batch posted! {success} transactions in {batch_id}.", icon="✅")
 
     status_ph.empty()
     if failed:

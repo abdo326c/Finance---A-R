@@ -11,6 +11,31 @@ from models import (
     Student, StudentScholarship, ScholarshipType,
     Transaction, next_ref_block,
 )
+import concurrent.futures
+import threading
+
+# ── Background Task Executor ──────────────────
+background_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+def run_in_background(func, *args, **kwargs):
+    """
+    Submits a function to the background executor and attaches the Streamlit context
+    so the background thread can safely access st.session_state if needed.
+    Returns a Future.
+    """
+    try:
+        from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+        ctx = get_script_run_ctx()
+    except ImportError:
+        ctx = None
+
+    def wrapped_func():
+        if ctx:
+            add_script_run_ctx(threading.current_thread(), ctx)
+        return func(*args, **kwargs)
+        
+    future = background_executor.submit(wrapped_func)
+    return future
 
 
 # ── Normalize percentage to 0–100 ─────────────

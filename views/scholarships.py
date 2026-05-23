@@ -245,7 +245,7 @@ def render(engine):
                 if retro:
                     db.bulk_save_objects(retro)
                 db.commit()
-                st.success(f"✅ Done! Added/updated {len(uploaded_data)} | Retroactive: {len(retro)}")
+                st.toast(f"✅ Done! Added/updated {len(uploaded_data, icon="✅")} | Retroactive: {len(retro)}")
                 if failed:
                     st.error(f"⚠️ {len(failed)} failed.")
                     st.dataframe(pd.DataFrame(failed))
@@ -285,9 +285,9 @@ def render(engine):
                         if retro:
                             db.bulk_save_objects(retro)
                             db.commit()
-                            st.success(f"✅ Applied {len(retro)} missing discount(s).")
+                            st.toast(f"✅ Applied {len(retro, icon="✅")} missing discount(s).")
                         else:
-                            st.success("✅ All discounts are already aligned.")
+                            st.toast("✅ All discounts are already aligned.", icon="✅")
 
     # ── REPORT ──
     elif action == "📊 Scholarships Report":
