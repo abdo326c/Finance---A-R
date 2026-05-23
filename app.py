@@ -69,33 +69,162 @@ theme_css = ""
 if dark_theme_enabled:
     theme_css = """
     <style>
-    .stApp { background-color: #0b0f19 !important; color: #f8fafc !important; }
-    div[data-testid="stAppViewContainer"] { background-color: #0b0f19 !important; color: #f8fafc !important; }
-    div[data-testid="stHeader"] { background-color: #0b0f19 !important; }
-    h1, h2, h3, h4, h5, h6, p, label, li, span, small { color: #f8fafc !important; }
-    section[data-testid="stSidebar"] { background-color: #0d111d !important; border-right: 1px solid #1f2937 !important; }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] h4, section[data-testid="stSidebar"] h5, section[data-testid="stSidebar"] h6, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] small { color: #e2e8f0 !important; }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label { color: #94a3b8 !important; }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover { background-color: #1f2937 !important; color: #f1f5f9 !important; }
-    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div { background-color: #1e3a8a !important; color: #60a5fa !important; border-left: 4px solid #3b82f6 !important; }
+    /* Dark Mode variables & overrides */
+    .stApp {
+        background-color: #0b0f19 !important;
+        color: #f8fafc !important;
+    }
+    div[data-testid="stAppViewContainer"] {
+        background-color: #0b0f19 !important;
+        color: #f8fafc !important;
+    }
+    div[data-testid="stHeader"] {
+        background-color: #0b0f19 !important;
+    }
+    
+    /* Clean, selective typography overrides */
+    h1, h2, h3, h4, h5, h6 {
+        color: #f8fafc !important;
+    }
+    div[data-testid="stMarkdownContainer"] p {
+        color: #e2e8f0 !important;
+    }
+    div[data-testid="stMarkdownContainer"] span {
+        color: #e2e8f0 !important;
+    }
+    
+    /* Sidebar styling in Dark Mode */
+    section[data-testid="stSidebar"] {
+        background-color: #0d111d !important;
+        border-right: 1px solid #1f2937 !important;
+    }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] h4, section[data-testid="stSidebar"] h5, section[data-testid="stSidebar"] h6, section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] small {
+        color: #e2e8f0 !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] > label {
+        color: #94a3b8 !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] > label:hover {
+        background-color: #1f2937 !important;
+        color: #f1f5f9 !important;
+    }
+    [data-testid="stSidebar"] div[role="radiogroup"] > label[data-baseweb="radio"] input:checked + div {
+        background-color: #1e3a8a !important; 
+        color: #60a5fa !important; 
+        border-left: 4px solid #3b82f6 !important; 
+    }
+    
+    /* Widget Labels & Text inputs */
+    div[data-testid="stWidgetLabel"] p {
+        color: #f1f5f9 !important;
+        font-weight: 500 !important;
+    }
+    div[data-testid="stCheckbox"] p, div[data-testid="stCheckbox"] span {
+        color: #f1f5f9 !important;
+    }
+    
+    /* Metrics */
     [data-testid="stMetricValue"] { color: #60a5fa !important; }
     [data-testid="stMetricLabel"] { color: #94a3b8 !important; }
-    [data-testid="stMetric"] { background-color: #1e293b !important; border-left: 6px solid #3b82f6 !important; box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important; }
-    div[data-testid="stExpander"] { background-color: #1e293b !important; border: 1px solid #334155 !important; border-radius: 10px !important; }
-    div[data-testid="stForm"] { background-color: #1e293b !important; border: 1px solid #334155 !important; border-radius: 12px !important; padding: 20px !important; }
-    div[data-baseweb="select"] > div { background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #334155 !important; }
-    div[data-baseweb="select"] svg { fill: #f8fafc !important; }
-    input[data-testid="stTextInputBase"] { background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #334155 !important; }
-    input[type="number"] { background-color: #0f172a !important; color: #f8fafc !important; border: 1px solid #334155 !important; }
-    .stButton > button { background-color: #3b82f6 !important; color: #ffffff !important; }
-    .stButton > button:hover { background-color: #2563eb !important; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important; }
-    button[data-baseweb="tab"] { color: #94a3b8 !important; }
-    button[data-baseweb="tab"]:hover { color: #60a5fa !important; }
-    button[data-baseweb="tab"][aria-selected="true"] { color: #60a5fa !important; border-bottom-color: #3b82f6 !important; }
-    div[data-testid="stDataFrame"] table { background-color: #1e293b !important; color: #f8fafc !important; }
-    div[data-testid="stDataFrame"] th { background-color: #0f172a !important; color: #f8fafc !important; }
-    div[data-testid="stDataFrame"] td { background-color: #1e293b !important; color: #f8fafc !important; }
-    .glass-card { background: rgba(30, 41, 59, 0.7) !important; backdrop-filter: blur(12px) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 12px !important; padding: 16px !important; }
+    [data-testid="stMetric"] {
+        background-color: #1e293b !important;
+        border-left: 6px solid #3b82f6 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+    }
+    
+    /* Expander fixes (expander headers background color and text color) */
+    div[data-testid="stExpander"] {
+        background-color: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 10px !important;
+    }
+    div[data-testid="stExpander"] summary {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+        border-radius: 10px 10px 0 0 !important;
+        border-bottom: 1px solid #334155 !important;
+    }
+    div[data-testid="stExpander"] summary:hover {
+        background-color: #243147 !important;
+    }
+    div[data-testid="stExpander"] summary span {
+        color: #f8fafc !important;
+    }
+    div[data-testid="stExpander"] summary svg {
+        fill: #f8fafc !important;
+    }
+    
+    /* Forms */
+    div[data-testid="stForm"] {
+        background-color: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
+    }
+    
+    /* Input fields (select, inputs, text areas) */
+    div[data-baseweb="select"] > div {
+        background-color: #0f172a !important;
+        color: #f8fafc !important;
+        border: 1px solid #334155 !important;
+    }
+    div[data-baseweb="select"] svg {
+        fill: #f8fafc !important;
+    }
+    input[data-testid="stTextInputBase"] {
+        background-color: #0f172a !important;
+        color: #f8fafc !important;
+        border: 1px solid #334155 !important;
+    }
+    input[type="number"] {
+        background-color: #0f172a !important;
+        color: #f8fafc !important;
+        border: 1px solid #334155 !important;
+    }
+    
+    /* Buttons in Dark Mode */
+    .stButton > button {
+        background-color: #3b82f6 !important;
+        color: #ffffff !important;
+    }
+    .stButton > button:hover {
+        background-color: #2563eb !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+    }
+    
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        color: #94a3b8 !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        color: #60a5fa !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #60a5fa !important;
+        border-bottom-color: #3b82f6 !important;
+    }
+    
+    /* Dataframes and Tables */
+    div[data-testid="stDataFrame"] table {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+    }
+    div[data-testid="stDataFrame"] th {
+        background-color: #0f172a !important;
+        color: #f8fafc !important;
+    }
+    div[data-testid="stDataFrame"] td {
+        background-color: #1e293b !important;
+        color: #f8fafc !important;
+    }
+    
+    .glass-card {
+        background: rgba(30, 41, 59, 0.7) !important;
+        backdrop-filter: blur(12px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+    }
     </style>
     """
 else:
