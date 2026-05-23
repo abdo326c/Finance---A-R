@@ -160,19 +160,35 @@ def render(engine, available_years):
                 if d365_data:
                     df_d365 = pd.DataFrame(d365_data)
                     
-                    st.success(f"✅ Successfully prepared {len(df_d365)} rows for upload!")
+                    st.toast(f"✅ Successfully prepared {len(df_d365, icon="✅")} rows for upload!")
                     st.dataframe(df_d365.head(10), use_container_width=True) 
 
-                    # 🟢 التعديل الجديد: التصدير لملف إكسيل بـ Sheet Name ثابت
-                    excel_buffer = io.BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                        df_d365.to_excel(writer, index=False, sheet_name='Customer_free_text_invoice')
-                    
-                    st.download_button(
-                        label="📥 Download D365 Excel File (.xlsx)",
-                        data=excel_buffer.getvalue(),
-                        file_name="Customer_free_text_invoice.xlsx", 
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary",
-                        use_container_width=True
-                    )
+                    from helpers import run_in_background
+                    def build_excel(df):
+                        buf = io.BytesIO()
+                        with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+                            df.to_excel(writer, index=False, sheet_name='Customer_free_text_invoice')
+                        return buf.getvalue()
+
+                    if st.button("⚙️ Generate Excel File", type="primary", use_container_width=True):
+                        st.session_state["d365_excel_future"] = run_in_background(build_excel, df_d365)
+                        st.toast("Excel generation started...", icon="⏳")
+                        st.rerun()
+
+                    fut = st.session_state.get("d365_excel_future")
+                    if fut:
+                        if fut.done():
+                            try:
+                                data_bytes = fut.result()
+                                st.download_button(
+                                    label="📥 Download D365 Excel File (.xlsx)",
+                                    data=data_bytes,
+                                    file_name="Customer_free_text_invoice.xlsx", 
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    type="primary",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.error(f"Error generating Excel: {e}")
+                        else:
+                            st.markdown("<div class='skeleton' style='height:40px; width:100%; border-radius:8px;'></div>", unsafe_allow_html=True)

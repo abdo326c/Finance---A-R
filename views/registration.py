@@ -113,7 +113,7 @@ def render(engine):
                                     "BULK_REGISTER", "bulk", f"{count} students")
                         db.commit()
                         st.cache_data.clear()
-                        st.success(f"✅ Registered {count} students.")
+                        st.toast(f"✅ Registered {count} students.", icon="✅")
                     except Exception:
                         db.rollback()
                         st.error("Database error. Some records may not have been saved.")

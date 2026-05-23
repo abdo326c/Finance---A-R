@@ -249,9 +249,27 @@ def next_ref_block(db, count: int) -> int:
     return start
 
 
+import logging
+from pythonjsonlogger import jsonlogger
+
+# Set up structured JSON logger
+audit_logger = logging.getLogger("finance_audit")
+audit_logger.setLevel(logging.INFO)
+if not audit_logger.handlers:
+    logHandler = logging.FileHandler("finance_audit.log")
+    formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(name)s %(message)s')
+    logHandler.setFormatter(formatter)
+    audit_logger.addHandler(logHandler)
+
 # ── Audit helper ──────────────────────────────
 def write_audit(db, username: str, action: str, target: str = "", detail: str = ""):
     db.add(AuditLog(username=username, action=action, target=target, detail=detail))
+    audit_logger.info("Audit Event", extra={
+        "audit_username": username,
+        "audit_action": action,
+        "audit_target": target,
+        "audit_detail": detail
+    })
     # caller is responsible for commit
 
 

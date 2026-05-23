@@ -69,6 +69,24 @@ header[data-testid="stHeader"] { background: transparent !important; }
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
 }
 
+/* Skeleton Loaders */
+.skeleton {
+    animation: skeleton-loading 1s linear infinite alternate;
+    border-radius: 4px;
+}
+@keyframes skeleton-loading {
+    0% { background-color: hsl(200, 20%, 80%); }
+    100% { background-color: hsl(200, 20%, 95%); }
+}
+
+/* Sticky Headers for Tables */
+[data-testid="stDataFrame"] th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 10 !important;
+    background-color: #f8f9fa !important;
+}
+
 /* Glassmorphic Slide-in Toasts */
 div[data-testid="stToast"] {
     background: rgba(13, 71, 161, 0.9) !important;
@@ -124,8 +142,36 @@ NAV_OPTIONS = [
     "⚙️ System Admin",
 ]
 
+if "nav_state" not in st.session_state:
+    st.session_state.nav_state = "📊 Dashboard"
+
+def set_nav_from_cmd():
+    if st.session_state.cmd_palette:
+        st.session_state.nav_state = st.session_state.cmd_palette
+
 with st.sidebar:
-    selected_tab = st.radio("Navigation", NAV_OPTIONS, label_visibility="collapsed")
+    st.markdown("### 🔍 Command Palette")
+    st.selectbox(
+        "Quick Jump (Type to search)",
+        [""] + NAV_OPTIONS,
+        key="cmd_palette",
+        on_change=set_nav_from_cmd,
+        format_func=lambda x: "🔎 Jump to..." if not x else x
+    )
+    st.markdown("---")
+    
+    selected_tab = st.radio(
+        "Navigation", 
+        NAV_OPTIONS, 
+        index=NAV_OPTIONS.index(st.session_state.nav_state) if st.session_state.nav_state in NAV_OPTIONS else 0,
+        key="nav_radio",
+        label_visibility="collapsed"
+    )
+    
+    if selected_tab != st.session_state.nav_state:
+        st.session_state.nav_state = selected_tab
+        st.rerun()
+
     st.markdown("---")
     st.caption(f"👤 Logged in as: **{st.session_state.get('logged_in_user', '?')}**")
     st.markdown("<br>", unsafe_allow_html=True)

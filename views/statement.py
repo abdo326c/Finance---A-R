@@ -220,12 +220,30 @@ def render(engine, available_years):
         student_name = rows[0][1].name
         student_college = rows[0][1].college
 
+        from helpers import run_in_background
+
         b1, b2 = st.columns(2)
         with b1:
-            pdf_bytes = create_landscape_pdf(p["sid"], student_name, student_college, rows, net, total_d, total_c)
-            st.download_button("📄 Download PDF Statement", pdf_bytes,
-                               file_name=f"SOA_{p['sid']}.pdf", use_container_width=True, type="primary",
-                               key=f"dl_pdf_statement_{p['sid']}_{net}")
+            fut_key = f"pdf_future_{p['sid']}"
+            if st.button("⚙️ Generate PDF Statement", use_container_width=True, type="secondary", key=f"gen_pdf_{p['sid']}"):
+                st.session_state[fut_key] = run_in_background(
+                    create_landscape_pdf, p["sid"], student_name, student_college, rows, net, total_d, total_c
+                )
+                st.toast("PDF generation started...", icon="⏳")
+                st.rerun()
+
+            fut = st.session_state.get(fut_key)
+            if fut:
+                if fut.done():
+                    try:
+                        pdf_bytes = fut.result()
+                        st.download_button("📄 Download PDF Statement", pdf_bytes,
+                                           file_name=f"SOA_{p['sid']}.pdf", use_container_width=True, type="primary",
+                                           key=f"dl_pdf_statement_{p['sid']}_{net}")
+                    except Exception as e:
+                        st.error(f"Error generating PDF: {e}")
+                else:
+                    st.markdown("<div class='skeleton' style='height:40px; width:100%; border-radius:8px; margin-top:0px;'></div>", unsafe_allow_html=True)
         with b2:
             df_xl = df.copy()
             df_xl.loc[len(df_xl)] = {
