@@ -239,15 +239,17 @@ def render(engine, available_years):
                             "charges": 0.0, "discounts": 0.0, "payments": 0.0
                         }
                     
-                    # Distribute by transaction category
-                    # Debit > 0 is charge (Invoice or Fee)
-                    # Credit > 0 is credit (Discount or Payment)
-                    if tx.transaction_type in ['Invoice', 'Bulk Invoices (Tuition)', 'Other Fees', 'Bulk Other Fees']:
+                    # Distribute by transaction category dynamically
+                    # Any positive debit represents a charge (Tuition invoice, activity fee, etc.)
+                    # Any positive credit represents a reduction (Scholarship discount or payment)
+                    if tx.debit > 0:
                         local_students[sid_str]["charges"] += tx.debit
-                    elif tx.transaction_type in ['Discount', 'Bulk Scholarships']:
-                        local_students[sid_str]["discounts"] += tx.credit
-                    elif tx.transaction_type in ['Payment']:
-                        local_students[sid_str]["payments"] += tx.credit
+                    elif tx.credit > 0:
+                        if tx.transaction_type in ['Discount', 'Bulk Scholarships']:
+                            local_students[sid_str]["discounts"] += tx.credit
+                        else:
+                            # Correctly captures 'Payment', 'Bulk Payments', and credit adjustments
+                            local_students[sid_str]["payments"] += tx.credit
 
             for sid_str, details in local_students.items():
                 details["net_balance"] = details["charges"] - details["discounts"] - details["payments"]
