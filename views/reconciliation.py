@@ -358,11 +358,39 @@ def render(engine, available_years):
 
             # ── 6. Metrics Visualization Cards ──
             st.markdown("<br>", unsafe_allow_html=True)
+            
+            def render_small_metric(label: str, value: str, border_color: str, bg_color: str = "#ffffff"):
+                st.markdown(f"""
+                <div style="
+                    background: {bg_color};
+                    border: 1px solid rgba(0, 0, 0, 0.08);
+                    border-left: 5px solid {border_color};
+                    border-radius: 8px;
+                    padding: 10px 14px;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 2px;
+                    margin-bottom: 10px;
+                ">
+                    <span style="font-size:10px; color:#5c677d; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">
+                        {label}
+                    </span>
+                    <span style="font-size:18px; color:#0d47a1; font-weight:700; line-height:1.2;">
+                        {value}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+
             met_col1, met_col2, met_col3, met_col4 = st.columns(4)
-            met_col1.metric("🟢 Matched Accounts", len(matched_list))
-            met_col2.metric("🟡 Mismatched Balances", len(mismatch_list))
-            met_col3.metric("🔴 Missing in Local A/R", len(missing_local_list))
-            met_col4.metric("🔵 Missing in PowerCampus", len(missing_ext_list))
+            with met_col1:
+                render_small_metric("🟢 Matched Accounts", str(len(matched_list)), "#2e7d32")
+            with met_col2:
+                render_small_metric("🟡 Mismatched Balances", str(len(mismatch_list)), "#f9a825")
+            with met_col3:
+                render_small_metric("🔴 Missing in Local A/R", str(len(missing_local_list)), "#c62828")
+            with met_col4:
+                render_small_metric("🔵 Missing in PowerCampus", str(len(missing_ext_list)), "#1565c0")
 
             # ── 7. Executive Reconciliation Diagnostics ──
             st.markdown("---")
@@ -402,9 +430,12 @@ def render(engine, available_years):
                     diag_msg = "🎉 **Observation**: Perfect harmony! No financial variances detected across matched ledger records."
                 
                 dc1, dc2, dc3 = st.columns(3)
-                dc1.metric("📄 Total Tuition Invoice Variance", f"{total_invoice_diff:+,.2f} EGP")
-                dc2.metric("🎓 Total Scholarship Variance", f"{total_scholarship_diff:+,.2f} EGP")
-                dc3.metric("💳 Total Payment / Receipt Variance", f"{total_payment_diff:+,.2f} EGP")
+                with dc1:
+                    render_small_metric("📄 Total Tuition Invoice Variance", f"{total_invoice_diff:+,.2f} EGP", "#1565c0")
+                with dc2:
+                    render_small_metric("🎓 Total Scholarship Variance", f"{total_scholarship_diff:+,.2f} EGP", "#6a1b9a")
+                with dc3:
+                    render_small_metric("💳 Total Payment / Receipt Variance", f"{total_payment_diff:+,.2f} EGP", "#00838f")
                 
                 st.info(diag_msg)
                 
@@ -445,28 +476,28 @@ def render(engine, available_years):
                 
                 st.markdown("#### 🚨 Prioritized Resolution Directives")
                 
-                # 1. High Priority Alert Block
+                # 1. High Priority Collapsible Block
                 if high_priority_mismatches:
-                    st.error(f"🔴 **High Priority: Tuition & Scholarship Mismatches ({len(high_priority_mismatches)} Accounts)**")
-                    st.caption("These accounts have active variances in Tuition Billing or Scholarship discounts. These distort core revenue figures and must be resolved by manual cross-system ledger audits.")
-                    high_df = pd.DataFrame([{
-                        "ID": m["Student ID"],
-                        "Name": m["Name"],
-                        "Tuition Delta": f"{m['chg_diff']:+,.2f} EGP" if abs(m['chg_diff']) >= 0.01 else "Matched",
-                        "Scholarship Delta": f"{m['dsc_diff']:+,.2f} EGP" if abs(m['dsc_diff']) >= 0.01 else "Matched"
-                    } for m in high_priority_mismatches])
-                    st.dataframe(high_df, use_container_width=True, hide_index=True)
+                    with st.expander(f"🔴 **High Priority: Tuition & Scholarship Mismatches ({len(high_priority_mismatches)} Accounts)**", expanded=False):
+                        st.caption("These accounts have active variances in Tuition Billing or Scholarship discounts. These distort core revenue figures and must be resolved by manual cross-system ledger audits.")
+                        high_df = pd.DataFrame([{
+                            "ID": m["Student ID"],
+                            "Name": m["Name"],
+                            "Tuition Delta": f"{m['chg_diff']:+,.2f} EGP" if abs(m['chg_diff']) >= 0.01 else "Matched",
+                            "Scholarship Delta": f"{m['dsc_diff']:+,.2f} EGP" if abs(m['dsc_diff']) >= 0.01 else "Matched"
+                        } for m in high_priority_mismatches])
+                        st.dataframe(high_df, use_container_width=True, hide_index=True)
                 
-                # 2. Medium Priority Alert Block
+                # 2. Medium Priority Collapsible Block
                 if medium_priority_mismatches:
-                    st.warning(f"🟡 **Medium Priority: Payment Gateway Variances ({len(medium_priority_mismatches)} Accounts)**")
-                    st.caption("These accounts differ strictly on payment/receipt entries. Since PowerCampus updates live via the gateway, you likely just need to safe-import the gateway receipts below.")
-                    med_df = pd.DataFrame([{
-                        "ID": m["Student ID"],
-                        "Name": m["Name"],
-                        "Payment Delta": f"{m['pmt_diff']:+,.2f} EGP"
-                    } for m in medium_priority_mismatches])
-                    st.dataframe(med_df, use_container_width=True, hide_index=True)
+                    with st.expander(f"🟡 **Medium Priority: Payment Gateway Variances ({len(medium_priority_mismatches)} Accounts)**", expanded=False):
+                        st.caption("These accounts differ strictly on payment/receipt entries. Since PowerCampus updates live via the gateway, you likely just need to safe-import the gateway receipts below.")
+                        med_df = pd.DataFrame([{
+                            "ID": m["Student ID"],
+                            "Name": m["Name"],
+                            "Payment Delta": f"{m['pmt_diff']:+,.2f} EGP"
+                        } for m in medium_priority_mismatches])
+                        st.dataframe(med_df, use_container_width=True, hide_index=True)
                     
                 # 3. Low Priority Collapsible Block
                 if low_priority_mismatches:
@@ -481,7 +512,7 @@ def render(engine, available_years):
 
             # ── 8. Detailed Visual Tab Panels ──
             st.markdown("---")
-            st.markdown("### 🔍 Discrepancy Breakdown & Resolving Actions")
+            st.markdown("### 🔍 Student Cross-System Ledger Auditing & Action Hub")
             res_tab1, res_tab2, res_tab3 = st.tabs([
                 "🟡 Mismatched Balances",
                 "🔴 Missing in Local A/R Database",
