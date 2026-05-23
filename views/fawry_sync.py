@@ -220,13 +220,6 @@ def render(engine, available_years):
     st.markdown("<br>", unsafe_allow_html=True)
     c_btn1, c_btn2 = st.columns([1, 1])
 
-    with c_btn1:
-        if st.button("📥 Synchronize Selected Valid Payments", type="primary", use_container_width=True):
-            valid_to_sync = [t for t in filtered_txs if t["student_found"] and t["reference_number"] in included_refs]
-            if not valid_to_sync:
-                st.error("🛑 No selected pending transactions have valid registered students in local ERP.")
-                return
-    
     with c_btn2:
         csv_data = edited_df.to_csv(index=False).encode('utf-8')
         st.download_button(
@@ -236,6 +229,13 @@ def render(engine, available_years):
             mime="text/csv",
             use_container_width=True
         )
+
+    with c_btn1:
+        if st.button("📥 Synchronize Selected Valid Payments", type="primary", use_container_width=True):
+            valid_to_sync = [t for t in filtered_txs if t["student_found"] and t["reference_number"] in included_refs]
+            if not valid_to_sync:
+                st.error("🛑 No selected pending transactions have valid registered students in local ERP.")
+                return
 
             sync_count = 0
             with get_db() as db_session:
