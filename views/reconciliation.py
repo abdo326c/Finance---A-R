@@ -155,9 +155,8 @@ def render(engine, available_years):
         st.markdown("#### 🎯 Reconciliation Scope & Cohort Filtering")
         
         with st.container():
-            st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 6px solid #0d47a1;'>", unsafe_allow_html=True)
-            st.markdown("""
-            💡 <b>Cohort Filtering</b>: PowerCampus database exports often contain registrations for all university programs (e.g., graduates, non-UG, international groups). 
+            st.info("""
+            💡 **Cohort Filtering**: PowerCampus database exports often contain registrations for all university programs (e.g., graduates, non-UG, international groups). 
             Since this A/R instance is dedicated to a specific cohort (such as active UG Egyptian students), you should reconcile only student records already present/active in your Local A/R system to avoid thousands of foreign-category discrepancies.
             """)
             
@@ -179,11 +178,8 @@ def render(engine, available_years):
                 st.session_state["recon_cohort_scope"] = cohort_scope
                 
             if "recon_initialized" not in st.session_state:
-                st.info("💡 Please select the cohort scope above and click **'Initialize Smart Reconciliation Engine'** to run the matching calculations.")
-                st.markdown("</div>", unsafe_allow_html=True)
+                st.warning("💡 Please select the cohort scope above and click **'Initialize Smart Reconciliation Engine'** to run the matching calculations.")
                 return
-                
-            st.markdown("</div>", unsafe_allow_html=True)
 
         # ── 6. Run Compare Core Engine ──
         with st.spinner("Analyzing ledger discrepancies..."):
@@ -373,8 +369,6 @@ def render(engine, available_years):
             st.markdown("### 📊 Executive Reconciliation Diagnostics")
             
             with st.container():
-                st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 6px solid #ff9100;'>", unsafe_allow_html=True)
-                
                 # Calculate category variances across mismatches and missing students
                 total_invoice_diff = 0.0
                 total_scholarship_diff = 0.0
@@ -412,9 +406,7 @@ def render(engine, available_years):
                 dc2.metric("🎓 Total Scholarship Variance", f"{total_scholarship_diff:+,.2f} EGP")
                 dc3.metric("💳 Total Payment / Receipt Variance", f"{total_payment_diff:+,.2f} EGP")
                 
-                st.markdown("<br>", unsafe_allow_html=True)
                 st.info(diag_msg)
-                st.markdown("</div>", unsafe_allow_html=True)
 
             # ── 8. Detailed Visual Tab Panels ──
             st.markdown("---")
