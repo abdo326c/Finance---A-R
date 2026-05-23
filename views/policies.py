@@ -82,27 +82,10 @@ def render():
                         del st.session_state["viewing_pdf_id"]
                         st.rerun()
                     
-                    import os
                     try:
-                        # Ensure static directory exists
-                        os.makedirs("static", exist_ok=True)
-                        
-                        # Generate safe unique filename for the logged-in user
-                        username = st.session_state.get("logged_in_user", "guest")
-                        safe_username = "".join(c for c in username if c.isalnum())
-                        filename = f"temp_viewer_{safe_username}.pdf"
-                        file_path = os.path.join("static", filename)
-                        
-                        # Write the PDF bytes to the static folder
-                        with open(file_path, "wb") as f:
-                            f.write(selected_doc.file_data)
-                        
-                        # Render the PDF dynamically using the same-origin static URL
-                        pdf_display = (
-                            f'<iframe src="static/{filename}" '
-                            f'width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"></iframe>'
-                        )
-                        st.markdown(pdf_display, unsafe_allow_html=True)
+                        from streamlit_pdf_viewer import pdf_viewer
+                        # Render the PDF dynamically using robust, browser-safe pdf.js component
+                        pdf_viewer(selected_doc.file_data, height=800)
                     except Exception as e:
                         st.error(f"Could not render PDF inline: {e}")
 
