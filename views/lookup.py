@@ -313,6 +313,11 @@ def render():
                     st.info(f"👨‍👩‍👧 **Sibling ID:** {student.sibling_id}")
                     if st.button(f"🔗 Jump to Sibling ({student.sibling_id})", use_container_width=True, key=f"sib_jump_{student.id}"):
                         st.session_state["lookup_id"] = student.sibling_id
+                        # Update the selectbox autocomplete widget session state key to keep the UI in sync
+                        with get_db() as db_session:
+                            sibling = db_session.get(Student, student.sibling_id)
+                            if sibling:
+                                st.session_state["student_autocomplete_search"] = f"{sibling.id} — {sibling.name}"
                         st.rerun()
                 else:
                     st.write("👨‍👩‍👧 **Sibling ID:** None")
