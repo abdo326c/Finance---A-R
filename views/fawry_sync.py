@@ -51,6 +51,40 @@ def render(engine, available_years):
     st.markdown("Bridge payment transactions processed in `fawry-query-app` directly into local student finance accounts.")
     require_role("Admin", "Editor")
 
+    if "fawry_sync_summary" in st.session_state:
+        summary = st.session_state.pop("fawry_sync_summary")
+        st.markdown("### 📊 Last Import Summary")
+        s_c1, s_c2, s_c3 = st.columns(3)
+        with s_c1:
+            st.markdown(f'''
+                <div style="padding:15px; border-radius:8px; background-color:#d4edda; border-left:5px solid #28a745; margin-bottom:15px;">
+                    <div style="font-size: 13px; color: #155724; font-weight: 600;">Successfully Uploaded</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #155724;">{summary["uploaded_count"]} <span style="font-size:14px;font-weight:normal;">payments</span></div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with s_c2:
+            st.markdown(f'''
+                <div style="padding:15px; border-radius:8px; background-color:#d4edda; border-left:5px solid #28a745; margin-bottom:15px;">
+                    <div style="font-size: 13px; color: #155724; font-weight: 600;">Total Amount Uploaded</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #155724;">{summary["uploaded_amount"]:,.2f} <span style="font-size:14px;font-weight:normal;">EGP</span></div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with s_c3:
+            bg_color = "#f8d7da" if summary["failed_count"] > 0 else "#e2e3e5"
+            text_color = "#721c24" if summary["failed_count"] > 0 else "#383d41"
+            border_color = "#dc3545" if summary["failed_count"] > 0 else "#6c757d"
+            st.markdown(f'''
+                <div style="padding:15px; border-radius:8px; background-color:{bg_color}; border-left:5px solid {border_color}; margin-bottom:15px;">
+                    <div style="font-size: 13px; color: {text_color}; font-weight: 600;">Failed Payments</div>
+                    <div style="font-size: 20px; font-weight: bold; color: {text_color};">{summary["failed_count"]} <span style="font-size:14px;font-weight:normal;">payments</span></div>
+                </div>
+            ''', unsafe_allow_html=True)
+        if summary.get("failed_details"):
+            with st.expander("View Failed Payments Details", expanded=True):
+                for detail in summary["failed_details"]:
+                    st.error(detail)
+        st.markdown("---")
+
     # ── 1. Connection Status Card ──
     st.markdown("### 🌐 Supabase Integration Status")
     
@@ -113,7 +147,7 @@ def render(engine, available_years):
     with get_db() as db:
         # Get all local transactions with FAWRY- prefix
         local_fawry_refs = {
-            tx.reference_no.replace("FAWRY-", ""): tx 
+            tx.reference_no: tx 
             for tx in db.query(Transaction).filter(Transaction.reference_no.like("FAWRY-%")).all()
         }
 
@@ -122,9 +156,13 @@ def render(engine, available_years):
 
         for stx in supabase_txs:
             ref = str(stx.get("reference_number"))
+            item_name = stx.get("item_name", "TUI")
+            
+            expected_ref = f"FAWRY-{ref}-{item_name}"
+            legacy_ref = f"FAWRY-{ref}"
             
             # Skip if already synced
-            if ref in local_fawry_refs:
+            if expected_ref in local_fawry_refs or legacy_ref in local_fawry_refs:
                 continue
                 
             student_id_str = stx.get("student_id")
@@ -294,47 +332,67 @@ def render(engine, available_years):
                 return
 
             sync_count = 0
+            sync_amount = 0.0
+            failed_count = 0
+            failed_amount = 0.0
+            failed_details = []
+
             with get_db() as db_session:
                 try:
                     for tx in valid_to_sync:
-                        # Convert date string to python date object
-                        p_date = datetime.date.today()
-                        if tx["payment_date"]:
-                            try:
-                                p_date = datetime.datetime.strptime(tx["payment_date"], "%Y-%m-%d").date()
-                            except Exception:
-                                pass
-
-                        new_tx = Transaction(
-                            reference_no = f"FAWRY-{tx['reference_number']}",
-                            student_id = tx["student_id_int"],
-                            transaction_type = "Payment",
-                            description = f"Fawry Sync via {tx['bank']} for {tx['item_name']}",
-                            internal_note = f"Supabase sync | Fawry Fees: {tx['fawry_fees']} EGP | Net Amount: {tx['net_amount']} EGP",
-                            debit = 0.0,
-                            credit = tx["item_price"],
-                            hours_change = 0.0,
-                            entry_date = p_date,
-                            term = sync_term,
-                            academic_year = int(sync_year)
-                        )
-                        db_session.add(new_tx)
-                        
-                        # Write audit entry
-                        write_audit(
-                            db_session, 
-                            st.session_state["logged_in_user"],
-                            "FAWRY_SYNC", 
-                            f"student_id={tx['student_id_int']}",
-                            f"Synced Fawry Ref={tx['reference_number']} | cr={tx['item_price']}"
-                        )
-                        sync_count += 1
-                        st.toast(f"✅ Synced Ref {tx['reference_number']} for {tx['student_name']}", icon="✅")
+                        try:
+                            # Use nested transaction (savepoint) so a single failure doesn't rollback the entire batch
+                            with db_session.begin_nested():
+                                p_date = datetime.date.today()
+                                if tx["payment_date"]:
+                                    try:
+                                        p_date = datetime.datetime.strptime(tx["payment_date"], "%Y-%m-%d").date()
+                                    except Exception:
+                                        pass
+        
+                                new_tx = Transaction(
+                                    reference_no = f"FAWRY-{tx['reference_number']}-{tx['item_name']}",
+                                    student_id = tx["student_id_int"],
+                                    transaction_type = "Payment",
+                                    description = f"Fawry Sync via {tx['bank']} for {tx['item_name']}",
+                                    internal_note = f"Supabase sync | Fawry Fees: {tx['fawry_fees']} EGP | Net Amount: {tx['net_amount']} EGP",
+                                    debit = 0.0,
+                                    credit = tx["item_price"],
+                                    hours_change = 0.0,
+                                    entry_date = p_date,
+                                    term = sync_term,
+                                    academic_year = int(sync_year)
+                                )
+                                db_session.add(new_tx)
+                                
+                                # Write audit entry
+                                write_audit(
+                                    db_session, 
+                                    st.session_state["logged_in_user"],
+                                    "FAWRY_SYNC", 
+                                    f"student_id={tx['student_id_int']}",
+                                    f"Synced Fawry Ref={tx['reference_number']} | cr={tx['item_price']}"
+                                )
+                            # If no exception, it was successful
+                            sync_count += 1
+                            sync_amount += tx["item_price"]
+                        except Exception as inner_ex:
+                            failed_count += 1
+                            failed_amount += tx["item_price"]
+                            failed_details.append(f"Ref {tx['reference_number']} ({tx['item_name']}): {inner_ex}")
 
                     db_session.commit()
-                    st.session_state["flash_msg"] = f"Successfully synchronized {sync_count} Fawry payments into Student Accounts!"
+                    
+                    st.session_state["fawry_sync_summary"] = {
+                        "uploaded_count": sync_count,
+                        "uploaded_amount": sync_amount,
+                        "failed_count": failed_count,
+                        "failed_amount": failed_amount,
+                        "failed_details": failed_details
+                    }
+                    st.session_state["flash_msg"] = f"Sync complete! Processed {sync_count + failed_count} payments."
                     st.rerun()
 
                 except Exception as ex:
                     db_session.rollback()
-                    st.error(f"Reconciliation sync failed: {ex}")
+                    st.error(f"Reconciliation sync failed entirely: {ex}")
