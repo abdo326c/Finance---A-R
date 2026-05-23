@@ -270,7 +270,7 @@ def render(engine, available_years):
     )
     
     # Filter for checked rows
-    included_refs = edited_df[edited_df["Include"] == True]["Fawry Ref"].tolist() if not edited_df.empty else []
+    included_refs = [str(x) for x in edited_df[edited_df["Include"] == True]["Fawry Ref"].tolist()] if not edited_df.empty else []
 
     # ── 4. Synchronization & Export Actions ──
     st.markdown("<br>", unsafe_allow_html=True)
