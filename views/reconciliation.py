@@ -318,7 +318,146 @@ def render(engine, available_years):
             met_col3.metric("🔴 Missing in Local A/R", len(missing_local_list))
             met_col4.metric("🔵 Missing in PowerCampus", len(missing_ext_list))
 
-            # ── 7. Detailed Visual Tab Panels ──
+            # ── 7. Bulk Actions Dashboard Console ──
+            st.markdown("---")
+            st.markdown("### ⚡ Bulk Resolution Console")
+            with st.container():
+                st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+                bc1, bc2 = st.columns([1, 2])
+                confirm_bulk = bc1.checkbox("🔒 Confirm Bulk Actions", value=False, key="confirm_bulk_actions_toggle")
+                
+                if confirm_bulk:
+                    bc2.warning("⚠️ **Caution**: Bulk actions will execute changes across ALL discrepancy records at once. Ensure your date filters and target term/year are correct.")
+                    
+                    bulk_btn_col1, bulk_btn_col2, bulk_btn_col3 = st.columns(3)
+                    
+                    # 1. Bulk adjustments posting
+                    if mismatch_list:
+                        if bulk_btn_col1.button("⚡ Bulk Reconcile Mismatches", use_container_width=True, type="primary"):
+                            with get_db() as db:
+                                success_count = 0
+                                for row in mismatch_list:
+                                    sid = row["Student ID"]
+                                    diff_val = row["Discrepancy (EGP)"]
+                                    student_exists = db.get(Student, int(sid))
+                                    if student_exists:
+                                        start = next_ref_block(db, 1)
+                                        dr = abs(diff_val) if diff_val > 0 else 0.0
+                                        cr = 0.0 if diff_val > 0 else abs(diff_val)
+                                        
+                                        new_tx = Transaction(
+                                            reference_no = f"RECON-{start:06d}",
+                                            student_id = int(sid),
+                                            transaction_type = "Adjustment",
+                                            description = f"Recon Correction: Bulk PowerCampus Balance Sync",
+                                            debit = dr, credit = cr,
+                                            hours_change = 0,
+                                            entry_date = datetime.date.today(),
+                                            term = selected_term,
+                                            academic_year = int(selected_year)
+                                        )
+                                        db.add(new_tx)
+                                        success_count += 1
+                                
+                                if success_count > 0:
+                                    write_audit(
+                                        db, st.session_state["logged_in_user"],
+                                        "RECON_BULK_ADJUST", "bulk",
+                                        f"Bulk reconciled {success_count} mismatched balances"
+                                    )
+                                    db.commit()
+                                    st.cache_data.clear() # Clear cache instantly!
+                                    st.toast(f"✅ Successfully bulk-reconciled {success_count} student balances!", icon="✅")
+                                    st.balloons()
+                                    st.rerun()
+                                else:
+                                    st.toast("🛑 No database adjustments were posted.", icon="❌")
+                                    
+                    # 2. Bulk register profiles
+                    if missing_local_list:
+                        if bulk_btn_col2.button("➕ Bulk Register Profiles", use_container_width=True):
+                            with get_db() as db:
+                                register_count = 0
+                                for row in missing_local_list:
+                                    sid = row["Student ID"]
+                                    name = row["Name"]
+                                    local_stu = db.get(Student, int(sid))
+                                    if not local_stu:
+                                        new_student = Student(
+                                            id = int(sid),
+                                            name = name,
+                                            college = "Engineering" if "eng" in name.lower() or "eng" in str(ext_students[sid]["transactions"][0]["desc"]).lower() else "Business",
+                                            price_per_hr = 4000.0,
+                                            is_sponsored = False
+                                        )
+                                        db.add(new_student)
+                                        register_count += 1
+                                
+                                if register_count > 0:
+                                    write_audit(
+                                        db, st.session_state["logged_in_user"],
+                                        "RECON_BULK_ADD_STUDENTS", "bulk",
+                                        f"Bulk registered {register_count} missing student profiles"
+                                    )
+                                    db.commit()
+                                    st.cache_data.clear()
+                                    st.toast(f"👤 Successfully registered {register_count} student profiles!", icon="✅")
+                                    st.balloons()
+                                    st.rerun()
+                                    
+                    # 3. Bulk auto-import transactions
+                    if missing_local_list:
+                        if bulk_btn_col3.button("⚡ Bulk Import Invoices", use_container_width=True):
+                            with get_db() as db:
+                                import_stu_count = 0
+                                total_tx_count = 0
+                                for row in missing_local_list:
+                                    sid = row["Student ID"]
+                                    local_stu = db.get(Student, int(sid))
+                                    if local_stu:
+                                        ext_txs = ext_students[sid]["transactions"]
+                                        for t in ext_txs:
+                                            start = next_ref_block(db, 1)
+                                            tx_type = "Invoice" if t["type"] == 'C' else ("Discount" if t["type"] == 'D' else "Payment")
+                                            dr = t["amount"] if t["type"] == 'C' else 0.0
+                                            cr = t["amount"] if t["type"] in ['D', 'R'] else 0.0
+                                            pfx = "INV" if t["type"] == 'C' else ("SCH" if t["type"] == 'D' else "PAY")
+                                            ent_date = t["date"].date() if isinstance(t["date"], pd.Timestamp) else datetime.date.today()
+                                            
+                                            new_tx = Transaction(
+                                                reference_no = f"{pfx}-{start:06d}",
+                                                student_id = int(sid),
+                                                transaction_type = tx_type,
+                                                description = f"[RECON-PC] {t['desc'] or t['code']}",
+                                                debit = dr, credit = cr,
+                                                hours_change = 0,
+                                                entry_date = ent_date,
+                                                term = selected_term,
+                                                academic_year = int(selected_year)
+                                            )
+                                            db.add(new_tx)
+                                            total_tx_count += 1
+                                        import_stu_count += 1
+                                
+                                if total_tx_count > 0:
+                                    write_audit(
+                                        db, st.session_state["logged_in_user"],
+                                        "RECON_BULK_IMPORT_TXS", "bulk",
+                                        f"Bulk imported {total_tx_count} transactions across {import_stu_count} students"
+                                    )
+                                    db.commit()
+                                    st.cache_data.clear()
+                                    st.toast(f"✅ Bulk imported {total_tx_count} transactions for {import_stu_count} students!", icon="✅")
+                                    st.balloons()
+                                    st.rerun()
+                                else:
+                                    st.toast("🛑 Make sure student profiles are registered first!", icon="❌")
+                else:
+                    bc2.info("🔒 Check the box on the left to enable bulk corrections (Global sync).")
+                
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            # ── 8. Detailed Visual Tab Panels ──
             st.markdown("---")
             st.markdown("### 🔍 Discrepancy Breakdown & Resolving Actions")
             res_tab1, res_tab2, res_tab3 = st.tabs([
@@ -335,50 +474,53 @@ def render(engine, available_years):
                         "Student ID", "Name", "PowerCampus Balance", "Local Balance", "Discrepancy (EGP)"
                     ]], use_container_width=True, hide_index=True)
 
-                    # Expandable detailed audit list with correction buttons
-                    st.markdown("#### 🛠️ Direct Discrepancy Auditing & Adjustment Options")
+                    st.markdown("#### 🛠️ Direct Discrepancy Auditing & Inspector")
+                    audit_options = [f"{r['Student ID']} — {r['Name']} (Diff: {r['Discrepancy (EGP)']:+,.2f} EGP)" for r in mismatch_list]
+                    selected_audit = st.selectbox(
+                        "🔍 Select a Mismatched Student to Audit & Adjust:",
+                        options=audit_options,
+                        key="reconciliation_mismatch_audit_select"
+                    )
                     
-                    for row in mismatch_list:
+                    if selected_audit:
+                        selected_sid = selected_audit.split(" — ")[0]
+                        row = next(r for r in mismatch_list if r["Student ID"] == selected_sid)
                         sid = row["Student ID"]
                         diff_val = row["Discrepancy (EGP)"]
                         
-                        with st.expander(f"⚠️ Audit Student **{sid}** — **{row['Name']}** (Discrepancy: {diff_val:+,.2f} EGP)"):
-                            # Side by side ledgers
-                            col_l, col_r = st.columns(2)
-                            with col_l:
-                                st.write("**PowerCampus Transactions (Filtered)**")
-                                ext_txs = ext_students[sid]["transactions"]
-                                df_etxs = pd.DataFrame(ext_txs)
-                                df_etxs["date"] = df_etxs["date"].dt.strftime("%Y-%m-%d")
-                                st.dataframe(df_etxs[["type", "amount", "code", "desc", "date"]], hide_index=True, use_container_width=True)
-                            
-                            with col_r:
-                                st.write("**Local A/R Transactions**")
-                                with get_db() as db:
-                                    loc_txs = db.query(Transaction).filter_by(student_id=int(sid), term=selected_term, academic_year=int(selected_year)).all()
-                                    if loc_txs:
-                                        df_ltxs = pd.DataFrame([{
-                                            "type": t.transaction_type,
-                                            "debit": t.debit,
-                                            "credit": t.credit,
-                                            "desc": t.description,
-                                            "date": t.entry_date.strftime("%Y-%m-%d") if t.entry_date else ""
-                                        } for t in loc_txs])
-                                        st.dataframe(df_ltxs, hide_index=True, use_container_width=True)
-                                    else:
-                                        st.caption("No transactions found locally.")
+                        st.markdown(f"##### 📋 Detailed Ledger Audit for **{row['Name']}** ({sid})")
+                        
+                        col_l, col_r = st.columns(2)
+                        with col_l:
+                            st.write("**PowerCampus Transactions (Filtered)**")
+                            ext_txs = ext_students[sid]["transactions"]
+                            df_etxs = pd.DataFrame(ext_txs)
+                            df_etxs["date"] = df_etxs["date"].dt.strftime("%Y-%m-%d")
+                            st.dataframe(df_etxs[["type", "amount", "code", "desc", "date"]], hide_index=True, use_container_width=True)
+                        
+                        with col_r:
+                            st.write("**Local A/R Transactions**")
+                            with get_db() as db:
+                                loc_txs = db.query(Transaction).filter_by(student_id=int(sid), term=selected_term, academic_year=int(selected_year)).all()
+                                if loc_txs:
+                                    df_ltxs = pd.DataFrame([{
+                                        "type": t.transaction_type,
+                                        "debit": t.debit,
+                                        "credit": t.credit,
+                                        "desc": t.description,
+                                        "date": t.entry_date.strftime("%Y-%m-%d") if t.entry_date else ""
+                                    } for t in loc_txs])
+                                    st.dataframe(df_ltxs, hide_index=True, use_container_width=True)
+                                else:
+                                    st.caption("No transactions found locally.")
 
                             # Correction Buttons
-                            action_c1, action_c2 = st.columns(2)
-                            
-                            # Correction Option: Post balancing adjustment locally
                             adj_type = "Adjustment Debit" if diff_val > 0 else "Adjustment Credit"
                             adj_amt = abs(diff_val)
+                            btn_label = f"⚖️ Post Reconciling { 'Debit' if diff_val > 0 else 'Credit' } of {adj_amt:,.2f} EGP for {row['Name']}"
                             
-                            btn_label = f"⚖️ Post Balancing { 'Debit' if diff_val > 0 else 'Credit' } of {adj_amt:,.2f} EGP"
-                            if action_c1.button(btn_label, key=f"post_adj_{sid}_{selected_term}"):
+                            if st.button(btn_label, key=f"post_adj_{sid}_{selected_term}"):
                                 with get_db() as db:
-                                    # Ensure student is active in DB
                                     student_exists = db.get(Student, int(sid))
                                     if not student_exists:
                                         st.toast("🛑 Cannot post adjustment: Student profile does not exist in local database. Register them first.", icon="❌")
@@ -405,9 +547,9 @@ def render(engine, available_years):
                                             f"Posted {adj_type} of {adj_amt:,.2f} EGP to reconcile with PowerCampus"
                                         )
                                         db.commit()
+                                        st.cache_data.clear()
                                         st.toast(f"⚖️ Balancing adjustment of {adj_amt:,.2f} EGP posted successfully!", icon="✅")
                                         st.rerun()
-
                 else:
                     st.success("🎉 All common students have matching ledger balances! There are no mismatches.")
 
@@ -419,14 +561,23 @@ def render(engine, available_years):
                     df_miss_loc = pd.DataFrame(missing_local_list)
                     st.dataframe(df_miss_loc, use_container_width=True, hide_index=True)
 
-                    st.markdown("#### ⚡ Quick-Resolve Auto Import Options")
-                    for row in missing_local_list:
+                    st.markdown("#### ⚡ Quick-Resolve Student Inspector")
+                    missing_options = ["— Select Student —"] + [f"{r['Student ID']} — {r['Name']} (PC Bal: {r['PowerCampus Balance']:,.2f} EGP)" for r in missing_local_list]
+                    selected_missing = st.selectbox(
+                        "🔍 Select a Missing Student to Register / Import:",
+                        options=missing_options,
+                        key="reconciliation_missing_import_select"
+                    )
+
+                    if selected_missing != "— Select Student —":
+                        selected_sid = selected_missing.split(" — ")[0]
+                        row = next(r for r in missing_local_list if r["Student ID"] == selected_sid)
                         sid = row["Student ID"]
                         name = row["Name"]
                         pc_bal = row["PowerCampus Balance"]
                         
                         col_lbl, col_btn1, col_btn2 = st.columns([4, 2, 2])
-                        col_lbl.write(f"**{sid}** — {name} (PC Balance: **{pc_bal:,.2f} EGP**)")
+                        col_lbl.write(f"📂 **{sid}** — {name} (PC Balance: **{pc_bal:,.2f} EGP**)")
                         
                         # 1. Register student action
                         btn_reg_key = f"reg_stu_{sid}"
@@ -440,7 +591,7 @@ def render(engine, available_years):
                                         id = int(sid),
                                         name = name,
                                         college = "Engineering" if "eng" in name.lower() or "eng" in str(ext_students[sid]["transactions"][0]["desc"]).lower() else "Business",
-                                        price_per_hr = 4000.0, # Default standard tuition rate
+                                        price_per_hr = 4000.0,
                                         is_sponsored = False
                                     )
                                     db.add(new_student)
@@ -450,6 +601,7 @@ def render(engine, available_years):
                                         f"Auto-registered student profile from PowerCampus reconciliation"
                                     )
                                     db.commit()
+                                    st.cache_data.clear()
                                     st.toast(f"👤 Registered student {name} ({sid}) successfully!", icon="✅")
                                     st.rerun()
                         else:
@@ -472,8 +624,6 @@ def render(engine, available_years):
                                         dr = t["amount"] if t["type"] == 'C' else 0.0
                                         cr = t["amount"] if t["type"] in ['D', 'R'] else 0.0
                                         pfx = "INV" if t["type"] == 'C' else ("SCH" if t["type"] == 'D' else "PAY")
-                                        
-                                        # Convert date securely
                                         ent_date = t["date"].date() if isinstance(t["date"], pd.Timestamp) else datetime.date.today()
                                         
                                         new_tx = Transaction(
@@ -496,6 +646,7 @@ def render(engine, available_years):
                                         f"Imported {imported_count} transaction lines from PowerCampus"
                                     )
                                     db.commit()
+                                    st.cache_data.clear()
                                     st.toast(f"✅ Imported {imported_count} transactions to {name}'s profile!", icon="✅")
                                     st.rerun()
                 else:
@@ -511,8 +662,10 @@ def render(engine, available_years):
                 else:
                     st.caption("No perfectly matched records in this run.")
 
-            # ── 8. Export Discrepancy report ──
+            # ── 9. Export Premium Multi-Sheet Reconciliation Excel Workbook ──
             st.markdown("<br>", unsafe_allow_html=True)
+            
+            # Construct workbook dataframes
             export_data = []
             if mismatch_list:
                 export_data.extend(mismatch_list)
@@ -522,19 +675,52 @@ def render(engine, available_years):
                         **item, "Local Balance": 0.0, "Discrepancy (EGP)": item["PowerCampus Balance"], "Status": "Missing Locally"
                     })
             
-            if export_data:
-                df_export = pd.DataFrame(export_data)
+            if matched_list or mismatch_list or missing_local_list or missing_ext_list:
                 excel_buffer = io.BytesIO()
                 with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    df_export.to_excel(writer, index=False, sheet_name='Discrepancies')
-                
+                    # Sheet 1: Summary Dashboard
+                    summary_data = [
+                        {"Key Indicator": "Academic Term", "Value": selected_term},
+                        {"Key Indicator": "Academic Year", "Value": str(selected_year)},
+                        {"Key Indicator": "Reconciliation Date", "Value": datetime.date.today().strftime("%Y-%m-%d")},
+                        {"Key Indicator": "Reconciled By", "Value": st.session_state.get("logged_in_user", "System")},
+                        {"Key Indicator": "-------------------------", "Value": "-------------------------"},
+                        {"Key Indicator": "🟢 perfectly Matched Students", "Value": len(matched_list)},
+                        {"Key Indicator": "🟡 Mismatched Balances", "Value": len(mismatch_list)},
+                        {"Key Indicator": "🔴 Students Missing Locally", "Value": len(missing_local_list)},
+                        {"Key Indicator": "🔵 Students Missing in PowerCampus", "Value": len(missing_ext_list)},
+                    ]
+                    pd.DataFrame(summary_data).to_excel(writer, sheet_name='📊 Summary Dashboard', index=False)
+                    
+                    # Sheet 2: Mismatched Balances
+                    if mismatch_list:
+                        pd.DataFrame(mismatch_list).to_excel(writer, sheet_name='🟡 Mismatched Balances', index=False)
+                    else:
+                        pd.DataFrame([{"Message": "No mismatched records in this run."}]).to_excel(writer, sheet_name='🟡 Mismatched Balances', index=False)
+                    
+                    # Sheet 3: Missing Locally
+                    if missing_local_list:
+                        pd.DataFrame(missing_local_list).to_excel(writer, sheet_name='🔴 Missing in Local DB', index=False)
+                    else:
+                        pd.DataFrame([{"Message": "No missing local records."}]).to_excel(writer, sheet_name='🔴 Missing in Local DB', index=False)
+                        
+                    # Sheet 4: Missing in PowerCampus
+                    if missing_ext_list:
+                        pd.DataFrame(missing_ext_list).to_excel(writer, sheet_name='🔵 Missing in PowerCampus', index=False)
+                    else:
+                        pd.DataFrame([{"Message": "No missing external records."}]).to_excel(writer, sheet_name='🔵 Missing in PowerCampus', index=False)
+                    
+                    # Sheet 5: Matched Ledger
+                    if matched_list:
+                        pd.DataFrame(matched_list).to_excel(writer, sheet_name='🟢 Matched Ledger', index=False)
+                    else:
+                        pd.DataFrame([{"Message": "No perfectly matched accounts."}]).to_excel(writer, sheet_name='🟢 Matched Ledger', index=False)
+
                 st.download_button(
-                    label="📥 Download Discrepancies Excel Report",
+                    label="📥 Download Premium Reconciliation Excel Workbook (.xlsx)",
                     data=excel_buffer.getvalue(),
-                    file_name=f"Reconciliation_Report_{selected_term}_{selected_year}.xlsx",
+                    file_name=f"Comprehensive_Reconciliation_Report_{selected_term}_{selected_year}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    type="secondary",
+                    type="primary",
                     use_container_width=True
                 )
-
-        st.balloons()
