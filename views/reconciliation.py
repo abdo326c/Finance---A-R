@@ -82,7 +82,20 @@ def render(engine, available_years):
         # ── 4. File Parsing & Flexible Auto-Mapping ──
         try:
             if uploaded_file.name.endswith(".csv"):
-                df_ext = pd.read_csv(uploaded_file)
+                df_ext = None
+                # Try common encodings for regional database exports (Arabic windows-1256, Excel UTF-8 BOM, etc.)
+                encodings_to_try = ['utf-8', 'utf-8-sig', 'windows-1256', 'cp1252', 'latin1', 'iso-8859-1']
+                for encoding in encodings_to_try:
+                    try:
+                        uploaded_file.seek(0)
+                        df_ext = pd.read_csv(uploaded_file, encoding=encoding)
+                        break
+                    except (UnicodeDecodeError, UnicodeError, ValueError):
+                        continue
+                
+                if df_ext is None:
+                    uploaded_file.seek(0)
+                    df_ext = pd.read_csv(uploaded_file) # Fallback to raise original exception
             else:
                 df_ext = pd.read_excel(uploaded_file)
         except Exception as e:
