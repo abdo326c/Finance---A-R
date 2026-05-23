@@ -318,143 +318,52 @@ def render(engine, available_years):
             met_col3.metric("🔴 Missing in Local A/R", len(missing_local_list))
             met_col4.metric("🔵 Missing in PowerCampus", len(missing_ext_list))
 
-            # ── 7. Bulk Actions Dashboard Console ──
+            # ── 7. Executive Reconciliation Diagnostics ──
             st.markdown("---")
-            st.markdown("### ⚡ Bulk Resolution Console")
+            st.markdown("### 📊 Executive Reconciliation Diagnostics")
+            
             with st.container():
-                st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px;'>", unsafe_allow_html=True)
-                bc1, bc2 = st.columns([1, 2])
-                confirm_bulk = bc1.checkbox("🔒 Confirm Bulk Actions", value=False, key="confirm_bulk_actions_toggle")
+                st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 6px solid #ff9100;'>", unsafe_allow_html=True)
                 
-                if confirm_bulk:
-                    bc2.warning("⚠️ **Caution**: Bulk actions will execute changes across ALL discrepancy records at once. Ensure your date filters and target term/year are correct.")
+                # Calculate category variances across mismatches and missing students
+                total_invoice_diff = 0.0
+                total_scholarship_diff = 0.0
+                total_payment_diff = 0.0
+                
+                for item in mismatch_list:
+                    total_invoice_diff += (item["PowerCampus Charges"] - item["Local Charges"])
+                    total_scholarship_diff += (item["PowerCampus Discounts"] - item["Local Discounts"])
+                    total_payment_diff += (item["PowerCampus Payments"] - item["Local Payments"])
                     
-                    bulk_btn_col1, bulk_btn_col2, bulk_btn_col3 = st.columns(3)
-                    
-                    # 1. Bulk adjustments posting
-                    if mismatch_list:
-                        if bulk_btn_col1.button("⚡ Bulk Reconcile Mismatches", use_container_width=True, type="primary"):
-                            with get_db() as db:
-                                success_count = 0
-                                for row in mismatch_list:
-                                    sid = row["Student ID"]
-                                    diff_val = row["Discrepancy (EGP)"]
-                                    student_exists = db.get(Student, int(sid))
-                                    if student_exists:
-                                        start = next_ref_block(db, 1)
-                                        dr = abs(diff_val) if diff_val > 0 else 0.0
-                                        cr = 0.0 if diff_val > 0 else abs(diff_val)
-                                        
-                                        new_tx = Transaction(
-                                            reference_no = f"RECON-{start:06d}",
-                                            student_id = int(sid),
-                                            transaction_type = "Adjustment",
-                                            description = f"Recon Correction: Bulk PowerCampus Balance Sync",
-                                            debit = dr, credit = cr,
-                                            hours_change = 0,
-                                            entry_date = datetime.date.today(),
-                                            term = selected_term,
-                                            academic_year = int(selected_year)
-                                        )
-                                        db.add(new_tx)
-                                        success_count += 1
-                                
-                                if success_count > 0:
-                                    write_audit(
-                                        db, st.session_state["logged_in_user"],
-                                        "RECON_BULK_ADJUST", "bulk",
-                                        f"Bulk reconciled {success_count} mismatched balances"
-                                    )
-                                    db.commit()
-                                    st.cache_data.clear() # Clear cache instantly!
-                                    st.toast(f"✅ Successfully bulk-reconciled {success_count} student balances!", icon="✅")
-                                    st.balloons()
-                                    st.rerun()
-                                else:
-                                    st.toast("🛑 No database adjustments were posted.", icon="❌")
-                                    
-                    # 2. Bulk register profiles
-                    if missing_local_list:
-                        if bulk_btn_col2.button("➕ Bulk Register Profiles", use_container_width=True):
-                            with get_db() as db:
-                                register_count = 0
-                                for row in missing_local_list:
-                                    sid = row["Student ID"]
-                                    name = row["Name"]
-                                    local_stu = db.get(Student, int(sid))
-                                    if not local_stu:
-                                        new_student = Student(
-                                            id = int(sid),
-                                            name = name,
-                                            college = "Engineering" if "eng" in name.lower() or "eng" in str(ext_students[sid]["transactions"][0]["desc"]).lower() else "Business",
-                                            price_per_hr = 4000.0,
-                                            is_sponsored = False
-                                        )
-                                        db.add(new_student)
-                                        register_count += 1
-                                
-                                if register_count > 0:
-                                    write_audit(
-                                        db, st.session_state["logged_in_user"],
-                                        "RECON_BULK_ADD_STUDENTS", "bulk",
-                                        f"Bulk registered {register_count} missing student profiles"
-                                    )
-                                    db.commit()
-                                    st.cache_data.clear()
-                                    st.toast(f"👤 Successfully registered {register_count} student profiles!", icon="✅")
-                                    st.balloons()
-                                    st.rerun()
-                                    
-                    # 3. Bulk auto-import transactions
-                    if missing_local_list:
-                        if bulk_btn_col3.button("⚡ Bulk Import Invoices", use_container_width=True):
-                            with get_db() as db:
-                                import_stu_count = 0
-                                total_tx_count = 0
-                                for row in missing_local_list:
-                                    sid = row["Student ID"]
-                                    local_stu = db.get(Student, int(sid))
-                                    if local_stu:
-                                        ext_txs = ext_students[sid]["transactions"]
-                                        for t in ext_txs:
-                                            start = next_ref_block(db, 1)
-                                            tx_type = "Invoice" if t["type"] == 'C' else ("Discount" if t["type"] == 'D' else "Payment")
-                                            dr = t["amount"] if t["type"] == 'C' else 0.0
-                                            cr = t["amount"] if t["type"] in ['D', 'R'] else 0.0
-                                            pfx = "INV" if t["type"] == 'C' else ("SCH" if t["type"] == 'D' else "PAY")
-                                            ent_date = t["date"].date() if isinstance(t["date"], pd.Timestamp) else datetime.date.today()
-                                            
-                                            new_tx = Transaction(
-                                                reference_no = f"{pfx}-{start:06d}",
-                                                student_id = int(sid),
-                                                transaction_type = tx_type,
-                                                description = f"[RECON-PC] {t['desc'] or t['code']}",
-                                                debit = dr, credit = cr,
-                                                hours_change = 0,
-                                                entry_date = ent_date,
-                                                term = selected_term,
-                                                academic_year = int(selected_year)
-                                            )
-                                            db.add(new_tx)
-                                            total_tx_count += 1
-                                        import_stu_count += 1
-                                
-                                if total_tx_count > 0:
-                                    write_audit(
-                                        db, st.session_state["logged_in_user"],
-                                        "RECON_BULK_IMPORT_TXS", "bulk",
-                                        f"Bulk imported {total_tx_count} transactions across {import_stu_count} students"
-                                    )
-                                    db.commit()
-                                    st.cache_data.clear()
-                                    st.toast(f"✅ Bulk imported {total_tx_count} transactions for {import_stu_count} students!", icon="✅")
-                                    st.balloons()
-                                    st.rerun()
-                                else:
-                                    st.toast("🛑 Make sure student profiles are registered first!", icon="❌")
+                for item in missing_local_list:
+                    total_invoice_diff += item["PowerCampus Charges"]
+                    total_scholarship_diff += item["PowerCampus Discounts"]
+                    total_payment_diff += item["PowerCampus Payments"]
+                
+                abs_inv = abs(total_invoice_diff)
+                abs_sch = abs(total_scholarship_diff)
+                abs_pay = abs(total_payment_diff)
+                
+                max_variance = max(abs_inv, abs_sch, abs_pay) if (abs_inv or abs_sch or abs_pay) else 0.0
+                
+                diag_msg = ""
+                if max_variance > 0:
+                    if max_variance == abs_pay:
+                        diag_msg = "💡 **Observation**: Most discrepancies are driven by **Payment Mismatches**. Since PowerCampus is updated live via the payment gateway and local systems are updated manually, you likely just need to select the students below and import their missing live payments to synchronize."
+                    elif max_variance == abs_inv:
+                        diag_msg = "💡 **Observation**: Most discrepancies are driven by **Tuition Charges (Invoices)**. Ensure student credit hour invoices are registered consistently on both systems."
+                    else:
+                        diag_msg = "💡 **Observation**: Most discrepancies are driven by **Scholarships & Discounts**. Check if student scholarship allocations are up to date in both systems."
                 else:
-                    bc2.info("🔒 Check the box on the left to enable bulk corrections (Global sync).")
+                    diag_msg = "🎉 **Observation**: Perfect harmony! No financial variances detected across matched ledger records."
                 
+                dc1, dc2, dc3 = st.columns(3)
+                dc1.metric("📄 Total Tuition Invoice Variance", f"{total_invoice_diff:+,.2f} EGP")
+                dc2.metric("🎓 Total Scholarship Variance", f"{total_scholarship_diff:+,.2f} EGP")
+                dc3.metric("💳 Total Payment / Receipt Variance", f"{total_payment_diff:+,.2f} EGP")
+                
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.info(diag_msg)
                 st.markdown("</div>", unsafe_allow_html=True)
 
             # ── 8. Detailed Visual Tab Panels ──
@@ -488,8 +397,76 @@ def render(engine, available_years):
                         sid = row["Student ID"]
                         diff_val = row["Discrepancy (EGP)"]
                         
-                        st.markdown(f"##### 📋 Detailed Ledger Audit for **{row['Name']}** ({sid})")
+                        # Compute selective step variances
+                        pc_chg = row["PowerCampus Charges"]
+                        pc_dsc = row["PowerCampus Discounts"]
+                        pc_pmt = row["PowerCampus Payments"]
                         
+                        loc_chg = row["Local Charges"]
+                        loc_dsc = row["Local Discounts"]
+                        loc_pmt = row["Local Payments"]
+                        
+                        chg_diff = pc_chg - loc_chg
+                        dsc_diff = pc_dsc - loc_dsc
+                        pmt_diff = pc_pmt - loc_pmt
+
+                        st.markdown(f"##### 📋 Smarter 3-Step Discrepancy Diagnostics for **{row['Name']}** ({sid})")
+
+                        # 🛡️ Complex Multi-Variance Alert check
+                        active_diff_categories = []
+                        if abs(chg_diff) >= 0.01:
+                            active_diff_categories.append("Tuition Charges")
+                        if abs(dsc_diff) >= 0.01:
+                            active_diff_categories.append("Scholarships/Discounts")
+                        if abs(pmt_diff) >= 0.01:
+                            active_diff_categories.append("Payments")
+                            
+                        if len(active_diff_categories) > 1:
+                            st.markdown(f"""
+                            <div style="background-color: #ffebee; color: #b71c1c; border-left: 6px solid #b71c1c; padding: 15px; border-radius: 8px; font-weight: 500; margin-bottom: 20px; font-size: 14px;">
+                                ⚠️ <b>Complex Cross-System Audit Required</b>: This student has discrepancies in multiple financial categories: <b>{", ".join(active_diff_categories)}</b>. Please thoroughly verify all transaction lines on both systems displayed in the ledger tables below before applying corrections manually.
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # Render three steps side by side in small columns
+                        s_col1, s_col2, s_col3 = st.columns(3)
+                        
+                        with s_col1:
+                            st.markdown("##### Step 1: Tuition Charges")
+                            st.write(f"PowerCampus: **{pc_chg:,.2f} EGP**")
+                            st.write(f"Local A/R: **{loc_chg:,.2f} EGP**")
+                            if abs(chg_diff) < 0.01:
+                                st.markdown("<span style='color:green; font-weight:bold;'>✅ Charges Match</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<span style='color:red; font-weight:bold;'>❌ Mismatch: {chg_diff:+,.2f} EGP</span>", unsafe_allow_html=True)
+                                
+                        with s_col2:
+                            st.markdown("##### Step 2: Scholarships")
+                            st.write(f"PowerCampus: **{pc_dsc:,.2f} EGP**")
+                            st.write(f"Local A/R: **{loc_dsc:,.2f} EGP**")
+                            if abs(dsc_diff) < 0.01:
+                                st.markdown("<span style='color:green; font-weight:bold;'>✅ Discounts Match</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<span style='color:red; font-weight:bold;'>❌ Mismatch: {dsc_diff:+,.2f} EGP</span>", unsafe_allow_html=True)
+                                
+                        with s_col3:
+                            st.markdown("##### Step 3: Payments & Receipts")
+                            st.write(f"PowerCampus: **{pc_pmt:,.2f} EGP**")
+                            st.write(f"Local A/R: **{loc_pmt:,.2f} EGP**")
+                            if abs(pmt_diff) < 0.01:
+                                st.markdown("<span style='color:green; font-weight:bold;'>✅ Payments Match</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"<span style='color:red; font-weight:bold;'>❌ Mismatch: {pmt_diff:+,.2f} EGP</span>", unsafe_allow_html=True)
+
+                        # Highlight live payment gateway missing locally alert
+                        if pmt_diff > 0:
+                            st.markdown(f"""
+                            <div style="background-color: #e3f2fd; color: #0d47a1; border-left: 6px solid #0d47a1; padding: 12px; border-radius: 8px; font-size: 14px; margin-top: 15px; margin-bottom: 15px;">
+                                💡 <b>Live Transaction Detected</b>: A live payment of <b>{pmt_diff:,.2f} EGP</b> was processed via the PowerCampus live payment gateway, but is missing in the local database. You can safely import this payment using the selective tool below.
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        st.markdown("<br>", unsafe_allow_html=True)
                         col_l, col_r = st.columns(2)
                         with col_l:
                             st.write("**PowerCampus Transactions (Filtered)**")
@@ -514,26 +491,123 @@ def render(engine, available_years):
                                 else:
                                     st.caption("No transactions found locally.")
 
-                            # Correction Buttons
-                            adj_type = "Adjustment Debit" if diff_val > 0 else "Adjustment Credit"
-                            adj_amt = abs(diff_val)
-                            btn_label = f"⚖️ Post Reconciling { 'Debit' if diff_val > 0 else 'Credit' } of {adj_amt:,.2f} EGP for {row['Name']}"
+                            # Direct Audit remedies
+                            st.markdown("##### 🛠️ Selective Audit Remedies")
+                            act_col1, act_col2 = st.columns(2)
                             
-                            if st.button(btn_label, key=f"post_adj_{sid}_{selected_term}"):
+                            # Remedy 1: Import missing payment
+                            if pmt_diff > 0:
+                                if act_col1.button(f"📥 Import Missing Payment ({pmt_diff:,.2f} EGP)", key=f"imp_pmt_{sid}", use_container_width=True):
+                                    with get_db() as db:
+                                        student_exists = db.get(Student, int(sid))
+                                        if not student_exists:
+                                            st.toast("🛑 Cannot import: Register student profile first.", icon="❌")
+                                        else:
+                                            start = next_ref_block(db, 1)
+                                            new_tx = Transaction(
+                                                reference_no = f"PAY-{start:06d}",
+                                                student_id = int(sid),
+                                                transaction_type = "Payment",
+                                                description = f"[RECON-GATEWAY] Imported live gateway receipt",
+                                                debit = 0.0, credit = abs(pmt_diff),
+                                                hours_change = 0,
+                                                entry_date = datetime.date.today(),
+                                                term = selected_term,
+                                                academic_year = int(selected_year)
+                                            )
+                                            db.add(new_tx)
+                                            write_audit(
+                                                db, st.session_state["logged_in_user"],
+                                                "RECON_IMPORT_PMT", f"student_id={sid}",
+                                                f"Imported live gateway payment of {pmt_diff:,.2f} EGP"
+                                            )
+                                            db.commit()
+                                            st.cache_data.clear()
+                                            st.toast(f"✅ Safe-imported gateway payment of {pmt_diff:,.2f} EGP successfully!", icon="✅")
+                                            st.balloons()
+                                            st.rerun()
+                                            
+                            # Remedy 2: Import missing charge
+                            if chg_diff > 0:
+                                if act_col2.button(f"📥 Import Missing Invoice ({chg_diff:,.2f} EGP)", key=f"imp_chg_{sid}", use_container_width=True):
+                                    with get_db() as db:
+                                        student_exists = db.get(Student, int(sid))
+                                        if not student_exists:
+                                            st.toast("🛑 Cannot import: Register student profile first.", icon="❌")
+                                        else:
+                                            start = next_ref_block(db, 1)
+                                            new_tx = Transaction(
+                                                reference_no = f"INV-{start:06d}",
+                                                student_id = int(sid),
+                                                transaction_type = "Invoice",
+                                                description = f"[RECON] Imported tuition charge invoice",
+                                                debit = abs(chg_diff), credit = 0.0,
+                                                hours_change = 0,
+                                                entry_date = datetime.date.today(),
+                                                term = selected_term,
+                                                academic_year = int(selected_year)
+                                            )
+                                            db.add(new_tx)
+                                            write_audit(
+                                                db, st.session_state["logged_in_user"],
+                                                "RECON_IMPORT_INV", f"student_id={sid}",
+                                                f"Imported missing tuition invoice of {chg_diff:,.2f} EGP"
+                                            )
+                                            db.commit()
+                                            st.cache_data.clear()
+                                            st.toast(f"✅ Safe-imported tuition charge of {chg_diff:,.2f} EGP successfully!", icon="✅")
+                                            st.balloons()
+                                            st.rerun()
+
+                            # Remedy 3: Import missing scholarship discount
+                            if dsc_diff > 0:
+                                if act_col1.button(f"📥 Import Missing Scholarship ({dsc_diff:,.2f} EGP)", key=f"imp_dsc_{sid}", use_container_width=True):
+                                    with get_db() as db:
+                                        student_exists = db.get(Student, int(sid))
+                                        if not student_exists:
+                                            st.toast("🛑 Cannot import: Register student profile first.", icon="❌")
+                                        else:
+                                            start = next_ref_block(db, 1)
+                                            new_tx = Transaction(
+                                                reference_no = f"SCH-{start:06d}",
+                                                student_id = int(sid),
+                                                transaction_type = "Discount",
+                                                description = f"[RECON] Imported scholarship discount",
+                                                debit = 0.0, credit = abs(dsc_diff),
+                                                hours_change = 0,
+                                                entry_date = datetime.date.today(),
+                                                term = selected_term,
+                                                academic_year = int(selected_year)
+                                            )
+                                            db.add(new_tx)
+                                            write_audit(
+                                                db, st.session_state["logged_in_user"],
+                                                "RECON_IMPORT_SCH", f"student_id={sid}",
+                                                f"Imported missing scholarship discount of {dsc_diff:,.2f} EGP"
+                                            )
+                                            db.commit()
+                                            st.cache_data.clear()
+                                            st.toast(f"✅ Safe-imported scholarship discount of {dsc_diff:,.2f} EGP successfully!", icon="✅")
+                                            st.balloons()
+                                            st.rerun()
+
+                            # Remedy 4: Compensating adjustment
+                            adj_amt = abs(diff_val)
+                            adj_type = "Debit" if diff_val > 0 else "Credit"
+                            if act_col2.button(f"⚖️ Post Custom Reconciling {adj_type} ({adj_amt:,.2f} EGP)", key=f"post_adj_{sid}", use_container_width=True):
                                 with get_db() as db:
                                     student_exists = db.get(Student, int(sid))
                                     if not student_exists:
-                                        st.toast("🛑 Cannot post adjustment: Student profile does not exist in local database. Register them first.", icon="❌")
+                                        st.toast("🛑 Register student profile first.", icon="❌")
                                     else:
                                         start = next_ref_block(db, 1)
                                         dr = adj_amt if diff_val > 0 else 0.0
                                         cr = 0.0 if diff_val > 0 else adj_amt
-                                        
                                         new_tx = Transaction(
                                             reference_no = f"RECON-{start:06d}",
                                             student_id = int(sid),
                                             transaction_type = "Adjustment",
-                                            description = f"Recon Correction: PowerCampus Balance Sync",
+                                            description = f"Recon Custom balancing adjustment",
                                             debit = dr, credit = cr,
                                             hours_change = 0,
                                             entry_date = datetime.date.today(),
@@ -544,11 +618,12 @@ def render(engine, available_years):
                                         write_audit(
                                             db, st.session_state["logged_in_user"],
                                             "RECON_ADJUST", f"student_id={sid}",
-                                            f"Posted {adj_type} of {adj_amt:,.2f} EGP to reconcile with PowerCampus"
+                                            f"Posted custom reconciling {adj_type} of {adj_amt:,.2f} EGP"
                                         )
                                         db.commit()
                                         st.cache_data.clear()
-                                        st.toast(f"⚖️ Balancing adjustment of {adj_amt:,.2f} EGP posted successfully!", icon="✅")
+                                        st.toast(f"⚖️ Compensating adjustment of {adj_amt:,.2f} EGP posted successfully!", icon="✅")
+                                        st.balloons()
                                         st.rerun()
                 else:
                     st.success("🎉 All common students have matching ledger balances! There are no mismatches.")
