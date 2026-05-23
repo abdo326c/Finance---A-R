@@ -18,14 +18,30 @@ def fetch_supabase_transactions():
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}"
     }
-    url = f"{SUPABASE_URL}/rest/v1/transactions?id_status=eq.Valid"
+    
+    all_transactions = []
+    limit = 1000
+    offset = 0
+    
     try:
-        response = requests.get(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error(f"Supabase connection error: HTTP {response.status_code}")
-            return None
+        while True:
+            url = f"{SUPABASE_URL}/rest/v1/transactions?id_status=eq.Valid&limit={limit}&offset={offset}"
+            response = requests.get(url, headers=headers, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                all_transactions.extend(data)
+                
+                # If we received fewer records than the limit, we've reached the end
+                if len(data) < limit:
+                    break
+                
+                offset += limit
+            else:
+                st.error(f"Supabase connection error: HTTP {response.status_code}")
+                return None
+                
+        return all_transactions
     except Exception as e:
         st.error(f"Failed to connect to Supabase: {e}")
         return None
