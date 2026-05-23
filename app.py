@@ -137,6 +137,7 @@ NAV_OPTIONS = [
     "🔄 D365 FTI Export",
     "🔄 Reconciliation",
     "📩 Email Follow-up",
+    "🔌 Fawry Sync Bridge",
     "👤 Registration",
     "🗑️ Batch Management",
     "⚙️ System Admin",
@@ -209,6 +210,10 @@ elif selected_tab == "🔄 Reconciliation":
 elif selected_tab == "📩 Email Follow-up":
     from views.email_followup import render
     render(engine, available_years)   
+
+elif selected_tab == "🔌 Fawry Sync Bridge":
+    from views.fawry_sync import render
+    render(engine, available_years)
 
 elif selected_tab == "👤 Registration":
     from views.registration import render
