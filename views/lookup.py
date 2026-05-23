@@ -206,71 +206,24 @@ def render():
         
         # Color coding outstanding vs. credit balance in the header card
         if net_bal > 0:
-            bal_html = f"""
-            <div style="text-align: right; margin-right: 15px;">
-                <span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Outstanding Balance</span>
-                <span style="font-size:22px; font-weight:800; color: #ff8a80;">{net_bal:,.2f} EGP</span>
-            </div>
-            """
+            bal_html = f'<div style="text-align: right; margin-right: 15px;"><span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Outstanding Balance</span><span style="font-size:22px; font-weight:800; color: #ff8a80;">{net_bal:,.2f} EGP</span></div>'
         else:
-            bal_html = f"""
-            <div style="text-align: right; margin-right: 15px;">
-                <span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Credit Balance</span>
-                <span style="font-size:22px; font-weight:800; color: #b9f6ca;">{abs(net_bal):,.2f} EGP</span>
-            </div>
-            """
+            bal_html = f'<div style="text-align: right; margin-right: 15px;"><span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Credit Balance</span><span style="font-size:22px; font-weight:800; color: #b9f6ca;">{abs(net_bal):,.2f} EGP</span></div>'
 
-        st.markdown(f"""
-        <div style="
-            background: linear-gradient(135deg, #0d47a1, #1a237e);
-            padding: 24px;
-            border-radius: 16px;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        ">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <div style="
-                    width: 64px;
-                    height: 64px;
-                    background-color: rgba(255, 255, 255, 0.2);
-                    border: 2px solid rgba(255, 255, 255, 0.4);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 22px;
-                    font-weight: 700;
-                    letter-spacing: 1px;
-                ">
-                    {initials}
-                </div>
-                <div>
-                    <h2 style="margin: 0; font-size: 24px; font-weight: 700; color: white;">{student.name}</h2>
-                    <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">
-                        🆔 Student ID: <b>{student.id}</b> &nbsp;|&nbsp; admit: {student.admit_year}
-                    </p>
-                </div>
-            </div>
-            <div style="display: flex; align-items: center; gap: 20px;">
-                {bal_html}
-                <div style="
-                    padding: 8px 16px;
-                    border-radius: 30px;
-                    font-weight: 700;
-                    font-size: 13px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.8px;
-                    {status_style}
-                ">
-                    ● {status_val}
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        card_html = (
+            f'<div style="background: linear-gradient(135deg, #0d47a1, #1a237e); padding: 24px; border-radius: 16px; color: white; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">'
+            f'<div style="display: flex; align-items: center; gap: 20px;">'
+            f'<div style="width: 64px; height: 64px; background-color: rgba(255, 255, 255, 0.2); border: 2px solid rgba(255, 255, 255, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; letter-spacing: 1px;">{initials}</div>'
+            f'<div><h2 style="margin: 0; font-size: 24px; font-weight: 700; color: white;">{student.name}</h2>'
+            f'<p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">🆔 Student ID: <b>{student.id}</b> &nbsp;|&nbsp; admit: {student.admit_year}</p></div>'
+            f'</div>'
+            f'<div style="display: flex; align-items: center; gap: 20px;">'
+            f'{bal_html}'
+            f'<div style="padding: 8px 16px; border-radius: 30px; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; {status_style}">● {status_val}</div>'
+            f'</div>'
+            f'</div>'
+        )
+        st.markdown(card_html, unsafe_allow_html=True)
 
         # ── 3. Quick Actions row ──
         if net_bal <= 0:
