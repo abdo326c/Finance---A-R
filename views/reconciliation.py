@@ -407,6 +407,77 @@ def render(engine, available_years):
                 dc3.metric("💳 Total Payment / Receipt Variance", f"{total_payment_diff:+,.2f} EGP")
                 
                 st.info(diag_msg)
+                
+                # Categorize and Prioritize Common Student Mismatches
+                high_priority_mismatches = []
+                medium_priority_mismatches = []
+                low_priority_mismatches = []
+                
+                for item in mismatch_list:
+                    # Get step variances
+                    pc_chg = item["PowerCampus Charges"]
+                    pc_dsc = item["PowerCampus Discounts"]
+                    pc_pmt = item["PowerCampus Payments"]
+                    
+                    loc_chg = item["Local Charges"]
+                    loc_dsc = item["Local Discounts"]
+                    loc_pmt = item["Local Payments"]
+                    
+                    chg_diff = pc_chg - loc_chg
+                    dsc_diff = pc_dsc - loc_dsc
+                    pmt_diff = pc_pmt - loc_pmt
+                    
+                    abs_diff = abs(item["Discrepancy (EGP)"])
+                    
+                    if abs_diff < 10.0:
+                        low_priority_mismatches.append(item)
+                    elif abs(chg_diff) >= 0.01 or abs(dsc_diff) >= 0.01:
+                        high_priority_mismatches.append({
+                            **item,
+                            "chg_diff": chg_diff,
+                            "dsc_diff": dsc_diff
+                        })
+                    else:
+                        medium_priority_mismatches.append({
+                            **item,
+                            "pmt_diff": pmt_diff
+                        })
+                
+                st.markdown("#### 🚨 Prioritized Resolution Directives")
+                
+                # 1. High Priority Alert Block
+                if high_priority_mismatches:
+                    st.error(f"🔴 **High Priority: Tuition & Scholarship Mismatches ({len(high_priority_mismatches)} Accounts)**")
+                    st.caption("These accounts have active variances in Tuition Billing or Scholarship discounts. These distort core revenue figures and must be resolved by manual cross-system ledger audits.")
+                    high_df = pd.DataFrame([{
+                        "ID": m["Student ID"],
+                        "Name": m["Name"],
+                        "Tuition Delta": f"{m['chg_diff']:+,.2f} EGP" if abs(m['chg_diff']) >= 0.01 else "Matched",
+                        "Scholarship Delta": f"{m['dsc_diff']:+,.2f} EGP" if abs(m['dsc_diff']) >= 0.01 else "Matched"
+                    } for m in high_priority_mismatches])
+                    st.dataframe(high_df, use_container_width=True, hide_index=True)
+                
+                # 2. Medium Priority Alert Block
+                if medium_priority_mismatches:
+                    st.warning(f"🟡 **Medium Priority: Payment Gateway Variances ({len(medium_priority_mismatches)} Accounts)**")
+                    st.caption("These accounts differ strictly on payment/receipt entries. Since PowerCampus updates live via the gateway, you likely just need to safe-import the gateway receipts below.")
+                    med_df = pd.DataFrame([{
+                        "ID": m["Student ID"],
+                        "Name": m["Name"],
+                        "Payment Delta": f"{m['pmt_diff']:+,.2f} EGP"
+                    } for m in medium_priority_mismatches])
+                    st.dataframe(med_df, use_container_width=True, hide_index=True)
+                    
+                # 3. Low Priority Collapsible Block
+                if low_priority_mismatches:
+                    with st.expander(f"🟢 **Low Priority: Negligible Penny Rounding Variances ({len(low_priority_mismatches)} Accounts)**", expanded=False):
+                        st.caption("These accounts have minor variances of less than 10 EGP (rounding errors or payment differential pennies).")
+                        low_df = pd.DataFrame([{
+                            "ID": m["Student ID"],
+                            "Name": m["Name"],
+                            "Discrepancy": f"{m['Discrepancy (EGP)']:+,.2f} EGP"
+                        } for m in low_priority_mismatches])
+                        st.dataframe(low_df, use_container_width=True, hide_index=True)
 
             # ── 8. Detailed Visual Tab Panels ──
             st.markdown("---")
