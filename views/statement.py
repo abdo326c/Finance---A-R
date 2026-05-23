@@ -225,13 +225,6 @@ def render(engine, available_years):
         b1, b2 = st.columns(2)
         with b1:
             fut_key = f"pdf_future_{p['sid']}"
-            if st.button("⚙️ Generate PDF Statement", use_container_width=True, type="secondary", key=f"gen_pdf_{p['sid']}"):
-                st.session_state[fut_key] = run_in_background(
-                    create_landscape_pdf, p["sid"], student_name, student_college, rows, net, total_d, total_c
-                )
-                st.toast("PDF generation started...", icon="⏳")
-                st.rerun()
-
             fut = st.session_state.get(fut_key)
             if fut:
                 if fut.done():
@@ -242,8 +235,22 @@ def render(engine, available_years):
                                            key=f"dl_pdf_statement_{p['sid']}_{net}")
                     except Exception as e:
                         st.error(f"Error generating PDF: {e}")
+                        # Allow retry on failure
+                        if st.button("⚙️ Generate PDF Statement", use_container_width=True, type="secondary", key=f"gen_pdf_{p['sid']}"):
+                            st.session_state[fut_key] = run_in_background(
+                                create_landscape_pdf, p["sid"], student_name, student_college, rows, net, total_d, total_c
+                            )
+                            st.toast("PDF generation started...", icon="⏳")
+                            st.rerun()
                 else:
                     st.markdown("<div class='skeleton' style='height:40px; width:100%; border-radius:8px; margin-top:0px;'></div>", unsafe_allow_html=True)
+            else:
+                if st.button("⚙️ Generate PDF Statement", use_container_width=True, type="secondary", key=f"gen_pdf_{p['sid']}"):
+                    st.session_state[fut_key] = run_in_background(
+                        create_landscape_pdf, p["sid"], student_name, student_college, rows, net, total_d, total_c
+                    )
+                    st.toast("PDF generation started...", icon="⏳")
+                    st.rerun()
         with b2:
             df_xl = df.copy()
             df_xl.loc[len(df_xl)] = {
