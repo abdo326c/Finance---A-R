@@ -208,6 +208,21 @@ Index("ix_ss_student_term_yr",  StudentScholarship.student_id, StudentScholarshi
 # ── Schema creation ───────────────────────────
 Base.metadata.create_all(engine)
 
+# ── Dynamic Schema Migrations ────────────────
+def run_migrations():
+    from sqlalchemy import inspect
+    try:
+        inspector = inspect(engine)
+        if "student_scholarships" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("student_scholarships")]
+            if "internal_note" not in columns:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE student_scholarships ADD COLUMN internal_note VARCHAR(1000) NULL"))
+    except Exception as e:
+        st.warning(f"Note: Database auto-migration alert: {e}")
+
+run_migrations()
+
 # ── Seed default users (first run only) ───────
 def seed_default_users():
     from auth import hash_pw

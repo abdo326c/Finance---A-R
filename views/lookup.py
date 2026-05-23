@@ -366,7 +366,7 @@ Nile University"""
             sl, sr = st.columns(2)
             with sl:
                 if student.is_sponsored:
-                    st.toast(f"🤝 **Sponsored Student** (By: {student.sponsor_name})", icon="✅")
+                    st.info(f"🤝 **Sponsored Student** (By: {student.sponsor_name})")
                 else:
                     st.write("💼 **Sponsorship:** None")
             with sr:

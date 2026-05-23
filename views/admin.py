@@ -228,7 +228,6 @@ def render():
                 } for l in logs])
                 
                 # Render Visual Analytics
-                st.markdown("#### 📊 Activity Analytics (Past 500 Logs)")
                 an_col1, an_col2 = st.columns(2)
                 
                 with an_col1:
