@@ -5,7 +5,7 @@
 import streamlit as st
 import requests
 import datetime
-from models import get_db, Student, Transaction, write_audit
+from models import get_db, Student, Transaction, write_audit, next_ref_block
 from auth import require_role
 from config import VALID_TERMS
 
@@ -145,11 +145,23 @@ def render(engine, available_years):
     unsynced_txs = []
     
     with get_db() as db:
-        # Get all local transactions with FAWRY- prefix
-        local_fawry_refs = {
-            tx.reference_no: tx 
-            for tx in db.query(Transaction).filter(Transaction.reference_no.like("FAWRY-%")).all()
-        }
+        # Get all local transactions with FAWRY- logic
+        synced_txs = db.query(Transaction).filter(
+            (Transaction.reference_no.like("FAWRY-%")) |
+            (Transaction.internal_note.like("FAWRY_SYNC:%"))
+        ).all()
+        
+        local_fawry_keys = set()
+        for tx in synced_txs:
+            if tx.reference_no and tx.reference_no.startswith("FAWRY-"):
+                local_fawry_keys.add(tx.reference_no)
+            if tx.internal_note and tx.internal_note.startswith("FAWRY_SYNC:"):
+                parts = tx.internal_note.split(" | ")[0].split(":")
+                if len(parts) >= 3:
+                    f_ref = parts[1]
+                    f_item = parts[2]
+                    local_fawry_keys.add(f"FAWRY-{f_ref}-{f_item}")
+                    local_fawry_keys.add(f"FAWRY-{f_ref}") # Legacy
 
         # Check local student IDs
         local_students = {s.id: s for s in db.query(Student).all()}
@@ -162,7 +174,7 @@ def render(engine, available_years):
             legacy_ref = f"FAWRY-{ref}"
             
             # Skip if already synced
-            if expected_ref in local_fawry_refs or legacy_ref in local_fawry_refs:
+            if expected_ref in local_fawry_keys or legacy_ref in local_fawry_keys:
                 continue
                 
             student_id_str = stx.get("student_id")
@@ -337,8 +349,13 @@ def render(engine, available_years):
             failed_amount = 0.0
             failed_details = []
 
+            batch_id = f"FAWRY-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+
             with get_db() as db_session:
                 try:
+                    start_ref_num = next_ref_block(db_session, len(valid_to_sync))
+                    current_ref_idx = start_ref_num
+
                     for tx in valid_to_sync:
                         try:
                             # Use nested transaction (savepoint) so a single failure doesn't rollback the entire batch
@@ -350,12 +367,15 @@ def render(engine, available_years):
                                     except Exception:
                                         pass
         
+                                new_ref_no = f"PAY-{current_ref_idx:06d}"
+
                                 new_tx = Transaction(
-                                    reference_no = f"FAWRY-{tx['reference_number']}-{tx['item_name']}",
+                                    reference_no = new_ref_no,
+                                    batch_id = batch_id,
                                     student_id = tx["student_id_int"],
-                                    transaction_type = "Payment",
-                                    description = f"Fawry Sync via {tx['bank']} for {tx['item_name']}",
-                                    internal_note = f"Supabase sync | Fawry Fees: {tx['fawry_fees']} EGP | Net Amount: {tx['net_amount']} EGP",
+                                    transaction_type = "Bulk Payments",
+                                    description = f"Bank: {tx['bank']} | Ref: {tx['reference_number']}",
+                                    internal_note = f"FAWRY_SYNC:{tx['reference_number']}:{tx['item_name']} | Fawry Fees: {tx['fawry_fees']} EGP | Net Amount: {tx['net_amount']} EGP",
                                     debit = 0.0,
                                     credit = tx["item_price"],
                                     hours_change = 0.0,
@@ -371,11 +391,12 @@ def render(engine, available_years):
                                     st.session_state["logged_in_user"],
                                     "FAWRY_SYNC", 
                                     f"student_id={tx['student_id_int']}",
-                                    f"Synced Fawry Ref={tx['reference_number']} | cr={tx['item_price']}"
+                                    f"Synced Fawry Ref={tx['reference_number']} as {new_ref_no} | batch={batch_id}"
                                 )
                             # If no exception, it was successful
                             sync_count += 1
                             sync_amount += tx["item_price"]
+                            current_ref_idx += 1
                         except Exception as inner_ex:
                             failed_count += 1
                             failed_amount += tx["item_price"]
@@ -390,7 +411,7 @@ def render(engine, available_years):
                         "failed_amount": failed_amount,
                         "failed_details": failed_details
                     }
-                    st.session_state["flash_msg"] = f"Sync complete! Processed {sync_count + failed_count} payments."
+                    st.session_state["flash_msg"] = f"Sync complete! Processed {sync_count + failed_count} payments in batch {batch_id}."
                     st.rerun()
 
                 except Exception as ex:
