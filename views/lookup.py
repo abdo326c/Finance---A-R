@@ -133,13 +133,32 @@ def render():
             type="primary", use_container_width=True
         )
 
-    with st.form("lookup_form", clear_on_submit=False):
-        default = str(st.session_state.get("lookup_id", "")) if st.session_state.get("lookup_id", 0) > 0 else ""
-        sid_raw   = st.text_input("Student ID:", value=default, placeholder="e.g. 26100123")
-        submitted = st.form_submit_button("🔍 Lookup Profile")
+    # Autocomplete Search Lookup
+    with get_db() as db:
+        students_list = db.query(Student.id, Student.name).order_by(Student.name.asc()).all()
+        
+    student_options = ["— Start typing Student ID or Name —"] + [f"{s.id} — {s.name}" for s in students_list]
+    
+    prev_id = st.session_state.get("lookup_id", 0)
+    default_idx = 0
+    if prev_id > 0:
+        for idx, opt in enumerate(student_options):
+            if opt.startswith(f"{prev_id} —"):
+                default_idx = idx
+                break
 
-    if submitted:
-        st.session_state["lookup_id"] = int(sid_raw) if sid_raw.strip().isdigit() else 0
+    selected_opt = st.selectbox(
+        "🔍 Search Student ID or Name:",
+        options=student_options,
+        index=default_idx,
+        key="student_autocomplete_search"
+    )
+
+    if selected_opt != "— Start typing Student ID or Name —":
+        sid = int(selected_opt.split(" — ")[0])
+        st.session_state["lookup_id"] = sid
+    else:
+        st.session_state["lookup_id"] = 0
 
     sid = st.session_state.get("lookup_id", 0)
     if sid <= 0:
@@ -184,6 +203,23 @@ def render():
 
         # ── 2. Premium Avatar Header Card ──
         initials = "".join([part[0] for part in student.name.split()[:2]]).upper() if student.name else "NU"
+        
+        # Color coding outstanding vs. credit balance in the header card
+        if net_bal > 0:
+            bal_html = f"""
+            <div style="text-align: right; margin-right: 15px;">
+                <span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Outstanding Balance</span>
+                <span style="font-size:22px; font-weight:800; color: #ff8a80;">{net_bal:,.2f} EGP</span>
+            </div>
+            """
+        else:
+            bal_html = f"""
+            <div style="text-align: right; margin-right: 15px;">
+                <span style="font-size:11px; text-transform:uppercase; opacity:0.8; font-weight:600; letter-spacing:0.5px; display:block;">Credit Balance</span>
+                <span style="font-size:22px; font-weight:800; color: #b9f6ca;">{abs(net_bal):,.2f} EGP</span>
+            </div>
+            """
+
         st.markdown(f"""
         <div style="
             background: linear-gradient(135deg, #0d47a1, #1a237e);
@@ -219,16 +255,19 @@ def render():
                     </p>
                 </div>
             </div>
-            <div style="
-                padding: 8px 16px;
-                border-radius: 30px;
-                font-weight: 700;
-                font-size: 13px;
-                text-transform: uppercase;
-                letter-spacing: 0.8px;
-                {status_style}
-            ">
-                ● {status_val}
+            <div style="display: flex; align-items: center; gap: 20px;">
+                {bal_html}
+                <div style="
+                    padding: 8px 16px;
+                    border-radius: 30px;
+                    font-weight: 700;
+                    font-size: 13px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.8px;
+                    {status_style}
+                ">
+                    ● {status_val}
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)

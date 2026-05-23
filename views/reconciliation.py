@@ -366,7 +366,7 @@ def render(engine, available_years):
                                     # Ensure student is active in DB
                                     student_exists = db.get(Student, int(sid))
                                     if not student_exists:
-                                        st.error("Cannot post adjustment: Student profile does not exist in local database. Register them first.")
+                                        st.toast("🛑 Cannot post adjustment: Student profile does not exist in local database. Register them first.", icon="❌")
                                     else:
                                         start = next_ref_block(db, 1)
                                         dr = adj_amt if diff_val > 0 else 0.0
@@ -390,7 +390,7 @@ def render(engine, available_years):
                                             f"Posted {adj_type} of {adj_amt:,.2f} EGP to reconcile with PowerCampus"
                                         )
                                         db.commit()
-                                        st.success(f"✅ Balancing adjustment of {adj_amt:,.2f} EGP posted successfully!")
+                                        st.toast(f"⚖️ Balancing adjustment of {adj_amt:,.2f} EGP posted successfully!", icon="✅")
                                         st.rerun()
 
                 else:
@@ -435,7 +435,7 @@ def render(engine, available_years):
                                         f"Auto-registered student profile from PowerCampus reconciliation"
                                     )
                                     db.commit()
-                                    st.success(f"👤 Registered student {name} ({sid}) successfully!")
+                                    st.toast(f"👤 Registered student {name} ({sid}) successfully!", icon="✅")
                                     st.rerun()
                         else:
                             col_btn1.write("✅ Profile Registered")
@@ -446,7 +446,7 @@ def render(engine, available_years):
                             with get_db() as db:
                                 local_stu = db.get(Student, int(sid))
                                 if not local_stu:
-                                    st.error("Please register the student profile first!")
+                                    st.toast("🛑 Please register the student profile first!", icon="❌")
                                 else:
                                     ext_txs = ext_students[sid]["transactions"]
                                     imported_count = 0
@@ -481,7 +481,7 @@ def render(engine, available_years):
                                         f"Imported {imported_count} transaction lines from PowerCampus"
                                     )
                                     db.commit()
-                                    st.success(f"✅ Imported {imported_count} transactions to {name}'s profile!")
+                                    st.toast(f"✅ Imported {imported_count} transactions to {name}'s profile!", icon="✅")
                                     st.rerun()
                 else:
                     st.success("🎉 No missing student records identified in your local database!")
