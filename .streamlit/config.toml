@@ -13,3 +13,6 @@ textColor = "#2c3e50"
 
 # نوع الخط
 font = "sans serif"
+
+[server]
+enableStaticServing = true

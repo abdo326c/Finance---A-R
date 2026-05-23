@@ -82,13 +82,25 @@ def render():
                         del st.session_state["viewing_pdf_id"]
                         st.rerun()
                     
-                    import base64
+                    import os
                     try:
-                        base64_pdf = base64.b64encode(selected_doc.file_data).decode('utf-8')
+                        # Ensure static directory exists
+                        os.makedirs("static", exist_ok=True)
+                        
+                        # Generate safe unique filename for the logged-in user
+                        username = st.session_state.get("logged_in_user", "guest")
+                        safe_username = "".join(c for c in username if c.isalnum())
+                        filename = f"temp_viewer_{safe_username}.pdf"
+                        file_path = os.path.join("static", filename)
+                        
+                        # Write the PDF bytes to the static folder
+                        with open(file_path, "wb") as f:
+                            f.write(selected_doc.file_data)
+                        
+                        # Render the PDF dynamically using the same-origin static URL
                         pdf_display = (
-                            f'<object data="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
-                            f'<embed src="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
-                            f'</object>'
+                            f'<iframe src="static/{filename}" '
+                            f'width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"></iframe>'
                         )
                         st.markdown(pdf_display, unsafe_allow_html=True)
                     except Exception as e:
