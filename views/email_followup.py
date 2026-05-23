@@ -196,7 +196,7 @@ def render(engine, available_years):
             options=list(student_options.keys())
         )
 
-    st.markdown("### 📝 Email Template")
+    st.markdown("### 📝 Email Template & Live Preview")
     st.info("💡 Placeholders: `{name}`, `{id}`, `{balance}`, `{date}`, `{scope}`")
     
     default_subject = "Nile University - Statement of Account Update"
@@ -210,8 +210,254 @@ Best Regards,
 Finance Department
 Nile University
 """
-    email_subject = st.text_input("Subject", value=default_subject)
-    email_body = st.text_area("Message Body", value=default_body, height=200)
+    col_editor, col_preview = st.columns([1.1, 0.9])
+    
+    with col_editor:
+        email_subject = st.text_input("Subject", value=default_subject)
+        email_body = st.text_area("Message Body", value=default_body, height=250)
+
+    # ── WYSIWYG Live Email Preview Mockup Card ──
+    with col_preview:
+        # Resolve values
+        preview_name = "John Doe"
+        preview_id = "20260001"
+        preview_balance = "15,250.00"
+        preview_date = datetime.date.today().strftime("%d %B %Y")
+        preview_scope = scope_text
+        preview_email = "john.doe@nileuniversity.edu.eg"
+
+        if selected_student_keys:
+            first_key = selected_student_keys[0]
+            first_student = student_options[first_key]
+            preview_name = first_student.name
+            preview_id = str(first_student.id)
+            preview_email = first_student.email or "no-email@nileuniversity.edu.eg"
+            
+            with get_db() as db_session:
+                tx_query = db_session.query(Transaction).filter(Transaction.student_id == first_student.id)
+                if balance_scope == "Specific Term Only":
+                    tx_query = tx_query.filter(
+                        Transaction.term == selected_term, 
+                        Transaction.academic_year == int(selected_year)
+                    )
+                first_txs = tx_query.all()
+                t_debit = sum(t.debit for t in first_txs)
+                t_credit = sum(t.credit for t in first_txs)
+                preview_balance = f"{t_debit - t_credit:,.2f}"
+
+        formatted_subject_preview = email_subject
+        formatted_body_preview = email_body
+        
+        try:
+            formatted_subject_preview = email_subject.format(
+                name=preview_name,
+                id=preview_id,
+                balance=preview_balance,
+                date=preview_date,
+                scope=preview_scope
+            )
+            formatted_body_preview = email_body.format(
+                name=preview_name,
+                id=preview_id,
+                balance=preview_balance,
+                date=preview_date,
+                scope=preview_scope
+            )
+        except KeyError as ke:
+            st.caption(f"⚠️ Placeholder error: Missing key {ke}")
+        except ValueError as ve:
+            st.caption(f"⚠️ Formatting error: {ve}")
+        except Exception as e:
+            st.caption(f"⚠️ Formatter error: {e}")
+
+        # Render modern mockup email client container
+        # Use st.markdown with CSS + HTML
+        st.markdown(
+            f"""
+            <style>
+            .email-client-mockup {{
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 12px;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+                font-family: 'Outfit', 'Inter', sans-serif;
+                color: #f1f2f6;
+                overflow: hidden;
+                margin-top: 10px;
+                animation: fadeIn 0.4s ease-out;
+            }}
+            .email-header-bar {{
+                background: rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 10px 15px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }}
+            .dot {{
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+            }}
+            .dot-red {{ background-color: #ff5f56; }}
+            .dot-yellow {{ background-color: #ffbd2e; }}
+            .dot-green {{ background-color: #27c93f; }}
+            .email-client-title {{
+                margin-left: auto;
+                font-size: 11px;
+                font-weight: 500;
+                opacity: 0.6;
+                letter-spacing: 0.5px;
+                text-transform: uppercase;
+            }}
+            .email-meta {{
+                padding: 12px 15px;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                font-size: 13px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }}
+            .email-meta-row {{
+                display: flex;
+            }}
+            .email-meta-label {{
+                width: 65px;
+                font-weight: 600;
+                opacity: 0.7;
+            }}
+            .email-meta-value {{
+                flex: 1;
+            }}
+            .email-body-content {{
+                padding: 20px 24px;
+                font-size: 14px;
+                line-height: 1.6;
+            }}
+            .email-container-inner {{
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(255, 255, 255, 0.02);
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 15px;
+            }}
+            .email-logo-section {{
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 15px;
+            }}
+            .email-logo-icon {{
+                width: 24px;
+                height: 24px;
+                background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%);
+                border-radius: 5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+            }}
+            .email-logo-text {{
+                font-size: 13px;
+                font-weight: 700;
+                color: #4facfe;
+            }}
+            .email-attachment-pill {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                width: fit-content;
+                transition: all 0.2s ease;
+            }}
+            .email-attachment-pill:hover {{
+                transform: translateY(-1px);
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            }}
+            @keyframes fadeIn {{
+                from {{ opacity: 0; transform: translateY(5px); }}
+                to {{ opacity: 1; transform: translateY(0); }}
+            }}
+            
+            /* Light theme variables overrides */
+            [data-theme="light"] .email-client-mockup,
+            .stApp:not([data-theme="dark"]) .email-client-mockup {{
+                background: rgba(255, 255, 255, 0.9);
+                border: 1px solid rgba(0, 0, 0, 0.08);
+                box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.06);
+                color: #2c3e50;
+            }}
+            [data-theme="light"] .email-header-bar,
+            .stApp:not([data-theme="dark"]) .email-header-bar {{
+                background: #f8f9fa;
+                border-bottom: 1px solid #e9ecef;
+            }}
+            [data-theme="light"] .email-meta,
+            .stApp:not([data-theme="dark"]) .email-meta {{
+                border-bottom: 1px solid #f1f3f5;
+            }}
+            [data-theme="light"] .email-container-inner,
+            .stApp:not([data-theme="dark"]) .email-container-inner {{
+                border: 1px solid #eef1f6;
+                background: #fdfefe;
+            }}
+            [data-theme="light"] .email-attachment-pill,
+            .stApp:not([data-theme="dark"]) .email-attachment-pill {{
+                background: #f1f3f5;
+                border: 1px solid #dee2e6;
+            }}
+            [data-theme="light"] .email-logo-text,
+            .stApp:not([data-theme="dark"]) .email-logo-text {{
+                color: #0d47a1;
+            }}
+            </style>
+            
+            <div class="email-client-mockup">
+                <div class="email-header-bar">
+                    <span class="dot dot-red"></span>
+                    <span class="dot dot-yellow"></span>
+                    <span class="dot dot-green"></span>
+                    <span class="email-client-title">Live Preview Client</span>
+                </div>
+                <div class="email-meta">
+                    <div class="email-meta-row">
+                        <span class="email-meta-label">To:</span>
+                        <span class="email-meta-value" style="color: #1976d2; font-weight: 500;">{preview_name} &lt;{preview_email}&gt;</span>
+                    </div>
+                    <div class="email-meta-row">
+                        <span class="email-meta-label">Subject:</span>
+                        <span class="email-meta-value" style="font-weight: 600;">{formatted_subject_preview}</span>
+                    </div>
+                </div>
+                <div class="email-body-content">
+                    <div class="email-container-inner">
+                        <div class="email-logo-section">
+                            <div class="email-logo-icon">NU</div>
+                            <div class="email-logo-text">Nile University - Finance Department</div>
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.95; white-space: pre-line;">{formatted_body_preview}</div>
+                        <hr style="border: none; border-top: 1px solid rgba(120, 120, 120, 0.2); margin: 15px 0;">
+                        <small style="opacity: 0.6; font-size: 11px; display: block; line-height: 1.4;">
+                            This is an automated message from the Accounts Receivable System. Please find your detailed statement attached.
+                        </small>
+                    </div>
+                    <div class="email-attachment-pill">
+                        <span>📄</span>
+                        <strong>Statement_{preview_id}.pdf</strong>
+                        <span style="opacity: 0.6;">(ReportLab Statement)</span>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     if st.button("🚀 Send Follow-up Emails", type="primary"):
         if not sender_email or not sender_password:

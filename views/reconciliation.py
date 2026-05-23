@@ -670,29 +670,67 @@ def render(engine, available_years):
                             """, unsafe_allow_html=True)
 
                         st.markdown("<br>", unsafe_allow_html=True)
+                        ext_txs = ext_students[sid]["transactions"]
+                        df_etxs = pd.DataFrame(ext_txs)
+                        if not df_etxs.empty:
+                            df_etxs["date"] = df_etxs["date"].dt.strftime("%Y-%m-%d")
+                            
+                        with get_db() as db:
+                            loc_txs = db.query(Transaction).filter_by(student_id=int(sid), term=selected_term, academic_year=int(selected_year)).all()
+                            
+                        df_ltxs = pd.DataFrame()
+                        if loc_txs:
+                            df_ltxs = pd.DataFrame([{
+                                "type": t.transaction_type,
+                                "debit": t.debit,
+                                "credit": t.credit,
+                                "desc": t.description,
+                                "date": t.entry_date.strftime("%Y-%m-%d") if t.entry_date else ""
+                            } for t in loc_txs])
+
+                        # Build dynamic row styling functions for visual audits
+                        def style_ext(row):
+                            amt = abs(row["amount"])
+                            matched = False
+                            for t in loc_txs:
+                                local_amt = t.debit if t.debit > 0 else t.credit
+                                if abs(local_amt - amt) < 0.01:
+                                    matched = True
+                                    break
+                            if matched:
+                                return ["background-color: rgba(212, 239, 223, 0.45); color: #155724;"] * len(row) # Soft green
+                            else:
+                                return ["background-color: rgba(248, 215, 218, 0.45); color: #721c24; font-weight: bold; border-left: 4px solid #d32f2f;"] * len(row) # Soft crimson
+
+                        def style_loc(row):
+                            amt = row["debit"] if row["debit"] > 0 else row["credit"]
+                            matched = False
+                            for _, ext_row in df_etxs.iterrows():
+                                ext_amt = abs(ext_row["amount"])
+                                if abs(ext_amt - amt) < 0.01:
+                                    matched = True
+                                    break
+                            if matched:
+                                return ["background-color: rgba(212, 239, 223, 0.45); color: #155724;"] * len(row) # Soft green
+                            else:
+                                return ["background-color: rgba(248, 215, 218, 0.45); color: #721c24; font-weight: bold; border-left: 4px solid #d32f2f;"] * len(row) # Soft crimson
+
                         col_l, col_r = st.columns(2)
                         with col_l:
                             st.write("**PowerCampus Transactions (Filtered)**")
-                            ext_txs = ext_students[sid]["transactions"]
-                            df_etxs = pd.DataFrame(ext_txs)
-                            df_etxs["date"] = df_etxs["date"].dt.strftime("%Y-%m-%d")
-                            st.dataframe(df_etxs[["type", "amount", "code", "desc", "date"]], hide_index=True, use_container_width=True)
+                            if not df_etxs.empty:
+                                styled_etxs = df_etxs[["type", "amount", "code", "desc", "date"]].style.apply(style_ext, axis=1)
+                                st.dataframe(styled_etxs, hide_index=True, use_container_width=True)
+                            else:
+                                st.caption("No transactions found on PowerCampus.")
                         
                         with col_r:
                             st.write("**Local A/R Transactions**")
-                            with get_db() as db:
-                                loc_txs = db.query(Transaction).filter_by(student_id=int(sid), term=selected_term, academic_year=int(selected_year)).all()
-                                if loc_txs:
-                                    df_ltxs = pd.DataFrame([{
-                                        "type": t.transaction_type,
-                                        "debit": t.debit,
-                                        "credit": t.credit,
-                                        "desc": t.description,
-                                        "date": t.entry_date.strftime("%Y-%m-%d") if t.entry_date else ""
-                                    } for t in loc_txs])
-                                    st.dataframe(df_ltxs, hide_index=True, use_container_width=True)
-                                else:
-                                    st.caption("No transactions found locally.")
+                            if not df_ltxs.empty:
+                                styled_ltxs = df_ltxs.style.apply(style_loc, axis=1)
+                                st.dataframe(styled_ltxs, hide_index=True, use_container_width=True)
+                            else:
+                                st.caption("No transactions found locally.")
 
                             # Direct Audit remedies
                             st.markdown("##### 🛠️ Selective Audit Remedies")

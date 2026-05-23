@@ -21,7 +21,9 @@ def render():
     action = st.selectbox("Action Type", TX_TYPES)
     bypass_dup = st.checkbox("⚠️ Bypass Duplicate Check (force posting)")
 
-    with st.form(f"manual_tx_{action}", clear_on_submit=True):
+    col_input, col_calc = st.columns([1.2, 1.0])
+
+    with col_input:
         default_id = str(st.session_state.get("lookup_id","")) if st.session_state.get("lookup_id",0)>0 else ""
         sid_raw = st.text_input("Student ID", value=default_id, placeholder="e.g. 26100123")
 
@@ -32,10 +34,6 @@ def render():
 
         dr, cr, dsc, h_change, b_name, b_ref, reg_hours = 0.0, 0.0, "", 0.0, "", "", 0.0
         internal_note = ""
-        sch_id = None
-        sibling_id_input = ""
-        selected_sch = ""
-        sch_options = {}
 
         if action == "Payment Receipt":
             b_name = st.text_input("Bank Name")
@@ -63,10 +61,100 @@ def render():
             cr  = gc2.number_input("Credit (EGP)", min_value=0.0)
             dsc = st.text_input("Description")
             internal_note = st.text_input("Internal Note (Optional)")
-            
 
+        st.markdown("<br>", unsafe_allow_html=True)
+        submitted = st.button("🚀 Process Transaction", type="primary", use_container_width=True)
 
-        submitted = st.form_submit_button("🚀 Process Transaction")
+    sid = int(sid_raw) if sid_raw.strip().isdigit() else 0
+
+    with col_calc:
+        st.markdown("### 💡 Live Cost & Policy Sandbox")
+        if sid > 0:
+            with get_db() as db:
+                student = db.get(Student, sid)
+                if student:
+                    st.success(f"👤 **Student**: {student.name}")
+                    st.markdown(f"""
+                    * **College**: {student.college or "—"}
+                    * **Program**: {student.program or "—"}
+                    * **Tuition Rate**: {student.price_per_hr or 0:,.2f} EGP / hour
+                    """)
+                    
+                    rate = student.price_per_hr or 0.0
+                    
+                    if action == "Invoice" and reg_hours > 0:
+                        # Stacking scholarships query
+                        schs = db.query(StudentScholarship, ScholarshipType).join(ScholarshipType).filter(
+                            StudentScholarship.student_id == student.id,
+                            StudentScholarship.term == term,
+                            StudentScholarship.academic_year == int(year),
+                            StudentScholarship.is_active == True
+                        ).all()
+                        
+                        total_pct = sum(ss.percentage for ss, _ in schs)
+                        effective_pct = min(100.0, total_pct)
+                        
+                        gross_tuition = reg_hours * rate
+                        discount_amt = gross_tuition * (effective_pct / 100.0)
+                        net_tuition = gross_tuition - discount_amt
+                        
+                        st.markdown("##### 🧾 Tuition Billing Summary")
+                        st.markdown(f"""
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+                                <span>Gross Tuition Cost:</span>
+                                <b>{gross_tuition:,.2f} EGP</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; color: #b71c1c; margin-bottom: 6px; font-size: 13px;">
+                                <span>Scholarship Deductions ({effective_pct:.1f}%):</span>
+                                <b>-{discount_amt:,.2f} EGP</b>
+                            </div>
+                            <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+                            <div style="display: flex; justify-content: space-between; font-weight: 700; color: #0d47a1; font-size: 15px;">
+                                <span>Projected Net Billing:</span>
+                                <b>+{net_tuition:,.2f} EGP</b>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if schs:
+                            st.caption("Active Policies Applied:")
+                            for ss, st_type in schs:
+                                st.markdown(f"- **{st_type.name}**: {ss.percentage:.1f}%" + (f" *({ss.internal_note})*" if ss.internal_note else ""))
+                                
+                    elif action == "Payment Receipt" and cr > 0:
+                        st.markdown("##### 💳 Payment Receipt Summary")
+                        st.markdown(f"""
+                        <div style="background-color: #e8f5e9; padding: 15px; border-radius: 8px; border: 1px solid #c8e6c9;">
+                            <div style="display: flex; justify-content: space-between; color: #1b5e20; font-weight: bold; font-size: 14px;">
+                                <span>Account Credit Receipt:</span>
+                                <b>-{cr:,.2f} EGP</b>
+                            </div>
+                            <small style="color: #43a047;">Ledger balance will decrease by this amount.</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                    elif action == "Credit Hours Adjustment" and h_change != 0:
+                        adj_val = h_change * rate
+                        pfx_sign = "+" if adj_val > 0 else ""
+                        color = "#b71c1c" if adj_val > 0 else "#1b5e20"
+                        st.markdown("##### 🔄 Adjustment Summary")
+                        st.markdown(f"""
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px;">
+                                <span>Adjustment Hours:</span>
+                                <b>{h_change:+.1f} CH</b>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; color: {color}; font-weight: 700; font-size: 14px;">
+                                <span>Projected Impact:</span>
+                                <b>{pfx_sign}{adj_val:,.2f} EGP</b>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.error("👤 Student ID not registered.")
+        else:
+            st.info("💡 Enter a registered Student ID to trigger the interactive cost preview.")
 
     if not submitted:
         return
