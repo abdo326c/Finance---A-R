@@ -11,3 +11,4 @@ reportlab
 streamlit-cookies-controller
 polars
 python-json-logger
+streamlit-pdf-viewer
