@@ -34,6 +34,12 @@ def get_all_students_excel():
         return buf.getvalue()
 
 
+@st.cache_data(ttl=60)
+def get_cached_students_list():
+    with get_db() as db:
+        return db.query(Student.id, Student.name).order_by(Student.name.asc()).all()
+
+
 def render_info_card(label: str, value: str, icon: str = ""):
     """كارد صغير أنيق بدل st.metric الكبيرة"""
     st.markdown(f"""
@@ -134,9 +140,7 @@ def render():
         )
 
     # Autocomplete Search Lookup
-    with get_db() as db:
-        students_list = db.query(Student.id, Student.name).order_by(Student.name.asc()).all()
-        
+    students_list = get_cached_students_list()
     student_options = ["— Start typing Student ID or Name —"] + [f"{s.id} — {s.name}" for s in students_list]
     
     prev_id = st.session_state.get("lookup_id", 0)

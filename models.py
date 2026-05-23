@@ -6,7 +6,7 @@
 import streamlit as st
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float,
-    ForeignKey, DateTime, Date, Boolean, LargeBinary, Index, text
+    ForeignKey, DateTime, Date, Boolean, LargeBinary, Index, text, event
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
@@ -19,7 +19,20 @@ DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
 @st.cache_resource
 def get_db_engine():
     if "sqlite" in DB_URL:
-        return create_engine(DB_URL, connect_args={"check_same_thread": False})
+        eng = create_engine(DB_URL, connect_args={"check_same_thread": False})
+        
+        # Optimize SQLite performance, speed and concurrency
+        @event.listens_for(eng, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA cache_size=-64000") # 64MB cache
+            cursor.execute("PRAGMA temp_store=MEMORY")
+            cursor.execute("PRAGMA busy_timeout=30000") # 30s busy timeout
+            cursor.close()
+            
+        return eng
     return create_engine(DB_URL, pool_size=10, max_overflow=20, pool_pre_ping=True)
 
 engine       = get_db_engine()
@@ -181,6 +194,11 @@ Index("ix_tx_batch",    Transaction.batch_id)
 Index("ix_tx_term_yr",  Transaction.term, Transaction.academic_year)
 Index("ix_ss_student",  StudentScholarship.student_id)
 Index("ix_stat_student",StudentStatus.student_id)
+
+# ⚡ Performance optimizations compound & search indices
+Index("ix_student_name",        Student.name)
+Index("ix_tx_student_term_yr",  Transaction.student_id, Transaction.term, Transaction.academic_year)
+Index("ix_ss_student_term_yr",  StudentScholarship.student_id, StudentScholarship.term, StudentScholarship.academic_year)
 
 
 # ── Schema creation ───────────────────────────
