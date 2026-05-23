@@ -12,6 +12,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER
 
 def create_landscape_pdf(student_id, student_name, student_college, rows, current_balance, total_d, total_c):
     """توليد ملف PDF احترافي Landscape مع طابع الدفع الممتاز والتصميم الفاخر"""
@@ -76,9 +77,29 @@ def create_landscape_pdf(student_id, student_name, student_college, rows, curren
     table_data.append(["", "", "", "", "Totals:", f"{total_d:,.2f}", f"{total_c:,.2f}"])
     
     # Net Balance Row
-    balance_label = "Account Balanced:" if current_balance <= 0 else "Net Balance Due:"
-    balance_val = f"{current_balance:,.2f} EGP" if current_balance >= 0 else f"({abs(current_balance):,.2f}) EGP Credit"
-    table_data.append(["", "", "", "", balance_label, balance_val, ""])
+    balance_label_text = "Account Balanced:" if current_balance <= 0 else "Net Balance Due:"
+    balance_val_text = f"{current_balance:,.2f} EGP" if current_balance >= 0 else f"({abs(current_balance):,.2f}) EGP Credit"
+    
+    balance_color = colors.HexColor("#155724") if current_balance <= 0 else colors.HexColor("#721c24")
+    lbl_style = ParagraphStyle(
+        'BalanceLabel',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=12,
+        alignment=TA_RIGHT,
+        textColor=balance_color
+    )
+    val_style = ParagraphStyle(
+        'BalanceVal',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=12,
+        alignment=TA_CENTER,
+        textColor=balance_color
+    )
+    table_data.append(["", "", "", "", Paragraph(balance_label_text, lbl_style), Paragraph(balance_val_text, val_style), ""])
     
     t = Table(table_data, colWidths=[70, 85, 95, 192, 90, 100, 100])
     
