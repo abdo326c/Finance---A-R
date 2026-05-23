@@ -12,7 +12,7 @@ from models import (
 )
 from helpers import build_auto_discount_transactions
 
-TX_TYPES = ["Payment Receipt", "Invoice", "Credit Hours Adjustment", "Other Fees", "General Adjustment", "Manual Scholarship"]
+TX_TYPES = ["Payment Receipt", "Invoice", "Credit Hours Adjustment", "Other Fees", "General Adjustment"]
 
 def render():
     st.subheader("Post Manual Transaction")
@@ -64,21 +64,7 @@ def render():
             dsc = st.text_input("Description")
             internal_note = st.text_input("Internal Note (Optional)")
             
-        # 🟢 إضافة نوع "منحة يدوية" لمعالجة شرط خصم الأخوات
-        elif action == "Manual Scholarship":
-            with get_db() as db:
-                sch_types = db.query(ScholarshipType).all()
-                sch_options = {s.name: s.id for s in sch_types}
-                
-            selected_sch = st.selectbox("Scholarship Type", list(sch_options.keys()))
-            cr = st.number_input("Discount Amount (EGP)", min_value=0.0)
-            
-            # 🟢 شرط لو اختار خصم الأخوات، يطلب منه الـ Sibling ID إجباري
-            if selected_sch == "SCH: Sibiling %":
-                sibling_id_input = st.text_input("⚠️ Enter Sibling ID (Required)", placeholder="e.g. 25100999")
-            
-            dsc = st.text_input("Description", value=f"Discount - {selected_sch}")
-            internal_note = st.text_input("Internal Note (Hidden from PDF)")
+
 
         submitted = st.form_submit_button("🚀 Process Transaction")
 
@@ -96,15 +82,7 @@ def render():
             st.error("Student ID not found. Register the student first.")
             return
 
-        # 🟢 تحقق (Validation) إضافي لو الحركة عبارة عن خصم أخوات
-        if action == "Manual Scholarship" and selected_sch == "SCH: Sibiling %":
-            if not sibling_id_input or not sibling_id_input.strip().isdigit():
-                st.error("🛑 Sibling ID is REQUIRED when applying 'SCH: Sibiling %'. Transaction aborted.")
-                return
-            # تحديث مباشر لبيانات الطالب هنا لربط الأخوات
-            if not student.sibling_id:
-                student.sibling_id = int(sibling_id_input.strip())
-                st.toast("✅ Sibling ID automatically linked to student profile.")
+
 
         max_tx_id = db.query(func.max(Transaction.id)).scalar() or 0
         ref_row = db.get(RefCounter, 1)
@@ -161,9 +139,7 @@ def render():
             pfx = "FEE"
         elif action == "General Adjustment":
             pfx = "TXN"
-        elif action == "Manual Scholarship":
-            pfx = "SCH"
-            sch_id = sch_options[selected_sch]
+
 
         if action not in ["Credit Hours Adjustment", "Invoice"]:
             start = next_ref_block(db, 1)
@@ -186,8 +162,7 @@ def render():
         new_tx = Transaction(
             reference_no     = f"{pfx}-{start:06d}",
             student_id       = sid,
-            transaction_type = action if action != "Manual Scholarship" else "Discount",
-            scholarship_type_id = sch_id,
+            transaction_type = action,
             description      = dsc,
             internal_note    = internal_note, # 🟢 حفظ الملاحظة الداخلية
             debit=dr, credit=cr,

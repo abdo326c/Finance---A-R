@@ -87,6 +87,20 @@ def render(engine):
                 c3.write("✅ Active" if ss.is_active else "🔴 Inactive")
 
                 with st.expander(f"⚙️ Manage '{st_type.name}'"):
+                    if ss.internal_note:
+                        st.caption(f"📝 *Note: {ss.internal_note}*")
+                        
+                    # Live edit internal note
+                    new_note = st.text_input("Edit Internal Note:", value=ss.internal_note or "", key=f"note_{ss.id}")
+                    if new_note != (ss.internal_note or ""):
+                        if st.button("💾 Save Note", key=f"save_note_{ss.id}"):
+                            ss.internal_note = new_note
+                            db.commit()
+                            st.toast("Internal note updated!")
+                            st.rerun()
+                            
+                    st.markdown("---")
+                    
                     if ss.is_active:
                         if st.button("Stop (future only)", key=f"stop_{ss.id}"):
                             ss.is_active = False
@@ -101,6 +115,7 @@ def render(engine):
                                     r_tx = get_retroactive_scholarship_tx(
                                         db, p["sid"], p["term"], p["year"],
                                         ss.scholarship_type_id, st_type.name, 0.0, seq,
+                                        internal_note=ss.internal_note
                                     )
                                     if r_tx:
                                         db.add(r_tx)
@@ -118,6 +133,7 @@ def render(engine):
                                 r_tx = get_retroactive_scholarship_tx(
                                     db, p["sid"], p["term"], p["year"],
                                     ss.scholarship_type_id, st_type.name, _pct(ss.percentage), seq,
+                                    internal_note=ss.internal_note
                                 )
                                 if r_tx:
                                     db.add(r_tx)
@@ -135,6 +151,7 @@ def render(engine):
         add_year = c3.number_input("Year:", value=DEFAULT_YEAR, step=1)
         add_type = st.selectbox("Scholarship Type:", list(sch_map.keys()) or ["—"])
         add_pct  = st.number_input("Percentage (0–100):", min_value=0.0, max_value=100.0, step=5.0)
+        internal_note_input = st.text_input("Internal Note (Hidden from PDF):", placeholder="e.g. Approved by Dean on May 2026")
         
         # 🟢 حقل مخفي لمعالجة شرط الأخوات (هيشتغل لايف دلوقتي)
         sibling_id_input = ""
@@ -162,11 +179,13 @@ def render(engine):
                         term=add_term, academic_year=int(add_year)).first()
                     if existing:
                         existing.percentage, existing.is_active = add_pct, True
+                        existing.internal_note = internal_note_input
                     else:
                         db.add(StudentScholarship(
                             student_id=int(add_sid), scholarship_type_id=s_type_id,
                             percentage=add_pct, term=add_term,
                             academic_year=int(add_year), is_active=True,
+                            internal_note=internal_note_input
                         ))
                     enforce_scholarship_cap(db, int(add_sid), add_term, int(add_year))
                     db.commit()
@@ -178,6 +197,7 @@ def render(engine):
                         r_tx = get_retroactive_scholarship_tx(
                             db, int(add_sid), add_term, int(add_year),
                             s_type_id, add_type, add_pct, seq,
+                            internal_note=internal_note_input
                         )
                         if r_tx:
                             db.add(r_tx)
@@ -278,6 +298,7 @@ def render(engine):
                                 db, ss.student_id, r_term, int(r_year),
                                 ss.scholarship_type_id, st_type.name,
                                 _pct(ss.percentage), curr, batch_id,
+                                internal_note=ss.internal_note
                             )
                             if r_tx:
                                 retro.append(r_tx)

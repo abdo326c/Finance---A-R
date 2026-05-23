@@ -63,7 +63,7 @@ def render(engine):
                 if df.empty:
                     st.error("Batch ID not found.")
                 else:
-                    st.toast(f"✅ {len(df, icon="✅")} records in {bid}.")
+                    st.toast(f"✅ {len(df)} records in {bid}.", icon="✅")
                     st.dataframe(df.style.format({"Hours":"{:,.1f}","Debit":"{:,.2f}","Credit":"{:,.2f}"}),
                                  use_container_width=True)
                     buf = io.BytesIO()

@@ -12,7 +12,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 from contextlib import contextmanager
 
-DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
+try:
+    DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
+except Exception:
+    DB_URL = "sqlite:///finance.db"
 
 
 # ── Engine ────────────────────────────────────
@@ -97,6 +100,7 @@ class StudentScholarship(Base):
     term               = Column(String, nullable=False, default="Spring")
     academic_year      = Column(Integer, nullable=False)
     is_active          = Column(Boolean, default=True)
+    internal_note      = Column(String, nullable=True) # 🟢 ملاحظة داخلية للخصم/المنحة
 
 
 class StudentStatus(Base):

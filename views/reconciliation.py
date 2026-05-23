@@ -102,7 +102,7 @@ def render(engine, available_years):
             st.error(f"🛑 Failed to parse file. Verify encoding/format: {str(e)}")
             return
 
-        st.toast(f"📂 Loaded external file: `{uploaded_file.name}` containing **{len(df_ext, icon="✅")}** records.")
+        st.toast(f"📂 Loaded external file: `{uploaded_file.name}` containing **{len(df_ext)}** records.", icon="✅")
 
         # Column Auto-Detection mapping
         cols = list(df_ext.columns)
