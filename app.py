@@ -142,35 +142,12 @@ NAV_OPTIONS = [
     "⚙️ System Admin",
 ]
 
-if "nav_state" not in st.session_state:
-    st.session_state.nav_state = "📊 Dashboard"
-
-def set_nav_from_cmd():
-    if st.session_state.cmd_palette:
-        st.session_state.nav_state = st.session_state.cmd_palette
-
 with st.sidebar:
-    st.markdown("### 🔍 Command Palette")
-    st.selectbox(
-        "Quick Jump (Type to search)",
-        [""] + NAV_OPTIONS,
-        key="cmd_palette",
-        on_change=set_nav_from_cmd,
-        format_func=lambda x: "🔎 Jump to..." if not x else x
-    )
-    st.markdown("---")
-    
     selected_tab = st.radio(
         "Navigation", 
         NAV_OPTIONS, 
-        index=NAV_OPTIONS.index(st.session_state.nav_state) if st.session_state.nav_state in NAV_OPTIONS else 0,
-        key="nav_radio",
         label_visibility="collapsed"
     )
-    
-    if selected_tab != st.session_state.nav_state:
-        st.session_state.nav_state = selected_tab
-        st.rerun()
 
     st.markdown("---")
     st.caption(f"👤 Logged in as: **{st.session_state.get('logged_in_user', '?')}**")
