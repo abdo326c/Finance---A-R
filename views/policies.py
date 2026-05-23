@@ -86,8 +86,9 @@ def render():
                     try:
                         base64_pdf = base64.b64encode(selected_doc.file_data).decode('utf-8')
                         pdf_display = (
-                            f'<iframe src="data:application/pdf;base64,{base64_pdf}" '
-                            f'width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);"></iframe>'
+                            f'<object data="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
+                            f'<embed src="data:application/pdf;base64,{base64_pdf}" type="application/pdf" width="100%" height="850px" style="border: 1px solid #dcdee6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">'
+                            f'</object>'
                         )
                         st.markdown(pdf_display, unsafe_allow_html=True)
                     except Exception as e:
