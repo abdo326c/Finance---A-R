@@ -53,6 +53,7 @@ def render(engine):
                                 write_audit(db, st.session_state["logged_in_user"],
                                             "REGISTER_STUDENT", f"student_id={n_id}", n_name)
                                 db.commit()
+                                st.cache_data.clear()
                                 st.session_state["flash_msg"] = f"Student '{n_name}' registered!"
                                 st.rerun()
                             except Exception:
@@ -111,6 +112,7 @@ def render(engine):
                         write_audit(db, st.session_state["logged_in_user"],
                                     "BULK_REGISTER", "bulk", f"{count} students")
                         db.commit()
+                        st.cache_data.clear()
                         st.success(f"✅ Registered {count} students.")
                     except Exception:
                         db.rollback()
