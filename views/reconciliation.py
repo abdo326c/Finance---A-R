@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import text
 from models import (
-    get_db, Student, Transaction, write_audit, next_ref_block
+    get_db, Student, Transaction, write_audit, next_ref_block, DisputeLog
 )
 from config import VALID_TERMS, DEFAULT_YEAR
 
@@ -554,7 +554,52 @@ def render(engine, available_years):
                         dsc_diff = pc_dsc - loc_dsc
                         pmt_diff = pc_pmt - loc_pmt
 
+                        # Fetch dispute status from database
+                        with get_db() as db:
+                            dispute_entry = db.query(DisputeLog).filter_by(student_id=int(sid)).first()
+                            disputed = dispute_entry.is_disputed if dispute_entry else False
+                            dispute_notes = dispute_entry.notes if dispute_entry else ""
+                        
+                        # Render dispute warning banner if flagged
+                        if disputed:
+                            st.markdown(f"""
+                            <div style="background-color: #ffebee; color: #b71c1c; border-left: 6px solid #b71c1c; padding: 12px; border-radius: 8px; font-weight: 500; font-size: 14px; margin-bottom: 15px;">
+                                ⚠️ <b>Account Flagged: Under Dispute</b><br>
+                                <span style="font-size:12px; opacity:0.9;">Notes: {dispute_notes}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+
                         st.markdown(f"##### 📋 Smarter 3-Step Discrepancy Diagnostics for **{row['Name']}** ({sid})")
+
+                        # Dispute & Follow-up Expandable Form
+                        with st.expander("📌 Internal Dispute & Follow-up Log", expanded=False):
+                            st.caption("Mark this account as disputed or record custom follow-up notes.")
+                            d_col1, d_col2 = st.columns([1, 2])
+                            new_disputed = d_col1.checkbox("⚠️ Flag student ledger under dispute", value=disputed, key=f"disp_check_{sid}")
+                            new_notes = d_col2.text_area("Dispute & Follow-up Notes:", value=dispute_notes, key=f"disp_notes_{sid}", placeholder="e.g. Waiting for Paymob clearance...")
+                            
+                            if st.button("💾 Save Dispute Status & Notes", key=f"disp_save_{sid}", use_container_width=True):
+                                with get_db() as db:
+                                    entry = db.query(DisputeLog).filter_by(student_id=int(sid)).first()
+                                    if entry:
+                                        entry.is_disputed = new_disputed
+                                        entry.notes = new_notes
+                                        entry.updated_by = st.session_state.get("logged_in_user", "System")
+                                    else:
+                                        db.add(DisputeLog(
+                                            student_id = int(sid),
+                                            is_disputed = new_disputed,
+                                            notes = new_notes,
+                                            updated_by = st.session_state.get("logged_in_user", "System")
+                                        ))
+                                    write_audit(
+                                        db, st.session_state["logged_in_user"],
+                                        "RECON_DISPUTE_UPDATE", f"student_id={sid}",
+                                        f"Disputed={new_disputed}, Notes={new_notes[:50]}..."
+                                    )
+                                    db.commit()
+                                    st.toast("✅ Dispute status and notes updated successfully!", icon="✅")
+                                    st.rerun()
 
                         # 🛡️ Complex Multi-Variance Alert check
                         active_diff_categories = []
@@ -637,6 +682,62 @@ def render(engine, available_years):
 
                             # Direct Audit remedies
                             st.markdown("##### 🛠️ Selective Audit Remedies")
+
+                            # 🧪 "Before vs. After" Ledger Simulation Sandbox
+                            sim_active = st.checkbox("🧪 Open 'Before vs. After' Ledger Simulation Sandbox", value=False, key=f"sim_check_{sid}")
+                            if sim_active:
+                                st.markdown("##### 🧪 Real-time Ledger Balance Projection Sandbox")
+                                st.caption("Here is the simulated transition preview showing exactly what your Local A/R database ledgers will look like after executing the imports/adjustments.")
+                                
+                                # Compile simulation rows
+                                sim_rows = [
+                                    {
+                                        "Financial Dimension": "📄 Tuition Charges (Debits)",
+                                        "Current Local (EGP)": loc_chg,
+                                        "Remedy Effect (EGP)": chg_diff if abs(chg_diff) >= 0.01 else 0.0,
+                                        "Projected Local (After Commit)": loc_chg + (chg_diff if abs(chg_diff) >= 0.01 else 0.0),
+                                        "PowerCampus Target": pc_chg,
+                                        "Post-Commit Status": "✅ Will Match" if abs((loc_chg + chg_diff) - pc_chg) < 0.01 else "🟡 Residual variance"
+                                    },
+                                    {
+                                        "Financial Dimension": "🎓 Scholarships (Credits)",
+                                        "Current Local (EGP)": loc_dsc,
+                                        "Remedy Effect (EGP)": dsc_diff if abs(dsc_diff) >= 0.01 else 0.0,
+                                        "Projected Local (After Commit)": loc_dsc + (dsc_diff if abs(dsc_diff) >= 0.01 else 0.0),
+                                        "PowerCampus Target": pc_dsc,
+                                        "Post-Commit Status": "✅ Will Match" if abs((loc_dsc + dsc_diff) - pc_dsc) < 0.01 else "🟡 Residual variance"
+                                    },
+                                    {
+                                        "Financial Dimension": "💳 Payments & Receipts (Credits)",
+                                        "Current Local (EGP)": loc_pmt,
+                                        "Remedy Effect (EGP)": pmt_diff if abs(pmt_diff) >= 0.01 else 0.0,
+                                        "Projected Local (After Commit)": loc_pmt + (pmt_diff if abs(pmt_diff) >= 0.01 else 0.0),
+                                        "PowerCampus Target": pc_pmt,
+                                        "Post-Commit Status": "✅ Will Match" if abs((loc_pmt + pmt_diff) - pc_pmt) < 0.01 else "🟡 Residual variance"
+                                    },
+                                    {
+                                        "Financial Dimension": "⚖️ Net Balance Outstanding",
+                                        "Current Local (EGP)": loc_chg - loc_dsc - loc_pmt,
+                                        "Remedy Effect (EGP)": chg_diff - dsc_diff - pmt_diff,
+                                        "Projected Local (After Commit)": pc_chg - pc_dsc - pc_pmt,
+                                        "PowerCampus Target": pc_chg - pc_dsc - pc_pmt,
+                                        "Post-Commit Status": "✅ Will Balance"
+                                    }
+                                ]
+                                
+                                df_sim = pd.DataFrame(sim_rows)
+                                st.dataframe(
+                                    df_sim,
+                                    use_container_width=True,
+                                    hide_index=True,
+                                    column_config={
+                                        "Current Local (EGP)": st.column_config.NumberColumn(format="%,.2f"),
+                                        "Remedy Effect (EGP)": st.column_config.NumberColumn(format="%+,.2f"),
+                                        "Projected Local (After Commit)": st.column_config.NumberColumn(format="%,.2f"),
+                                        "PowerCampus Target": st.column_config.NumberColumn(format="%,.2f"),
+                                    }
+                                )
+                                st.markdown("<br>", unsafe_allow_html=True)
                             act_col1, act_col2 = st.columns(2)
                             
                             # Remedy 1: Import missing payment

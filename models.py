@@ -147,6 +147,17 @@ class PolicyDocument(Base):
     uploaded_at  = Column(DateTime, server_default=func.now())
 
 
+class DisputeLog(Base):
+    """Stores student account disputes and internal follow-up logs."""
+    __tablename__ = "dispute_logs"
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
+    is_disputed = Column(Boolean, default=False)
+    notes      = Column(String, nullable=True)
+    updated_by = Column(String, nullable=True)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class AuditLog(Base):
     """Immutable record of every write operation."""
     __tablename__ = "audit_logs"
