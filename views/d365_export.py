@@ -160,7 +160,7 @@ def render(engine, available_years):
                 if d365_data:
                     df_d365 = pd.DataFrame(d365_data)
                     
-                    st.toast(f"✅ Successfully prepared {len(df_d365, icon="✅")} rows for upload!")
+                    st.toast(f"✅ Successfully prepared {len(df_d365)} rows for upload!", icon="✅")
                     st.dataframe(df_d365.head(10), use_container_width=True) 
 
                     from helpers import run_in_background

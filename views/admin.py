@@ -93,7 +93,7 @@ def render():
                         ss.percentage = round(ss.percentage * 100.0, 4)
                         fixed += 1
                 db.commit()
-                st.toast(f"✅ Converted {fixed} scholarship record(s, icon="✅").")
+                st.toast(f"✅ Converted {fixed} scholarship record(s).", icon="✅")
 
             # ---------------------------------------------------------
             # الأداة المُحسنة: الدفعات السريعة (Bulk Update in Chunks)
@@ -155,7 +155,7 @@ def render():
                                     db.bulk_update_mappings(Student, chunk)
                                     db.commit() # نأكد الحفظ لكل 500 لتجنب الـ Timeout
                                 
-                                st.toast(f"✅ Successfully updated financial dimensions for {len(update_list, icon="✅")} students!")
+                                st.toast(f"✅ Successfully updated financial dimensions for {len(update_list)} students!", icon="✅")
                             else:
                                 st.warning("⚠️ No valid data found in the uploaded file.")
                                 

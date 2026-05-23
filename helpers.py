@@ -115,7 +115,7 @@ def build_auto_discount_transactions(
 def get_retroactive_scholarship_tx(
     db, student_id, term, academic_year,
     sch_type_id, sch_name, requested_pct: float,
-    ref_num: int, batch_id=None
+    ref_num: int, batch_id=None, internal_note=None
 ):
     """
     Computes the delta between what was already discounted for this
@@ -187,6 +187,7 @@ def get_retroactive_scholarship_tx(
         scholarship_type_id = sch_type_id,
         transaction_type    = "Discount",
         description         = desc,
+        internal_note       = internal_note,
         hours_change        = 0.0,
         debit               = abs(diff) if diff < 0 else 0.0,
         credit              = diff      if diff > 0 else 0.0,
