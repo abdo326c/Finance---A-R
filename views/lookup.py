@@ -311,6 +311,9 @@ def render():
             with sr:
                 if student.sibling_id:
                     st.info(f"👨‍👩‍👧 **Sibling ID:** {student.sibling_id}")
+                    if st.button(f"🔗 Jump to Sibling ({student.sibling_id})", use_container_width=True, key=f"sib_jump_{student.id}"):
+                        st.session_state["lookup_id"] = student.sibling_id
+                        st.rerun()
                 else:
                     st.write("👨‍👩‍👧 **Sibling ID:** None")
 
