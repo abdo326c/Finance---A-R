@@ -144,7 +144,48 @@ def render(engine, available_years):
             term_col = mc8.selectbox("Term Column", cols, index=cols.index(term_col) if term_col in cols else 0)
             year_col = mc9.selectbox("Year Column", cols, index=cols.index(year_col) if year_col in cols else 0)
 
-        # ── 5. Run Compare Core Engine ──
+        # Check if settings changed to reset initialization state
+        current_state_key = f"{uploaded_file.name}_{selected_term}_{selected_year}"
+        if st.session_state.get("recon_state_key") != current_state_key:
+            st.session_state["recon_state_key"] = current_state_key
+            if "recon_initialized" in st.session_state:
+                del st.session_state["recon_initialized"]
+
+        # ── 5. Cohort Filtering Safeguard ──
+        st.markdown("#### 🎯 Reconciliation Scope & Cohort Filtering")
+        
+        with st.container():
+            st.markdown("<div class='glass-card' style='padding: 20px; border-radius: 12px; margin-bottom: 20px; border-left: 6px solid #0d47a1;'>", unsafe_allow_html=True)
+            st.markdown("""
+            💡 <b>Cohort Filtering</b>: PowerCampus database exports often contain registrations for all university programs (e.g., graduates, non-UG, international groups). 
+            Since this A/R instance is dedicated to a specific cohort (such as active UG Egyptian students), you should reconcile only student records already present/active in your Local A/R system to avoid thousands of foreign-category discrepancies.
+            """)
+            
+            cohort_scope = st.radio(
+                "Select Reconciliation Target Cohort:",
+                options=[
+                    "🎯 Active Local Student Cohort Only (Recommended - Filters out other PowerCampus categories)",
+                    "🌐 All Uploaded PowerCampus Student Records (Full cross-system audit of all csv rows)"
+                ],
+                index=0,
+                key="reconciliation_cohort_scope_select"
+            )
+            
+            col_init, _ = st.columns([2, 2])
+            proceed_reconcile = col_init.button("🚀 Initialize Smart Reconciliation Engine", type="primary", use_container_width=True)
+            
+            if proceed_reconcile:
+                st.session_state["recon_initialized"] = True
+                st.session_state["recon_cohort_scope"] = cohort_scope
+                
+            if "recon_initialized" not in st.session_state:
+                st.info("💡 Please select the cohort scope above and click **'Initialize Smart Reconciliation Engine'** to run the matching calculations.")
+                st.markdown("</div>", unsafe_allow_html=True)
+                return
+                
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # ── 6. Run Compare Core Engine ──
         with st.spinner("Analyzing ledger discrepancies..."):
             # Ensure proper types
             df_ext[id_col] = df_ext[id_col].astype(str).str.replace(".0", "", regex=False).str.strip()
@@ -219,6 +260,15 @@ def render(engine, available_years):
             # Compute net balance per student in external system
             for sid, details in ext_students.items():
                 details["net_balance"] = details["charges"] - details["discounts"] - details["payments"]
+
+            # Get list of active local student IDs to implement target cohort filtering
+            with get_db() as db:
+                local_active_student_ids = {str(s.id) for s in db.query(Student.id).all()}
+            
+            # Filter ext_students to only include active local students if target cohort scope is enabled
+            is_local_only = "Active Local Student Cohort Only" in st.session_state.get("recon_cohort_scope", "")
+            if is_local_only:
+                ext_students = {sid: data for sid, data in ext_students.items() if sid in local_active_student_ids}
 
             # Query Local Database ledger totals
             local_students = {}
