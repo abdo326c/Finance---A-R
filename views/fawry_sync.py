@@ -162,23 +162,53 @@ def render(engine, available_years):
     st.markdown("### 🔍 Filter Payments")
     
     unique_dates = sorted(list(set(t.get("payment_date") for t in unsynced_txs if t.get("payment_date"))))
+    
+    min_date = datetime.date.today()
+    max_date = datetime.date.today()
+    if unique_dates:
+        try:
+            min_date = datetime.datetime.strptime(unique_dates[0], "%Y-%m-%d").date()
+            max_date = datetime.datetime.strptime(unique_dates[-1], "%Y-%m-%d").date()
+        except Exception:
+            pass
+            
+    st.info(f"💡 **Sync Recommendation:** Missing payments detected. The system recommends pulling from **{min_date.strftime('%Y-%m-%d')}** onwards.")
+
     unique_items = sorted(list(set(t.get("item_name") for t in unsynced_txs if t.get("item_name"))))
     unique_banks = sorted(list(set(t.get("bank") for t in unsynced_txs if t.get("bank"))))
     
+    default_items = [i for i in unique_items if i.upper() in ["TUI", "SU", "LATE FEE", "LATE_FEE"]]
+    
     col_f1, col_f2, col_f3, col_f4 = st.columns(4)
     with col_f1:
-        filter_dates = st.multiselect("Date of Payment", unique_dates, default=[])
+        filter_date_range = st.date_input("Date Range", value=(min_date, max_date))
     with col_f2:
         filter_mapping = st.selectbox("Mapping Status", ["All", "Mapped (Found)", "Unmapped (Not Found)"])
     with col_f3:
-        filter_items = st.multiselect("Item Name", unique_items, default=[])
+        filter_items = st.multiselect("Item Name", unique_items, default=default_items)
     with col_f4:
         filter_banks = st.multiselect("Bank", unique_banks, default=[])
         
     filtered_txs = []
+    
+    range_start, range_end = None, None
+    if isinstance(filter_date_range, tuple):
+        if len(filter_date_range) == 2:
+            range_start, range_end = filter_date_range
+        elif len(filter_date_range) == 1:
+            range_start = range_end = filter_date_range[0]
+    elif filter_date_range:
+        range_start = range_end = filter_date_range
+        
     for tx in unsynced_txs:
-        if filter_dates and tx.get("payment_date") not in filter_dates:
-            continue
+        if range_start and range_end and tx.get("payment_date"):
+            try:
+                tx_date = datetime.datetime.strptime(tx["payment_date"], "%Y-%m-%d").date()
+                if not (range_start <= tx_date <= range_end):
+                    continue
+            except Exception:
+                pass
+                
         if filter_mapping == "Mapped (Found)" and not tx["student_found"]:
             continue
         if filter_mapping == "Unmapped (Not Found)" and tx["student_found"]:
@@ -192,10 +222,20 @@ def render(engine, available_years):
     # Statistics Cards
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Pending Transactions", f"{len(filtered_txs)} payments")
+        st.markdown(f'''
+            <div style="padding:12px; border-radius:6px; background-color:rgba(31,119,180,0.1); border-left:4px solid #1f77b4; margin-bottom:15px;">
+                <div style="font-size: 13px; color: #555; font-weight: 600;">Pending Transactions</div>
+                <div style="font-size: 18px; font-weight: bold; color: #1f77b4;">{len(filtered_txs):,} <span style="font-size:14px;font-weight:normal;">payments</span></div>
+            </div>
+        ''', unsafe_allow_html=True)
     with c2:
         total_vol = sum(t["item_price"] for t in filtered_txs)
-        st.metric("Total Outstanding Volume", f"{total_vol:,.2f} EGP")
+        st.markdown(f'''
+            <div style="padding:12px; border-radius:6px; background-color:rgba(39,201,63,0.1); border-left:4px solid #27c93f; margin-bottom:15px;">
+                <div style="font-size: 13px; color: #555; font-weight: 600;">Total Outstanding Volume</div>
+                <div style="font-size: 18px; font-weight: bold; color: #27c93f;">{total_vol:,.2f} <span style="font-size:14px;font-weight:normal;">EGP</span></div>
+            </div>
+        ''', unsafe_allow_html=True)
 
     # Render Styled Table
     display_rows = []
