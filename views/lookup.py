@@ -311,14 +311,22 @@ def render():
             with sr:
                 if student.sibling_id:
                     st.info(f"👨‍👩‍👧 **Sibling ID:** {student.sibling_id}")
-                    if st.button(f"🔗 Jump to Sibling ({student.sibling_id})", use_container_width=True, key=f"sib_jump_{student.id}"):
-                        st.session_state["lookup_id"] = student.sibling_id
-                        # Update the selectbox autocomplete widget session state key to keep the UI in sync
+                    
+                    def trigger_jump(sib_id):
+                        st.session_state["lookup_id"] = sib_id
+                        # Update the selectbox autocomplete widget session state inside callback before rerun
                         with get_db() as db_session:
-                            sibling = db_session.get(Student, student.sibling_id)
+                            sibling = db_session.get(Student, sib_id)
                             if sibling:
                                 st.session_state["student_autocomplete_search"] = f"{sibling.id} — {sibling.name}"
-                        st.rerun()
+
+                    st.button(
+                        f"🔗 Jump to Sibling ({student.sibling_id})", 
+                        use_container_width=True, 
+                        key=f"sib_jump_{student.id}",
+                        on_click=trigger_jump,
+                        args=(student.sibling_id,)
+                    )
                 else:
                     st.write("👨‍👩‍👧 **Sibling ID:** None")
 
