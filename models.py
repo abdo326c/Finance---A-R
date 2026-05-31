@@ -3,23 +3,19 @@
 # SQLAlchemy ORM models + DB engine + helpers
 # All DB indexes are declared here.
 # ─────────────────────────────────────────────
-import streamlit as st
+import os
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float,
     ForeignKey, DateTime, Date, Boolean, LargeBinary, Index, text, event
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
-from contextlib import contextmanager
+from functools import lru_cache
 
-try:
-    DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
-except Exception:
-    DB_URL = "sqlite:///finance.db"
-
+DB_URL = os.environ.get("DB_URL", "sqlite:///finance.db")
 
 # ── Engine ────────────────────────────────────
-@st.cache_resource
+@lru_cache(maxsize=1)
 def get_db_engine():
     if "sqlite" in DB_URL:
         eng = create_engine(DB_URL, connect_args={"check_same_thread": False})
@@ -43,14 +39,12 @@ Base         = declarative_base()
 SessionLocal = sessionmaker(bind=engine)
 
 
-@contextmanager
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
 
 # ── Models ────────────────────────────────────
 class SystemUser(Base):
@@ -219,14 +213,14 @@ def run_migrations():
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE student_scholarships ADD COLUMN internal_note VARCHAR(1000) NULL"))
     except Exception as e:
-        st.warning(f"Note: Database auto-migration alert: {e}")
+        print(f"Note: Database auto-migration alert: {e}")
 
 run_migrations()
 
 # ── Seed default users (first run only) ───────
 def seed_default_users():
-    from auth import hash_pw
-    with get_db() as db:
+    from api.auth import hash_pw
+    with contextmanager(get_db)() as db:
         if not db.query(SystemUser).first():
             db.add(SystemUser(
                 username="fin_admin",
@@ -293,9 +287,10 @@ def write_audit(db, username: str, action: str, target: str = "", detail: str = 
 
 
 # ── Cached lookups ────────────────────────────
-@st.cache_data(ttl=1800)
+@lru_cache(maxsize=1)
 def get_static_lookups():
-    with get_db() as s:
+    from contextlib import contextmanager
+    with contextmanager(get_db)() as s:
         sch_map  = {sch.name: sch.id for sch in s.query(ScholarshipType).all()}
         colleges = [c[0] for c in s.query(Student.college).distinct().all() if c[0]]
         years    = [y[0] for y in s.query(Transaction.academic_year).distinct().all() if y[0]]

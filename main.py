@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from api.auth import router as auth_router
+from api.dashboard import router as dashboard_router
 
 app = FastAPI(title="Finance A/R System API")
 
@@ -15,6 +16,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
 
 @app.get("/")
 def root():

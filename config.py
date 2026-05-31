@@ -2,14 +2,15 @@
 # ─────────────────────────────────────────────
 # Centralized constants & environment config
 # ─────────────────────────────────────────────
-import streamlit as st
+import os
+from functools import lru_cache
 
 MAX_BULK_ROWS  = 5_000          # guard against huge uploads freezing the app
 TIMEOUT_MIN    = 30             # session idle timeout in minutes
-DB_URL = st.secrets.get("DB_URL", "sqlite:///finance.db")
+DB_URL = os.environ.get("DB_URL", "sqlite:///finance.db")
 
 
-@st.cache_data(ttl=300)
+@lru_cache(maxsize=1)
 def get_dynamic_configs():
     """
     Dynamically loads configuration lists from the database.
