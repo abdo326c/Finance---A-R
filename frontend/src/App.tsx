@@ -12,6 +12,9 @@ import Registration from './pages/Registration';
 import FawrySync from './pages/FawrySync';
 import D365Export from './pages/D365Export';
 import Reconciliation from './pages/Reconciliation';
+import BulkOperations from './pages/BulkOperations';
+import BatchManagement from './pages/BatchManagement';
+import EmailFollowup from './pages/EmailFollowup';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -126,6 +129,30 @@ function App() {
           element={
             <ProtectedRoute>
               <Reconciliation />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/bulk" 
+          element={
+            <ProtectedRoute>
+              <BulkOperations />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/batches" 
+          element={
+            <ProtectedRoute>
+              <BatchManagement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/emails" 
+          element={
+            <ProtectedRoute>
+              <EmailFollowup />
             </ProtectedRoute>
           } 
         />

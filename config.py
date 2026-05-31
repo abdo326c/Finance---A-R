@@ -5,7 +5,7 @@
 import os
 from functools import lru_cache
 
-MAX_BULK_ROWS  = 5_000          # guard against huge uploads freezing the app
+MAX_BULK_ROWS  = 25_000         # guard against huge uploads freezing the app
 TIMEOUT_MIN    = 30             # session idle timeout in minutes
 DB_URL = os.environ.get("DB_URL", "sqlite:///finance.db")
 
