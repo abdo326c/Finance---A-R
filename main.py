@@ -4,15 +4,9 @@ import uvicorn
 
 from api.auth import router as auth_router
 from api.dashboard import router as dashboard_router
-from api.statement import router as statement_router
-from api.reports import router as reports_router
-from api.operations import router as operations_router
-from api.lookups import router as lookups_router
-from api.policies import router as policies_router
-from api.scholarships import router as scholarships_router
-from api.registration import router as registration_router
+from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, fawry, d365, reconciliation
 
-app = FastAPI(title="Finance A/R System API")
+app = FastAPI(title="Finance A/R API")
 
 # Setup CORS
 app.add_middleware(
@@ -24,15 +18,18 @@ app.add_middleware(
 )
 
 # Include Routers
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
-app.include_router(dashboard_router, prefix="/api/dashboard", tags=["dashboard"])
-app.include_router(statement_router, prefix="/api/statement", tags=["statement"])
-app.include_router(reports_router, prefix="/api/reports", tags=["reports"])
-app.include_router(operations_router, prefix="/api/operations", tags=["operations"])
-app.include_router(lookups_router, prefix="/api/lookups", tags=["lookups"])
-app.include_router(policies_router, prefix="/api/policies", tags=["policies"])
-app.include_router(scholarships_router, prefix="/api/scholarships", tags=["scholarships"])
-app.include_router(registration_router, prefix="/api/registration", tags=["registration"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(registration.router, prefix="/api/registration", tags=["registration"])
+app.include_router(lookups.router, prefix="/api/lookups", tags=["lookups"])
+app.include_router(scholarships.router, prefix="/api/scholarships", tags=["scholarships"])
+app.include_router(operations.router, prefix="/api/operations", tags=["operations"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
+app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
+app.include_router(statement.router, prefix="/api/statement", tags=["statement"])
+app.include_router(policies.router, prefix="/api/policies", tags=["policies"])
+app.include_router(fawry.router, prefix="/api/fawry", tags=["fawry"])
+app.include_router(d365.router, prefix="/api/d365", tags=["d365"])
+app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])
 
 @app.get("/")
 def root():

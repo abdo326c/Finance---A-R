@@ -1,0 +1,142 @@
+.d365-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.d365-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.d365-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #60a5fa;
+  font-size: 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row.two-cols > .form-group {
+  flex: 1;
+}
+
+.form-row.three-cols > .form-group {
+  flex: 1;
+}
+
+.info-banner {
+  margin-top: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 4px solid #3b82f6;
+  padding: 12px 16px;
+  border-radius: 6px;
+  color: #bfdbfe;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.generate-btn {
+  padding: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.instructions-sidebar {
+  padding: 24px;
+  position: sticky;
+  top: 24px;
+}
+
+.instructions-sidebar h3 {
+  margin: 0 0 16px 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.instructions-sidebar > p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+.instruction-step {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.instruction-step:last-child {
+  margin-bottom: 0;
+}
+
+.step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.instruction-step strong {
+  display: block;
+  color: #fff;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.instruction-step p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 1024px) {
+  .d365-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .instructions-sidebar {
+    position: static;
+  }
+  
+  .form-row.two-cols,
+  .form-row.three-cols {
+    flex-direction: column;
+  }
+}
