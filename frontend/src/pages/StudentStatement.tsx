@@ -92,6 +92,14 @@ export default function StudentStatement() {
     return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 2 }).format(value);
   };
 
+  const getBadgeClass = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('invoice')) return 'invoice';
+    if (t.includes('payment') || t.includes('receipt')) return 'payment-receipt';
+    if (t.includes('discount') || t.includes('scholarship')) return 'discount';
+    return 'other-fees';
+  };
+
   return (
     <div className="statement-container">
       <header className="page-header">
@@ -199,7 +207,7 @@ export default function StudentStatement() {
                       <td>{t.Date}</td>
                       <td><strong>{t['Ref No']}</strong></td>
                       <td>{t.Term} {t.Year}</td>
-                      <td><span className={`badge ${t.Type.toLowerCase().replace(' ', '-')}`}>{t.Type}</span></td>
+                      <td><span className={`badge ${getBadgeClass(t.Type)}`}>{t.Type}</span></td>
                       <td>{t.Description}</td>
                       <td className="text-right" style={{color: t.Debit > 0 ? '#ef4444' : ''}}>
                         {t.Debit > 0 ? formatCurrency(t.Debit) : '—'}
