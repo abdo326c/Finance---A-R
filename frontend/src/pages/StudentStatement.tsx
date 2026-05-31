@@ -56,9 +56,12 @@ export default function StudentStatement() {
       
       setTransactions(response.data.transactions);
       setMetrics(response.data.metrics);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching statement", error);
       setTransactions([]);
+      if (error.response?.status === 401) {
+        alert("Your secure session has expired. Please click Logout in the sidebar and log back in.");
+      }
     } finally {
       setLoading(false);
     }
