@@ -103,3 +103,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 @router.get("/me")
 async def read_users_me(current_user: SystemUser = Depends(get_current_user)):
     return {"username": current_user.username, "role": current_user.role}
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@router.post("/change-password")
+async def change_password(req: ChangePasswordRequest, current_user: SystemUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not verify_pw(req.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    if len(req.new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password too short")
+    current_user.password_hash = hash_pw(req.new_password)
+    db.commit()
+    return {"message": "Password updated successfully"}

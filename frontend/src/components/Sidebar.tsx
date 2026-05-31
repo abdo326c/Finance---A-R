@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key } from 'lucide-react';
+import axios from 'axios';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -18,9 +19,31 @@ export default function Sidebar() {
     }
   });
 
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [currentPw, setCurrentPw] = useState('');
+  const [newPw, setNewPw] = useState('');
+  const [pwError, setPwError] = useState('');
+
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
+  };
+
+  const handleChangePassword = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://127.0.0.1:8000/api/auth/change-password', {
+        current_password: currentPw,
+        new_password: newPw
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Password changed successfully');
+      setShowChangePw(false);
+      setCurrentPw('');
+      setNewPw('');
+      setPwError('');
+    } catch (err: any) {
+      setPwError(err.response?.data?.detail || 'Failed to change password');
+    }
   };
 
   return (
@@ -120,11 +143,39 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
+        <button onClick={() => setShowChangePw(true)} className="btn-logout-sidebar" style={{ background: 'transparent', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '10px' }}>
+          <Key size={18} />
+          <span>Change Password</span>
+        </button>
         <button onClick={handleLogout} className="btn-logout-sidebar">
           <LogOut size={20} />
           <span>Logout</span>
         </button>
       </div>
+
+      {showChangePw && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel" style={{ width: '350px', padding: '24px' }}>
+            <h3 style={{ margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}><Key size={18}/> Change Password</h3>
+            {pwError && <div style={{ color: '#ef4444', marginBottom: '15px', fontSize: '13px' }}>{pwError}</div>}
+            
+            <div className="form-group">
+              <label>Current Password</label>
+              <input type="password" value={currentPw} onChange={e => setCurrentPw(e.target.value)} />
+            </div>
+            
+            <div className="form-group">
+              <label>New Password</label>
+              <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowChangePw(false)}>Cancel</button>
+              <button className="btn-primary" style={{ flex: 1 }} onClick={handleChangePassword}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
