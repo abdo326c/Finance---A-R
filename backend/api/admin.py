@@ -165,6 +165,7 @@ async def bulk_update_dimensions(file: UploadFile = File(...), current_user = De
                 db.commit()
                 
             write_audit(db, current_user.username, "BULK_UPDATE_DIMENSIONS", "students", f"Updated {len(update_list)} dimensions")
+            db.commit()
             return {"message": f"Successfully updated financial dimensions for {len(update_list)} students!"}
         else:
             return {"message": "No valid data found in the uploaded file.", "warning": True}

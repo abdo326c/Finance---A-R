@@ -264,15 +264,15 @@ async def update_dispute(
     if entry:
         entry.is_disputed = req.is_disputed
         entry.notes = req.notes
-        entry.updated_by = current_user
+        entry.updated_by = current_user.username
     else:
         db.add(DisputeLog(
             student_id=student_id,
             is_disputed=req.is_disputed,
             notes=req.notes,
-            updated_by=current_user
+            updated_by=current_user.username
         ))
-    write_audit(db, current_user, "RECON_DISPUTE_UPDATE", f"student_id={student_id}", f"Disputed={req.is_disputed}")
+    write_audit(db, current_user.username, "RECON_DISPUTE_UPDATE", f"student_id={student_id}", f"Disputed={req.is_disputed}")
     db.commit()
     return {"message": "Dispute updated"}
 
@@ -333,6 +333,6 @@ async def resolve_discrepancy(
         academic_year=req.year
     )
     db.add(tx)
-    write_audit(db, current_user, f"RECON_RESOLVE_{action.upper()}", f"student_id={req.student_id}", f"Amount={req.amount}")
+    write_audit(db, current_user.username, f"RECON_RESOLVE_{action.upper()}", f"student_id={req.student_id}", f"Amount={req.amount}")
     db.commit()
     return {"message": "Resolution applied successfully"}

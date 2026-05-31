@@ -94,7 +94,7 @@ async def send_emails(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.get("role") not in ["Admin", "Editor"]:
+    if current_user.role not in ["Admin", "Editor"]:
         raise HTTPException(status_code=403, detail="Not authorized to send emails.")
         
     try:
@@ -175,24 +175,14 @@ async def send_emails(
         msg_alternative.attach(MIMEText(html_content, "html"))
         msg.attach(msg_alternative)
         
-        # Prepare rows for PDF
-        rows = [
-            {
-                "date": t.entry_date.strftime("%Y-%m-%d") if hasattr(t.entry_date, 'strftime') else str(t.entry_date),
-                "ref_no": t.reference_no,
-                "type": t.transaction_type,
-                "description": t.description or "",
-                "term_year": f"{t.term} {t.academic_year}",
-                "debit": t.debit,
-                "credit": t.credit
-            } for t in txs
-        ]
+        # Build rows as (Transaction, Student) tuples to match create_landscape_pdf signature
+        pdf_rows = [(t, student) for t in txs]
         
         pdf_bytes = create_landscape_pdf(
             student.id, 
             student.name, 
             student.college or "", 
-            rows, 
+            pdf_rows, 
             current_balance, 
             total_d, 
             total_c

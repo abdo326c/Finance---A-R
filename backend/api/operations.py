@@ -77,6 +77,9 @@ def process_transaction(
     db: Session = Depends(get_db), 
     current_user=Depends(get_current_user)
 ):
+    if current_user.role not in ["Admin", "Editor"]:
+        raise HTTPException(status_code=403, detail="Not authorized to post transactions.")
+        
     student = db.get(Student, req.student_id)
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")

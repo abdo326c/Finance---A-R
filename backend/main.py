@@ -2,9 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-from api.auth import router as auth_router
-from api.dashboard import router as dashboard_router
 from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, fawry, d365, reconciliation, bulk, batches, email, admin, explorer
+from models import seed_default_users
 
 app = FastAPI(title="Finance A/R API")
 
@@ -35,6 +34,10 @@ app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
 app.include_router(email.router, prefix="/api/email", tags=["email"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(explorer.router, prefix="/api/explorer", tags=["explorer"])
+
+@app.on_event("startup")
+def startup_event():
+    seed_default_users()
 
 @app.get("/")
 def root():

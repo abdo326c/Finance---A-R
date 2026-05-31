@@ -172,6 +172,7 @@ async def issue_clearance(student_id: int, current_user = Depends(get_current_us
         pdf_bytes = buffer.getvalue()
         
         write_audit(db, current_user.username, "ISSUE_CLEARANCE", f"student_id={student.id}", "Generated Financial Clearance PDF")
+        db.commit()
         
         return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Clearance_{student.id}.pdf"})
     except Exception as e:
@@ -196,5 +197,6 @@ async def export_all_students(current_user = Depends(get_current_user), db: Sess
     df.to_excel(buf, index=False)
     
     write_audit(db, current_user.username, "EXPORT_ALL_STUDENTS", "master_data", "Exported Master Data to Excel")
+    db.commit()
     
     return Response(content=buf.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=All_Students_Master_Data.xlsx"})
