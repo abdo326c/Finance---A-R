@@ -35,8 +35,8 @@ export default function StudentStatement() {
     if (sid) params.sid = sid;
     if (sysRef) params.sys = sysRef;
     if (bankRef) params.bank = bankRef;
-    if (term) params.terms = [term];
-    if (year) params.years = [parseInt(year)];
+    if (term) params.terms = term;
+    if (year) params.years = year;
     return params;
   };
 
