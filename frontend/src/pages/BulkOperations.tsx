@@ -68,7 +68,7 @@ export default function BulkOperations() {
   };
 
   return (
-    <div className="bulk-page">
+    <div className="page-container bulk-page">
       <div className="page-header">
         <h1><FileSpreadsheet size={28} style={{ marginRight: '10px' }} /> Bulk Financial Operations</h1>
         <p>Process hundreds of transactions simultaneously using Excel templates.</p>

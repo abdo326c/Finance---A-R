@@ -10,9 +10,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--surface-color);
+  border-right: 1px solid var(--border-color);
+  transition: var(--transition);
 }
 
 .sidebar-header {
@@ -47,14 +47,14 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-color), #2563eb);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
   color: white;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 1.25rem;
   font-weight: 700;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 12px var(--primary-transparent);
 }
 
 .user-name {
@@ -78,12 +78,22 @@
   overflow-y: auto;
 }
 
+.sidebar-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  padding: 0 12px;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 20px;
-  border-radius: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
   color: var(--text-secondary);
   text-decoration: none;
   font-weight: 500;
@@ -91,27 +101,14 @@
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--primary-transparent);
   color: var(--primary-color);
   font-weight: 600;
-  position: relative;
-}
-
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 60%;
-  width: 4px;
-  background: var(--primary-color);
-  border-radius: 0 4px 4px 0;
 }
 
 .sidebar-footer {
@@ -125,11 +122,11 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 14px;
+  padding: 12px;
   background: transparent;
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-  border-radius: 12px;
+  color: var(--danger);
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
@@ -137,12 +134,12 @@
 
 .btn-logout-sidebar:hover {
   background: rgba(239, 68, 68, 0.1);
-  border-color: #ef4444;
+  border-color: var(--danger);
 }
 
 /* Desktop Collapse Logic */
 .sidebar {
-  transition: margin-left 0.3s ease;
+  transition: margin-left 0.3s ease, background 0.3s ease, border 0.3s ease;
   width: 260px;
   flex-shrink: 0;
 }
@@ -172,7 +169,7 @@
     position: fixed;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
-    box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+    box-shadow: 4px 0 24px rgba(0,0,0,0.2);
   }
   
   .sidebar.mobile-open {
