@@ -54,11 +54,11 @@ export default function Reports() {
   };
 
   const buildParams = () => {
-    const params: any = { format };
-    if (colleges.length) params.colleges = colleges;
-    if (terms.length) params.terms = terms;
-    if (years.length) params.years = years;
-    if (statuses.length) params.statuses = statuses;
+    const params: any = { format: format };
+    if (colleges.length) params.colleges = colleges[0];
+    if (terms.length) params.terms = terms[0];
+    if (years.length) params.years = years[0];
+    if (statuses.length) params.statuses = statuses[0];
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     return params;
