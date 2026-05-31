@@ -1,0 +1,88 @@
+.lookups-container {
+  padding: 32px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.lookups-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+}
+
+.lookup-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lookup-card-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.lookup-card-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--primary-color);
+}
+
+.lookup-card-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.add-row {
+  display: flex;
+  gap: 12px;
+}
+
+.add-row input {
+  flex: 1;
+}
+
+.table-wrapper {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.2);
+}
+
+/* Override react-data-table-component transparent backgrounds */
+.rdt_Table {
+  background: transparent !important;
+}
+
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  display: grid;
+  place-content: center;
+  transition: var(--transition);
+}
+
+.btn-icon:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  text-align: center;
+  color: #ef4444;
+}
+
+.error-state p {
+  color: var(--text-secondary);
+  margin-top: 8px;
+}

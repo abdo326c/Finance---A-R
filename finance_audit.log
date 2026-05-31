@@ -1,1 +1,2 @@
 {"asctime": "2026-05-31 04:08:51,106", "levelname": "INFO", "name": "finance_audit", "message": "Audit Event", "audit_username": "abdo", "audit_action": "POST_TX", "audit_target": "student_id=1", "audit_detail": "Invoice | INV-000503 | dr=22500.0 cr=0.0"}
+{"asctime": "2026-05-31 04:14:37,084", "levelname": "INFO", "name": "finance_audit", "message": "Audit Event", "audit_username": "abdo", "audit_action": "POST_TX", "audit_target": "student_id=1", "audit_detail": "Payment Receipt | PAY-000554 | dr=0.0 cr=15000.0"}
