@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Mail, Settings, Users, Send } from 'lucide-react';
+import { Mail, Settings, Users, Send, FileText } from 'lucide-react';
 
 export default function EmailFollowup() {
   const [smtpServer, setSmtpServer] = useState('smtp.gmail.com');
@@ -224,7 +224,7 @@ Nile University`);
                 <div style={{ padding: '20px', fontSize: '14px', whiteSpace: 'pre-line' }}>
                   {previewData.formatted_body}
                   <div style={{ marginTop: '20px', padding: '10px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ background: '#3b82f6', color: 'white', padding: '5px', borderRadius: '4px' }}><FileSpreadsheet size={16} /></div>
+                    <div style={{ background: '#3b82f6', color: 'white', padding: '5px', borderRadius: '4px' }}><FileText size={16} /></div>
                     <span style={{ fontSize: '12px' }}>Statement_{selectedStudents[0].id}.pdf</span>
                   </div>
                 </div>
