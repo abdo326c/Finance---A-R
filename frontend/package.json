@@ -13,9 +13,11 @@
     "axios": "^1.16.1",
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
+    "react-data-table-component": "^8.3.0",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "styled-components": "^6.4.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
