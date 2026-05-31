@@ -298,10 +298,12 @@ export default function Operations() {
               </div>
               <div className="form-group flex-1">
                 <label>Year</label>
-                <select value={year} onChange={e => setYear(parseInt(e.target.value))} required>
-                  <option value="" disabled>Select</option>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
+                <input 
+                  type="number" 
+                  value={year} 
+                  onChange={e => setYear(parseInt(e.target.value))} 
+                  required 
+                />
               </div>
             </div>
 
