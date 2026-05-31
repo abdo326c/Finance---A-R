@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, Download, Archive, ServerCrash } from 'lucide-react';
+import { Trash2, Download, Archive, AlertTriangle } from 'lucide-react';
 
 export default function BatchManagement() {
   const [activeTab, setActiveTab] = useState<'active' | 'deleted'>('active');
@@ -115,7 +115,7 @@ export default function BatchManagement() {
             {isAdmin && (
               <div style={{ background: 'rgba(255, 95, 86, 0.05)', border: '1px solid rgba(255, 95, 86, 0.2)', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
                 <h4 style={{ margin: '0 0 10px 0', color: '#ff5f56', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ServerCrash size={18} /> Danger Zone: Rollback Batch
+                  <AlertTriangle size={18} /> Danger Zone: Rollback Batch
                 </h4>
                 <form onSubmit={handleDelete} style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
                   <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
