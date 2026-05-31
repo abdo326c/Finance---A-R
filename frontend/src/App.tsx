@@ -2,15 +2,28 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
+import StudentStatement from './pages/StudentStatement';
+import Sidebar from './components/Sidebar';
 
-// Placeholder for protected route logic and layout wrapper
+// Layout wrapper for authenticated pages
+const AppLayout = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+      <Sidebar />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// Protected route logic
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  // In a real app, we'd also wrap children in the Sidebar Layout here
-  return <>{children}</>;
+  return <AppLayout>{children}</AppLayout>;
 };
 
 function App() {
@@ -18,7 +31,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route 
           path="/dashboard" 
           element={
@@ -27,8 +40,14 @@ function App() {
             </ProtectedRoute>
           } 
         />
-        
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route 
+          path="/statement" 
+          element={
+            <ProtectedRoute>
+              <StudentStatement />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </BrowserRouter>
   );
