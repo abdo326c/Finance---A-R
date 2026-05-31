@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight } from 'lucide-react';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -49,7 +49,7 @@ export default function Sidebar() {
         </NavLink>
         
         <NavLink to="/scholarships" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <GraduationCap size={20} />
+          <Award size={20} />
           <span>Scholarships</span>
         </NavLink>
         
@@ -61,6 +61,22 @@ export default function Sidebar() {
         <NavLink to="/operations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Calculator size={20} />
           <span>Operations</span>
+        </NavLink>
+
+        <div className="sidebar-title" style={{ marginTop: '32px' }}>INTEGRATIONS</div>
+        <NavLink to="/fawry" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <CloudRain size={20} />
+          <span>Fawry Sync</span>
+        </NavLink>
+        
+        <NavLink to="/d365" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <RefreshCw size={20} />
+          <span>D365 Export</span>
+        </NavLink>
+        
+        <NavLink to="/reconciliation" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <ArrowLeftRight size={20} />
+          <span>Reconciliation</span>
         </NavLink>
         
         <div className="sidebar-title" style={{ marginTop: '32px' }}>ADMINISTRATION</div>
