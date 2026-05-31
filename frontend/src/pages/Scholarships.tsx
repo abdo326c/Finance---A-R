@@ -41,7 +41,7 @@ export default function Scholarships() {
     const fetchLookups = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://127.0.0.1:8000/api/lookups', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setLookups(res.data);
@@ -108,7 +108,7 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/scholarships/student/${studentId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/student/${studentId}`, {
         params: { term, year },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -125,7 +125,7 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
     if (reversePast && !window.confirm(`Are you sure you want to stop and REVERSE past discounts for ${sch.scholarship_name}?`)) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/scholarships/${sch.id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/${sch.id}`, {
         is_active: newStatus,
         reverse_past: reversePast
       }, {
@@ -142,7 +142,7 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
   const handleSaveNote = async (sch: Scholarship) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/scholarships/${sch.id}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/${sch.id}`, {
         internal_note: editNote
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -275,7 +275,7 @@ function AssignTab({ lookups, showFlash }: any) {
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/api/scholarships', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships`, {
         student_id: Number(studentId),
         scholarship_type_id: lookups.scholarships[schType],
         percentage: Number(percentage),
@@ -365,7 +365,7 @@ function ToolsTab({ lookups, showFlash }: any) {
     setSyncing(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/scholarships/sync', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/sync`, {
         term, year
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -382,7 +382,7 @@ function ToolsTab({ lookups, showFlash }: any) {
     setDownloading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/scholarships/report/data', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/report/data`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

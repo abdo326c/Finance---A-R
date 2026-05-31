@@ -32,9 +32,10 @@ To use these free services, your code needs to be hosted on a free GitHub accoun
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
    - **Plan:** Free
-5. **Environment Variables:** Add your Supabase credentials here:
-   - `SUPABASE_URL` = (your url)
-   - `SUPABASE_KEY` = (your key)
+5. **Environment Variables:** Add your Supabase credentials and database URL here:
+   - `SUPABASE_URL` = (your Supabase REST URL)
+   - `SUPABASE_KEY` = (your Supabase anon/service_role key)
+   - `DB_URL` = (your Supabase connection string: `postgresql://postgres.[project-ref]:[password]@aws-0-eu-central-1.pooler.supabase.com:6543/postgres`)
    - `JWT_SECRET` = (your secret)
 6. Click **Create Web Service**. Once it finishes deploying, Render will give you a free URL (e.g., `https://finance-api.onrender.com`).
 
@@ -48,10 +49,10 @@ In your frontend code, you would create an environment variable (e.g., `VITE_API
 3. Import your `Finance---A-R` GitHub repository.
 4. Vercel will automatically detect that you are using Vite and React.
 5. Set the **Root Directory** to `frontend/` (since your React app is inside the `frontend` folder).
-6. Click **Deploy**.
+6. **Environment Variables:** In the Vercel deployment settings, expand the "Environment Variables" section and add:
+   - `VITE_API_BASE_URL` = `https://your-finance-api-url.onrender.com` (use the URL Render gave you in Step 2)
+7. Click **Deploy**.
 
 Vercel will give you a free, lightning-fast URL (e.g., `https://finance-ar.vercel.app`) where you can access your beautiful new web app from anywhere in the world!
 
----
 
-Would you like me to make the quick code adjustments (like setting up the `VITE_API_BASE_URL` in the frontend) so the codebase is completely ready for this Vercel + Render approach?

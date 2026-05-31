@@ -27,7 +27,7 @@ export default function Admin() {
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/admin/users', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUsers(res.data);
@@ -39,7 +39,7 @@ export default function Admin() {
   const fetchLogs = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/admin/audit-logs', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/audit-logs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLogs(res.data);
@@ -60,8 +60,8 @@ export default function Admin() {
     try {
       const token = localStorage.getItem('token');
       const [lookupsRes, schRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/lookups/manage', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://127.0.0.1:8000/api/lookups/scholarship_types', { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/manage`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_types`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setSettings(lookupsRes.data);
       setScholarshipTypes(schRes.data);
@@ -73,7 +73,7 @@ export default function Admin() {
   const saveList = async (key: string, values: string[]) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/lookups/manage/${key}`, { values }, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/manage/${key}`, { values }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSettings((prev: any) => ({ ...prev, [key]: values }));
@@ -101,7 +101,7 @@ export default function Admin() {
     if (!newScholarship.trim()) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/lookups/scholarship_types', 
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_types`, 
         { name: newScholarship.trim() },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -116,7 +116,7 @@ export default function Admin() {
     if (!window.confirm(`Are you sure you want to delete '${name}'?`)) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://127.0.0.1:8000/api/lookups/scholarship_types/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_types/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setScholarshipTypes(prev => prev.filter(s => s.id !== id));
@@ -176,7 +176,7 @@ export default function Admin() {
   const handleUpdateUser = async (userId: number, role: string, isActive: boolean, password?: string) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/admin/users/${userId}`, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/users/${userId}`, {
         role,
         is_active: isActive,
         password: password || undefined
@@ -194,7 +194,7 @@ export default function Admin() {
     if (!newUsername || !newPassword) return alert("Username and Password required");
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/api/admin/users', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/users`, {
         username: newUsername,
         password: newPassword,
         role: newRole
@@ -213,7 +213,7 @@ export default function Admin() {
   const runFix = async (endpoint: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`http://127.0.0.1:8000/api/admin/fixes/${endpoint}`, {}, {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/fixes/${endpoint}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert(res.data.message);
@@ -231,7 +231,7 @@ export default function Admin() {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/admin/fixes/bulk-dimensions', formData, {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/fixes/bulk-dimensions`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -248,7 +248,7 @@ export default function Admin() {
   const handleDownloadTemplate = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/admin/fixes/template', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/fixes/template`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });

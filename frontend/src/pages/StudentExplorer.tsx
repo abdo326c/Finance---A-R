@@ -34,7 +34,7 @@ export default function StudentExplorer() {
   const fetchLookups = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/lookups', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setValidColleges(res.data.colleges || []);
@@ -49,7 +49,7 @@ export default function StudentExplorer() {
     if (!searchQuery) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/lookups/students/search?q=${searchQuery}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/students/search?q=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(res.data);
@@ -61,7 +61,7 @@ export default function StudentExplorer() {
   const loadProfile = async (id: number) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/explorer/profile/${id}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/profile/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(res.data);
@@ -77,7 +77,7 @@ export default function StudentExplorer() {
     if (!profile) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://127.0.0.1:8000/api/explorer/clearance/${profile.student.id}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/clearance/${profile.student.id}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -97,7 +97,7 @@ export default function StudentExplorer() {
     if (!profile) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://127.0.0.1:8000/api/statement/pdf?sid=${profile.student.id}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/statement/pdf?sid=${profile.student.id}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -116,7 +116,7 @@ export default function StudentExplorer() {
   const handleSaveMasterData = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/explorer/profile/${profile.student.id}`, editData, {
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/profile/${profile.student.id}`, editData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert("Master data updated successfully");
@@ -130,7 +130,7 @@ export default function StudentExplorer() {
   const handleUpdateStatus = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`http://127.0.0.1:8000/api/explorer/status/${profile.student.id}`, newStatus, {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/status/${profile.student.id}`, newStatus, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert("Status updated");
@@ -153,7 +153,7 @@ export default function StudentExplorer() {
         </div>
         <button className="btn-secondary" onClick={async () => {
           const token = localStorage.getItem('token');
-          const res = await axios.get('http://127.0.0.1:8000/api/explorer/export', { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' });
+          const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/export`, { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' });
           const url = window.URL.createObjectURL(new Blob([res.data]));
           const a = document.createElement('a');
           a.href = url;

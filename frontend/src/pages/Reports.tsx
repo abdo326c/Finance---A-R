@@ -35,7 +35,7 @@ export default function Reports() {
     const fetchLookups = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://127.0.0.1:8000/api/lookups', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAvailableColleges(response.data.colleges || []);
@@ -88,7 +88,7 @@ export default function Reports() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/reports/generate', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/reports/generate`, {
         params: buildParams(),
         paramsSerializer: serializeParams,
         headers: { Authorization: `Bearer ${token}` }
@@ -109,7 +109,7 @@ export default function Reports() {
   const downloadExcel = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/reports/excel', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/reports/excel`, {
         params: buildParams(),
         paramsSerializer: serializeParams,
         headers: { Authorization: `Bearer ${token}` },

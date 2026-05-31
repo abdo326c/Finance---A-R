@@ -41,7 +41,7 @@ export default function FawrySync() {
   const fetchLookups = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/lookups', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTerms(response.data.terms || []);
@@ -59,7 +59,7 @@ export default function FawrySync() {
     setSyncResult(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/fawry/fetch', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/fawry/fetch`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.unsynced) {
@@ -86,7 +86,7 @@ export default function FawrySync() {
     setSyncing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://127.0.0.1:8000/api/fawry/sync', {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/fawry/sync`, {
         refs_to_sync: refsToSync,
         term: selectedTerm,
         year: parseInt(selectedYear)

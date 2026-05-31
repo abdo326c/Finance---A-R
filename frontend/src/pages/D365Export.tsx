@@ -33,7 +33,7 @@ export default function D365Export() {
   const fetchLookups = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/lookups', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTerms(response.data.terms || []);
@@ -70,7 +70,7 @@ export default function D365Export() {
       params.append('currency_code', currencyCode);
       if (customerRef) params.append('customer_ref', customerRef);
 
-      const response = await axios.get(`http://127.0.0.1:8000/api/d365/export?${params.toString()}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/d365/export?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });

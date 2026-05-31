@@ -37,7 +37,7 @@ Nile University`);
     if (!searchQuery) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/lookups/students/search?q=${searchQuery}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/students/search?q=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(res.data);
@@ -68,7 +68,7 @@ Nile University`);
     setLoadingPreview(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/email/preview', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/email/preview`, {
         student_id: studentId,
         balance_scope: balanceScope,
         term: term,
@@ -101,7 +101,7 @@ Nile University`);
     
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/email/send', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/email/send`, {
         student_ids: selectedStudents.map(s => s.id),
         balance_scope: balanceScope,
         term: term,

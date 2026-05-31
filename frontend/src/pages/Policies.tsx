@@ -44,7 +44,7 @@ export default function Policies() {
   const fetchYears = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/policies/years', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies/years`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const fetchedYears = res.data.length ? res.data : ["2024/2025"];
@@ -65,7 +65,7 @@ export default function Policies() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/policies', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies`, {
         params: { academic_year: selectedYear },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -90,7 +90,7 @@ export default function Policies() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/api/policies/upload', formData, {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies/upload`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -120,7 +120,7 @@ export default function Policies() {
     if (!window.confirm(`Are you sure you want to delete '${doc.title}'?`)) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://127.0.0.1:8000/api/policies/${doc.id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies/${doc.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDocs(prev => prev.filter(d => d.id !== doc.id));
@@ -140,7 +140,7 @@ export default function Policies() {
   const handleDownload = async (doc: PolicyDoc) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/policies/${doc.id}/download`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies/${doc.id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -309,7 +309,7 @@ function PdfIframe({ doc }: { doc: PolicyDoc }) {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`http://127.0.0.1:8000/api/policies/${doc.id}/download`, {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/policies/${doc.id}/download`, {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
         });
