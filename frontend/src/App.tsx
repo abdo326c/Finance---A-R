@@ -5,7 +5,6 @@ import Dashboard from './pages/Dashboard';
 import StudentStatement from './pages/StudentStatement';
 import Reports from './pages/Reports';
 import Operations from './pages/Operations';
-import DataLookups from './pages/DataLookups';
 import Policies from './pages/Policies';
 import Scholarships from './pages/Scholarships';
 import Registration from './pages/Registration';
@@ -99,14 +98,6 @@ function App() {
           element={
             <ProtectedRoute>
               <Policies />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin/lookups" 
-          element={
-            <ProtectedRoute>
-              <DataLookups />
             </ProtectedRoute>
           } 
         />
