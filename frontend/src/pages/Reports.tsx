@@ -55,13 +55,25 @@ export default function Reports() {
 
   const buildParams = () => {
     const params: any = { format: format };
-    if (colleges.length) params.colleges = colleges[0];
-    if (terms.length) params.terms = terms[0];
-    if (years.length) params.years = years[0];
-    if (statuses.length) params.statuses = statuses[0];
+    if (colleges.length) params.colleges = colleges;
+    if (terms.length) params.terms = terms;
+    if (years.length) params.years = years;
+    if (statuses.length) params.statuses = statuses;
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
     return params;
+  };
+
+  const serializeParams = (params: any) => {
+    const searchParams = new URLSearchParams();
+    for (const key in params) {
+      if (Array.isArray(params[key])) {
+        params[key].forEach((val: any) => searchParams.append(key, val));
+      } else if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+        searchParams.append(key, params[key]);
+      }
+    }
+    return searchParams.toString();
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -78,6 +90,7 @@ export default function Reports() {
       const token = localStorage.getItem('token');
       const response = await axios.get('http://127.0.0.1:8000/api/reports/generate', {
         params: buildParams(),
+        paramsSerializer: serializeParams,
         headers: { Authorization: `Bearer ${token}` }
       });
       setReportData(response.data);
@@ -98,6 +111,7 @@ export default function Reports() {
       const token = localStorage.getItem('token');
       const response = await axios.get('http://127.0.0.1:8000/api/reports/excel', {
         params: buildParams(),
+        paramsSerializer: serializeParams,
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -114,8 +128,11 @@ export default function Reports() {
     }
   };
 
-  const formatCurrency = (val: any) => {
+  const formatValue = (col: string, val: any) => {
     if (typeof val === 'number') {
+      if (col.toLowerCase().includes('id') || col.toLowerCase().includes('year')) {
+        return val.toString();
+      }
       return new Intl.NumberFormat('en-EG', { maximumFractionDigits: 2 }).format(val);
     }
     return val;
@@ -248,7 +265,7 @@ export default function Reports() {
                       <tr key={i} className={row["Student Name"] === "TOTAL" ? "total-row" : ""}>
                         {reportData.columns.map((col, j) => (
                           <td key={j} className={typeof row[col] === 'number' ? 'text-right' : ''}>
-                            {formatCurrency(row[col])}
+                            {formatValue(col, row[col])}
                           </td>
                         ))}
                       </tr>
