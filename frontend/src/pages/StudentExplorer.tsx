@@ -145,7 +145,7 @@ export default function StudentExplorer() {
   };
 
   return (
-    <div className="explorer-page animate-fade-in" style={{ padding: '24px' }}>
+    <div className="page-container explorer-page animate-fade-in">
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1><Search size={28} style={{ marginRight: '10px' }} /> Student Data Explorer</h1>
@@ -178,17 +178,17 @@ export default function StudentExplorer() {
         </div>
         
         {searchResults.length > 0 && (
-          <div style={{ position: 'absolute', top: '100%', left: '24px', right: '24px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', zIndex: 10, maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+          <div style={{ position: 'absolute', top: '100%', left: '24px', right: '24px', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: '8px', zIndex: 10, maxHeight: '300px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}>
             {searchResults.map(s => (
               <div 
                 key={s.id} 
                 onClick={() => loadProfile(s.id)}
-                style={{ padding: '12px 20px', borderBottom: '1px solid #334155', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', transition: 'background 0.2s' }}
-                onMouseOver={e => (e.currentTarget.style.background = '#334155')}
+                style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', transition: 'var(--transition)' }}
+                onMouseOver={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
                 onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
               >
-                <div style={{ fontWeight: 'bold' }}>{s.id} - {s.name}</div>
-                <div style={{ color: 'gray' }}>{s.email}</div>
+                <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>{s.id} - {s.name}</div>
+                <div style={{ color: 'var(--text-secondary)' }}>{s.email}</div>
               </div>
             ))}
           </div>
