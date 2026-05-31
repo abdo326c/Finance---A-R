@@ -8,12 +8,45 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isChangingPw, setIsChangingPw] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
+
+    if (isChangingPw) {
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username,
+            current_password: password,
+            new_password: newPassword
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.detail || 'Failed to change password');
+        }
+
+        setSuccessMsg('Password changed successfully. You can now login.');
+        setIsChangingPw(false);
+        setPassword('');
+        setNewPassword('');
+      } catch (err: any) {
+        setError(err.message || 'Something went wrong');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     try {
       const formData = new URLSearchParams();
@@ -52,13 +85,19 @@ export default function Login() {
           <div className="icon-circle">
             <Lock size={32} color="var(--primary-color)" />
           </div>
-          <h2>Finance Login</h2>
+          <h2>{isChangingPw ? 'Change Password' : 'Finance Login'}</h2>
           <p>Nile University A/R System</p>
         </div>
 
         {error && (
           <div className="error-alert animate-fade-in">
             {error}
+          </div>
+        )}
+        
+        {successMsg && (
+          <div className="success-alert animate-fade-in" style={{ background: 'rgba(22, 163, 74, 0.1)', color: '#16a34a', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid rgba(22, 163, 74, 0.2)' }}>
+            {successMsg}
           </div>
         )}
 
@@ -77,7 +116,7 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{isChangingPw ? 'Current Password' : 'Password'}</label>
             <input
               id="password"
               type="password"
@@ -89,13 +128,44 @@ export default function Login() {
             />
           </div>
 
+          {isChangingPw && (
+            <div className="form-group animate-fade-in">
+              <label htmlFor="new-password">New Password</label>
+              <input
+                id="new-password"
+                type="password"
+                className="input-field"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
           <button 
             type="submit" 
             className="btn-primary login-btn" 
             disabled={loading}
           >
-            {loading ? 'Authenticating...' : 'Secure Login'}
+            {loading ? 'Processing...' : (isChangingPw ? 'Update Password' : 'Secure Login')}
           </button>
+          
+          <div style={{ textAlign: 'center', marginTop: '16px' }}>
+            <button 
+              type="button" 
+              onClick={() => {
+                setIsChangingPw(!isChangingPw);
+                setError('');
+                setSuccessMsg('');
+                setPassword('');
+                setNewPassword('');
+              }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}
+            >
+              {isChangingPw ? 'Back to Login' : 'Change Password'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
