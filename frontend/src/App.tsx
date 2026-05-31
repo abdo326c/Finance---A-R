@@ -4,14 +4,15 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import StudentStatement from './pages/StudentStatement';
 import Reports from './pages/Reports';
+import Operations from './pages/Operations';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-color)', overflow: 'hidden' }}>
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}>
         {children}
       </div>
     </div>
@@ -54,6 +55,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/operations" 
+          element={
+            <ProtectedRoute>
+              <Operations />
             </ProtectedRoute>
           } 
         />

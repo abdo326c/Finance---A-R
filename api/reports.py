@@ -3,7 +3,7 @@ import pandas as pd
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Response, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 
 from models import get_db, get_db_engine
 from api.auth import get_current_user
@@ -57,7 +57,12 @@ def generate_report_df(
                     OR (:s_cnt>0 AND ss.status IN :stats)
                 )
             ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
-        """)
+        """).bindparams(
+            bindparam('cls', expanding=True),
+            bindparam('trms', expanding=True),
+            bindparam('yrs', expanding=True),
+            bindparam('stats', expanding=True)
+        )
         return fetch_df(engine, sql, common)
 
     elif rep_format == "Accounting Summary":
@@ -82,7 +87,12 @@ def generate_report_df(
                     OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
                 )
             GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr ORDER BY s.id
-        """)
+        """).bindparams(
+            bindparam('cls', expanding=True),
+            bindparam('trms', expanding=True),
+            bindparam('yrs', expanding=True),
+            bindparam('stats', expanding=True)
+        )
         df = fetch_df(engine, sql, common)
         if not df.empty:
             num_cols = ["Price/Hr","Reg. Hours","Tuition Billed","Other Fees",
@@ -127,7 +137,12 @@ def generate_report_df(
             GROUP BY s.id,s.name,s.college
             HAVING COALESCE(SUM(t.debit),0)>0 OR COALESCE(SUM(t.credit),0)>0
             ORDER BY s.id
-        """)
+        """).bindparams(
+            bindparam('cls', expanding=True),
+            bindparam('trms', expanding=True),
+            bindparam('yrs', expanding=True),
+            bindparam('stats', expanding=True)
+        )
         df = fetch_df(engine, sql, params)
         if not df.empty:
             num_cols = ["CH Changed","Tuition Billed","Other Fees","New Discounts",
@@ -165,7 +180,12 @@ def generate_report_df(
                 )
                 AND (:has_dates=0 OR (t.entry_date BETWEEN :s_date AND :e_date))
             ORDER BY t.student_id, t.entry_date DESC
-        """)
+        """).bindparams(
+            bindparam('cls', expanding=True),
+            bindparam('trms', expanding=True),
+            bindparam('yrs', expanding=True),
+            bindparam('stats', expanding=True)
+        )
         return fetch_df(engine, sql, params)
         
     else:
