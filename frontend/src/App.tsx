@@ -7,6 +7,7 @@ import Reports from './pages/Reports';
 import Operations from './pages/Operations';
 import DataLookups from './pages/DataLookups';
 import Policies from './pages/Policies';
+import Scholarships from './pages/Scholarships';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -57,6 +58,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Reports />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/scholarships" 
+          element={
+            <ProtectedRoute>
+              <Scholarships />
             </ProtectedRoute>
           } 
         />

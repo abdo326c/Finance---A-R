@@ -1,0 +1,258 @@
+.scholarships-container {
+  padding: 32px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tabs-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  background: rgba(15, 23, 42, 0.4);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-hover);
+}
+
+.tab-content {
+  padding: 32px;
+  min-height: 400px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+/* Gauge */
+.gauge-container {
+  background: rgba(15, 23, 42, 0.4);
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.gauge-container h4 {
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+}
+
+.progress-bg {
+  width: 100%;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.bg-success {
+  background: #10b981;
+}
+
+.bg-danger {
+  background: #ef4444;
+}
+
+.gauge-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Scholarship List */
+.sch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sch-item {
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sch-item-header {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sch-name {
+  font-weight: 600;
+  color: var(--primary-color);
+  margin-right: 12px;
+}
+
+.sch-pct {
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-badge.inactive {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.sch-item-body {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.note-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-empty {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.edit-note-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-note-form input {
+  padding: 6px 12px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  border-radius: 4px;
+  min-width: 250px;
+}
+
+.sch-item-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+/* Assign Tab */
+.assign-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Tools Tab */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.tool-card {
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.tool-header {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tool-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.tool-body {
+  padding: 20px;
+}
+
+.tool-body p {
+  margin: 0 0 16px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
