@@ -9,6 +9,9 @@ import DataLookups from './pages/DataLookups';
 import Policies from './pages/Policies';
 import Scholarships from './pages/Scholarships';
 import Registration from './pages/Registration';
+import FawrySync from './pages/FawrySync';
+import D365Export from './pages/D365Export';
+import Reconciliation from './pages/Reconciliation';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -99,6 +102,30 @@ function App() {
           element={
             <ProtectedRoute>
               <DataLookups />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/fawry" 
+          element={
+            <ProtectedRoute>
+              <FawrySync />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/d365" 
+          element={
+            <ProtectedRoute>
+              <D365Export />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reconciliation" 
+          element={
+            <ProtectedRoute>
+              <Reconciliation />
             </ProtectedRoute>
           } 
         />
