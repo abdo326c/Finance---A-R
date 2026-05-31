@@ -8,7 +8,8 @@ const STATUS_COLORS: Record<string, string> = {
   "Semester Withdraw": "background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba;",
   "Inactive": "background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;",
   "Graduated": "background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb;",
-  "Program Withdraw": "background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db;"
+  "Program Withdraw": "background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db;",
+  "Test": "background-color: #f8f9fa; color: #6c757d; border: 1px dashed #6c757d;"
 };
 
 export default function StudentExplorer() {
