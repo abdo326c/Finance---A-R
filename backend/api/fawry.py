@@ -12,6 +12,10 @@ from api.auth import get_current_user
 router = APIRouter()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://hjtxdyuevxcezxzbiiqk.supabase.co")
+# Auto-correct typo in the environment variable if present
+if "njqjgvfvxlxrabldkje" in SUPABASE_URL:
+    SUPABASE_URL = SUPABASE_URL.replace("njqjgvfvxlxrabldkje", "njqjgvfvxtdxrabidkje")
+
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqdHhkeXVldnhjZXp4emJpaXFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MjU5MDEsImV4cCI6MjA5NTEwMTkwMX0.ZiKUw1db5pDRYto-hLGut3rdrzxVfRN36ouX4AjB5AQ")
 
 def fetch_supabase_transactions():
