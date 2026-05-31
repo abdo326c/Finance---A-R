@@ -25,7 +25,10 @@ export default function BatchManagement() {
   const fetchActive = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/batches/active');
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://127.0.0.1:8000/api/batches/active', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setActiveBatches(res.data);
     } catch (err: any) {
       setErrorMsg('Failed to load active batches.');
@@ -37,7 +40,10 @@ export default function BatchManagement() {
   const fetchDeleted = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/batches/deleted');
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://127.0.0.1:8000/api/batches/deleted', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setDeletedBatches(res.data);
     } catch (err: any) {
       setErrorMsg('Failed to load deleted batches.');
@@ -53,7 +59,9 @@ export default function BatchManagement() {
 
   const handleDownload = async (batchId: string) => {
     try {
-      const response = await axios.get(`/api/batches/export/${batchId}`, {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://127.0.0.1:8000/api/batches/export/${batchId}`, {
+        headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -75,7 +83,10 @@ export default function BatchManagement() {
     if (!window.confirm(`Are you absolutely sure you want to rollback and delete batch ${batchToDelete}?`)) return;
 
     try {
-      await axios.delete(`/api/batches/${batchToDelete}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://127.0.0.1:8000/api/batches/${batchToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setBatchToDelete('');
       setConfirmDelete(false);
       fetchActive();

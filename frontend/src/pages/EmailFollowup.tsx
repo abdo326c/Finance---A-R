@@ -36,7 +36,10 @@ Nile University`);
   const searchStudents = async () => {
     if (!searchQuery) return;
     try {
-      const res = await axios.get(`/api/lookups/students/search?q=${searchQuery}`);
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`http://127.0.0.1:8000/api/lookups/students/search?q=${searchQuery}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setSearchResults(res.data);
     } catch (e) {
       console.error(e);
@@ -64,13 +67,16 @@ Nile University`);
   const updatePreview = async (studentId: number) => {
     setLoadingPreview(true);
     try {
-      const res = await axios.post('/api/email/preview', {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('http://127.0.0.1:8000/api/email/preview', {
         student_id: studentId,
         balance_scope: balanceScope,
         term: term,
         year: year,
         subject: subject,
         body: body
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       setPreviewData(res.data);
     } catch (e) {
@@ -94,7 +100,8 @@ Nile University`);
     setSendResult(null);
     
     try {
-      const res = await axios.post('/api/email/send', {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('http://127.0.0.1:8000/api/email/send', {
         student_ids: selectedStudents.map(s => s.id),
         balance_scope: balanceScope,
         term: term,
@@ -105,6 +112,8 @@ Nile University`);
         smtp_port: smtpPort,
         sender_email: senderEmail,
         sender_password: senderPassword
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
       setSendResult(res.data);
     } catch (e: any) {

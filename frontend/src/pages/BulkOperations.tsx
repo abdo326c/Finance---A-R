@@ -21,7 +21,9 @@ export default function BulkOperations() {
 
   const handleDownloadTemplate = async () => {
     try {
-      const response = await axios.get(`/api/bulk/template/${encodeURIComponent(bType)}`, {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`http://127.0.0.1:8000/api/bulk/template/${encodeURIComponent(bType)}`, {
+        headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -50,8 +52,12 @@ export default function BulkOperations() {
     formData.append('file', file);
 
     try {
-      const response = await axios.post('/api/bulk/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const token = localStorage.getItem('token');
+      const response = await axios.post('http://127.0.0.1:8000/api/bulk/upload', formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data' 
+        }
       });
       setResult(response.data);
     } catch (err: any) {
