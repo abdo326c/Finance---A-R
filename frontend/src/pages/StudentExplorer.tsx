@@ -162,7 +162,7 @@ export default function StudentExplorer() {
         }}><Download size={18}/> Export All Students</button>
       </div>
 
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', position: 'relative' }}>
+      <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', position: 'relative', zIndex: 50 }}>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label>Search Student ID or Name</label>
           <div style={{ display: 'flex', gap: '10px' }}>
