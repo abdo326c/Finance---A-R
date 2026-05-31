@@ -49,14 +49,14 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
   return (
     <>
       {isOpen && <div className="sidebar-backdrop" onClick={() => setIsOpen && setIsOpen(false)}></div>}
-      <div className={`sidebar glass-panel ${isOpen ? 'mobile-open' : ''}`}>
+      <div className={`sidebar glass-panel ${!isOpen ? 'desktop-closed' : ''} ${isOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div className="logo-icon">🏦</div>
             <h2>Finance A/R</h2>
           </div>
           {setIsOpen && (
-            <button className="mobile-close-btn btn-icon" onClick={() => setIsOpen(false)}>
+            <button className="close-sidebar-btn btn-icon" onClick={() => setIsOpen(false)}>
               <X size={24} />
             </button>
           )}
