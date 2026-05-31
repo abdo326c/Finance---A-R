@@ -8,6 +8,7 @@ import Operations from './pages/Operations';
 import DataLookups from './pages/DataLookups';
 import Policies from './pages/Policies';
 import Scholarships from './pages/Scholarships';
+import Registration from './pages/Registration';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -66,6 +67,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Scholarships />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/registration" 
+          element={
+            <ProtectedRoute>
+              <Registration />
             </ProtectedRoute>
           } 
         />

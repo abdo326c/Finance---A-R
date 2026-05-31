@@ -10,6 +10,7 @@ from api.operations import router as operations_router
 from api.lookups import router as lookups_router
 from api.policies import router as policies_router
 from api.scholarships import router as scholarships_router
+from api.registration import router as registration_router
 
 app = FastAPI(title="Finance A/R System API")
 
@@ -31,6 +32,7 @@ app.include_router(operations_router, prefix="/api/operations", tags=["operation
 app.include_router(lookups_router, prefix="/api/lookups", tags=["lookups"])
 app.include_router(policies_router, prefix="/api/policies", tags=["policies"])
 app.include_router(scholarships_router, prefix="/api/scholarships", tags=["scholarships"])
+app.include_router(registration_router, prefix="/api/registration", tags=["registration"])
 
 @app.get("/")
 def root():
