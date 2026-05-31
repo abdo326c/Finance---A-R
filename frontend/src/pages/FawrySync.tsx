@@ -206,7 +206,7 @@ export default function FawrySync() {
         <div className="card-header">
           <div className="header-text">
             <h3>🌐 Supabase Integration</h3>
-            <p>Connects to `hjtxdyuevxcezxzbiiqk.supabase.co` to fetch validated payment logs.</p>
+            <p>Connects securely to the external payment gateway to fetch validated payment logs.</p>
           </div>
           <button onClick={fetchSupabase} disabled={loading} className="btn-primary">
             {loading ? <div className="spinner-small"></div> : <RefreshCw size={16} />} 
