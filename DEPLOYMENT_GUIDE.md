@@ -28,6 +28,7 @@ To use these free services, your code needs to be hosted on a free GitHub accoun
 2. Click **New +** and select **Web Service**.
 3. Connect your GitHub account and select your `Finance---A-R` repository.
 4. Set the following configuration:
+   - **Root Directory:** `backend` (This is crucial so Render finds your requirements.txt!)
    - **Environment:** `Python 3`
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
