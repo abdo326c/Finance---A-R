@@ -6,6 +6,7 @@ import StudentStatement from './pages/StudentStatement';
 import Reports from './pages/Reports';
 import Operations from './pages/Operations';
 import DataLookups from './pages/DataLookups';
+import Policies from './pages/Policies';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -64,6 +65,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Operations />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/policies" 
+          element={
+            <ProtectedRoute>
+              <Policies />
             </ProtectedRoute>
           } 
         />
