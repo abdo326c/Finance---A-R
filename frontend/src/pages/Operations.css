@@ -49,7 +49,7 @@
 .mt-4 { margin-top: 24px; }
 .w-100 { width: 100%; }
 
-.checkbox-label {
+.form-group .checkbox-label {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -58,6 +58,7 @@
   font-weight: 600;
   user-select: none;
   text-transform: none !important; /* override global uppercase */
+  margin-bottom: 0; /* override global label margin */
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -69,7 +70,7 @@
   border: 2px solid #f59e0b; /* Warning color border to match the text */
   background: rgba(15, 23, 42, 0.4);
   cursor: pointer;
-  display: grid;
+  display: inline-grid;
   place-content: center;
   transition: var(--transition);
   margin: 0;
