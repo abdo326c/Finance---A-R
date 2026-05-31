@@ -19,9 +19,18 @@ import Admin from './pages/Admin';
 import StudentExplorer from './pages/StudentExplorer';
 import Sidebar from './components/Sidebar';
 
-// Layout wrapper for authenticated pages
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+
+  // Optional: Listen to window resize to auto-collapse/open
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth <= 768) setSidebarOpen(false);
+      else setSidebarOpen(true);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <div className="app-container" style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-color)', overflow: 'hidden' }}>
@@ -29,14 +38,17 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       
       <div className="main-content-area" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0, overflowY: 'auto', overflowX: 'hidden', position: 'relative' }}>
         
-        {/* Mobile Header */}
-        <div className="mobile-header">
-          <button className="btn-icon" onClick={() => setSidebarOpen(true)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-          </button>
-          <h2>Finance A/R</h2>
-          <div style={{ width: 24 }}></div>
-        </div>
+        {/* Universal Header (shows hamburger when sidebar is closed) */}
+        {!sidebarOpen && (
+          <div className="top-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--glass-bg)', backdropFilter: 'blur(12px)', borderBottom: 'var(--glass-border)', position: 'sticky', top: 0, zIndex: 50 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <button className="btn-icon" onClick={() => setSidebarOpen(true)}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+              </button>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--primary-color)' }}>Finance A/R</h2>
+            </div>
+          </div>
+        )}
 
         {children}
       </div>
@@ -84,22 +96,6 @@ function App() {
           } 
         />
         <Route 
-          path="/scholarships" 
-          element={
-            <ProtectedRoute>
-              <Scholarships />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/registration" 
-          element={
-            <ProtectedRoute>
-              <Registration />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
           path="/operations" 
           element={
             <ProtectedRoute>
@@ -112,6 +108,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Policies />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/scholarships" 
+          element={
+            <ProtectedRoute>
+              <Scholarships />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/registration" 
+          element={
+            <ProtectedRoute>
+              <Registration />
             </ProtectedRoute>
           } 
         />
