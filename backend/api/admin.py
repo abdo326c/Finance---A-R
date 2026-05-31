@@ -103,6 +103,31 @@ async def fix_scholarships(current_user = Depends(get_current_user), db: Session
         
     return {"message": f"Converted {fixed} scholarship percentages."}
 
+@router.get("/fixes/template")
+async def download_template(current_user = Depends(get_current_user)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+        
+    sample_data = {
+        "ID": [211000224, 211001595],
+        "Dimension": [
+            "Academic||||||||EAS (AC02)|Civil and Infrastructure|211000224|Spring|",
+            "Academic||||||||BA (AC02)|General Business|211001595|Fall|"
+        ]
+    }
+    df_sample = pd.DataFrame(sample_data)
+    
+    template_buffer = io.BytesIO()
+    with pd.ExcelWriter(template_buffer, engine='openpyxl') as writer:
+        df_sample.to_excel(writer, index=False, sheet_name='D365_Template')
+        
+    from fastapi.responses import Response
+    return Response(
+        content=template_buffer.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=D365_Students_Dimensions_Template.xlsx"}
+    )
+
 @router.post("/fixes/bulk-dimensions")
 async def bulk_update_dimensions(file: UploadFile = File(...), current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
