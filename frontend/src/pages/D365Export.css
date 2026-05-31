@@ -140,3 +140,5 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 768px) { .export-layout { grid-template-columns: 1fr; } }

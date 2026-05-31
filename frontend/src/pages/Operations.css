@@ -329,3 +329,5 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) { .operations-split { grid-template-columns: 1fr; } .details-grid { grid-template-columns: 1fr; } }

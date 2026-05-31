@@ -180,3 +180,13 @@
   background: rgba(255, 95, 86, 0.15);
   color: #ff5f56;
 }
+
+@media (max-width: 768px) {
+  .audit-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .admin-tabs {
+    flex-wrap: wrap;
+  }
+}
