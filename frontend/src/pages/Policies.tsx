@@ -257,7 +257,7 @@ export default function Policies() {
                       accept=".pdf" 
                       required 
                       onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                      className="file-input"
+                      style={{ padding: '8px 0' }}
                     />
                   </div>
                   <button type="submit" className="btn-primary w-100 mt-2" disabled={uploading}>
