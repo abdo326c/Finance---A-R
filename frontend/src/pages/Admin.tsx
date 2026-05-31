@@ -245,6 +245,25 @@ export default function Admin() {
     e.target.value = '';
   };
 
+  const handleDownloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://127.0.0.1:8000/api/admin/fixes/template', {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'D365_Students_Dimensions_Template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (e) {
+      alert("Failed to download template");
+    }
+  };
+
   // The rest of the original functions follow here...
 
   // Prepare chart data
@@ -390,8 +409,12 @@ export default function Admin() {
               <span style={{ fontSize: '24px' }}>🛠️</span>
               <h3>Bulk Update: Financial Dimensions (D365)</h3>
             </div>
-            <p style={{ color: 'var(--text-secondary)' }}>Upload an Excel file with exactly two columns: 'ID' and 'Dimension' to sync with the database in batches of 2000.</p>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>Download the verified Excel template, fill your data, and upload it back to sync with Supabase.</p>
             
+            <button className="btn-secondary" style={{ marginBottom: '20px' }} onClick={handleDownloadTemplate}>
+              📥 Download Verified Excel Template
+            </button>
+
             <label htmlFor="dim-upload" className="upload-zone" style={{ display: 'block' }}>
               <Upload size={32} style={{ color: '#3b82f6', marginBottom: '10px' }} />
               <div style={{ fontWeight: 'bold' }}>Click to Browse Excel File (.xlsx)</div>
