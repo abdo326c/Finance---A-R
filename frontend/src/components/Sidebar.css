@@ -142,12 +142,15 @@
 
 /* Desktop Collapse Logic */
 .sidebar {
-  transition: width 0.3s ease, margin-left 0.3s ease;
+  transition: margin-left 0.3s ease;
+  width: 260px;
+  flex-shrink: 0;
 }
-.sidebar.desktop-closed {
-  width: 0;
-  margin-left: -260px;
-  overflow: hidden;
+
+@media (min-width: 769px) {
+  .sidebar.desktop-closed {
+    margin-left: -260px;
+  }
 }
 
 /* Mobile Sidebar Logic */
