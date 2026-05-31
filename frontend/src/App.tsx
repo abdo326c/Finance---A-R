@@ -3,6 +3,7 @@ import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
 import StudentStatement from './pages/StudentStatement';
+import Reports from './pages/Reports';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
@@ -45,6 +46,14 @@ function App() {
           element={
             <ProtectedRoute>
               <StudentStatement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reports" 
+          element={
+            <ProtectedRoute>
+              <Reports />
             </ProtectedRoute>
           } 
         />

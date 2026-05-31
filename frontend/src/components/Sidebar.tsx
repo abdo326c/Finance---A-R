@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart } from 'lucide-react';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -36,6 +36,11 @@ export default function Sidebar() {
         <NavLink to="/statement" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <FileText size={20} />
           <span>Statement</span>
+        </NavLink>
+        
+        <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <FileBarChart size={20} />
+          <span>Reports</span>
         </NavLink>
         
         {/* Additional links can go here as we build more pages */}

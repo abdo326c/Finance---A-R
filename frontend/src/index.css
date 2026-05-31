@@ -105,6 +105,7 @@ input[type="text"],
 input[type="password"],
 input[type="email"],
 input[type="number"],
+input[type="date"],
 select {
   width: 100%;
   padding: 12px 16px;
