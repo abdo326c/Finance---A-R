@@ -1,11 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search } from 'lucide-react';
 import './Sidebar.css';
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
+  
+  const [role] = useState(() => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return 'Viewer';
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role;
+    } catch {
+      return 'Viewer';
+    }
+  });
 
   const handleLogout = () => {
     localStorage.clear();
@@ -23,7 +34,7 @@ export default function Sidebar() {
         <div className="avatar">{username?.charAt(0).toUpperCase()}</div>
         <div className="user-info">
           <p className="user-name">{username}</p>
-          <p className="user-role">Administrator</p>
+          <p className="user-role">{role}</p>
         </div>
       </div>
 
@@ -31,6 +42,11 @@ export default function Sidebar() {
         <NavLink to="/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <LayoutDashboard size={20} />
           <span>Dashboard</span>
+        </NavLink>
+        
+        <NavLink to="/explorer" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Search size={20} />
+          <span>Student Explorer</span>
         </NavLink>
         
         <NavLink to="/statement" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -100,7 +116,12 @@ export default function Sidebar() {
           <span>Data Lookups</span>
         </NavLink>
         
-        {/* Additional links can go here as we build more pages */}
+        {role === 'Admin' && (
+          <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <ShieldCheck size={20} />
+            <span>System Admin</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sidebar-footer">

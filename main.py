@@ -4,7 +4,7 @@ import uvicorn
 
 from api.auth import router as auth_router
 from api.dashboard import router as dashboard_router
-from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, fawry, d365, reconciliation, bulk, batches, email
+from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, fawry, d365, reconciliation, bulk, batches, email, admin, explorer
 
 app = FastAPI(title="Finance A/R API")
 
@@ -33,6 +33,8 @@ app.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["r
 app.include_router(bulk.router, prefix="/api/bulk", tags=["bulk"])
 app.include_router(batches.router, prefix="/api/batches", tags=["batches"])
 app.include_router(email.router, prefix="/api/email", tags=["email"])
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(explorer.router, prefix="/api/explorer", tags=["explorer"])
 
 @app.get("/")
 def root():
