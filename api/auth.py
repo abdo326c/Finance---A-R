@@ -29,7 +29,7 @@ from config import TIMEOUT_MIN
 # Configuration for JWT
 SECRET_KEY = "your-very-secret-key-please-change-in-production"  # Should be in .env
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = TIMEOUT_MIN
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days for testing
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
