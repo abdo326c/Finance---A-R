@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Shield, Users, Wrench, Settings, FileText, Upload, UserPlus } from 'lucide-react';
+import { Shield, Users, Wrench, Settings, FileText, Upload, UserPlus, Plus, Trash2 } from 'lucide-react';
+import DataTable from 'react-data-table-component';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import './Admin.css';
 
@@ -47,17 +48,130 @@ export default function Admin() {
     }
   };
 
+  const [scholarshipTypes, setScholarshipTypes] = useState<any[]>([]);
+  
+  // New lookup inputs
+  const [newCollege, setNewCollege] = useState('');
+  const [newTerm, setNewTerm] = useState('');
+  const [newStatus, setNewStatus] = useState('');
+  const [newScholarship, setNewScholarship] = useState('');
+
   const fetchSettings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/lookups/manage', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSettings(res.data);
+      const [lookupsRes, schRes] = await Promise.all([
+        axios.get('http://127.0.0.1:8000/api/lookups/manage', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://127.0.0.1:8000/api/lookups/scholarship_types', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setSettings(lookupsRes.data);
+      setScholarshipTypes(schRes.data);
     } catch (e) {
       console.error(e);
     }
   };
+
+  const saveList = async (key: string, values: string[]) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`http://127.0.0.1:8000/api/lookups/manage/${key}`, { values }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSettings((prev: any) => ({ ...prev, [key]: values }));
+    } catch (err) {
+      alert(`Failed to save ${key}.`);
+    }
+  };
+
+  const handleAddLookup = (key: string, newValue: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    if (!newValue.trim() || !settings) return;
+    if (settings[key].includes(newValue.trim())) return alert("Item already exists!");
+    const newList = [...settings[key], newValue.trim()];
+    saveList(key, newList);
+    setter('');
+  };
+
+  const handleDeleteLookup = (key: string, itemToRemove: string) => {
+    if (!settings) return;
+    if (!window.confirm(`Are you sure you want to remove '${itemToRemove}'?`)) return;
+    const newList = settings[key].filter((i: string) => i !== itemToRemove);
+    saveList(key, newList);
+  };
+
+  const handleAddScholarship = async () => {
+    if (!newScholarship.trim()) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post('http://127.0.0.1:8000/api/lookups/scholarship_types', 
+        { name: newScholarship.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setScholarshipTypes(prev => [...prev, { id: res.data.id, name: res.data.name }]);
+      setNewScholarship('');
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Failed to add scholarship");
+    }
+  };
+
+  const handleDeleteScholarship = async (id: number, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete '${name}'?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://127.0.0.1:8000/api/lookups/scholarship_types/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setScholarshipTypes(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      alert("Failed to delete scholarship type");
+    }
+  };
+
+  const customStyles = {
+    table: { style: { backgroundColor: 'transparent' } },
+    header: { style: { backgroundColor: 'transparent', color: 'var(--text-primary)' } },
+    headRow: { style: { backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' } },
+    headCells: { style: { fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' as any } },
+    rows: {
+      style: {
+        backgroundColor: 'transparent',
+        color: 'var(--text-primary)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+      },
+    },
+    pagination: {
+      style: { backgroundColor: 'transparent', color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)' },
+      pageButtonsStyle: { color: 'var(--text-primary)', fill: 'var(--text-primary)' }
+    }
+  };
+
+  const createColumns = (key: string) => [
+    { name: 'Value', selector: (row: { value: string }) => row.value, sortable: true, grow: 2 },
+    {
+      name: 'Actions',
+      cell: (row: { value: string }) => (
+        <button className="btn-icon text-danger" onClick={() => handleDeleteLookup(key, row.value)} title="Remove">
+          <Trash2 size={16} />
+        </button>
+      ),
+      button: true,
+      width: '100px',
+    }
+  ];
+
+  const schColumns = [
+    { name: 'ID', selector: (row: any) => row.id, sortable: true, width: '80px' },
+    { name: 'Scholarship Name', selector: (row: any) => row.name, sortable: true, grow: 2 },
+    {
+      name: 'Actions',
+      cell: (row: any) => (
+        <button className="btn-icon text-danger" onClick={() => handleDeleteScholarship(row.id, row.name)} title="Remove">
+          <Trash2 size={16} />
+        </button>
+      ),
+      button: true,
+      width: '100px',
+    }
+  ];
 
   const handleUpdateUser = async (userId: number, role: string, isActive: boolean, password?: string) => {
     try {
@@ -131,19 +245,7 @@ export default function Admin() {
     e.target.value = '';
   };
 
-  const saveSetting = async (key: string, valuesStr: string) => {
-    try {
-      const values = valuesStr.split(',').map(s => s.trim()).filter(s => s);
-      const token = localStorage.getItem('token');
-      await axios.put(`http://127.0.0.1:8000/api/lookups/manage/${key}`, { values }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      alert('Settings saved successfully');
-      fetchSettings();
-    } catch (e: any) {
-      alert(e.response?.data?.detail || 'Failed to save settings');
-    }
-  };
+  // The rest of the original functions follow here...
 
   // Prepare chart data
   const actionCounts = logs.reduce((acc: any, log: any) => {
@@ -307,46 +409,122 @@ export default function Admin() {
       )}
 
       {activeTab === 'settings' && settings && (
-        <div className="animate-fade-in glass-panel" style={{ padding: '24px' }}>
-          <h3>System Settings & Configurations</h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>Dynamic system parameters (changes reflect instantly throughout the system).</p>
+        <div className="animate-fade-in lookups-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
           
-          <div className="form-group">
-            <label>Valid Colleges (comma-separated)</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
+          <section className="glass-panel" style={{ gridColumn: '1 / -1', padding: '24px' }}>
+            <div className="page-header" style={{ marginBottom: '20px' }}>
+              <h3 style={{ margin: 0 }}>Scholarship Types</h3>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
                 type="text" 
-                defaultValue={(settings.VALID_COLLEGES || []).join(', ')} 
-                id="cfg-colleges"
+                placeholder="New Scholarship Type (e.g. SCH: Excellence %)" 
+                value={newScholarship} 
+                onChange={e => setNewScholarship(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddScholarship()}
+                style={{ flex: 1, maxWidth: '400px' }}
               />
-              <button className="btn-secondary" onClick={() => saveSetting('VALID_COLLEGES', (document.getElementById('cfg-colleges') as HTMLInputElement).value)}>Save</button>
+              <button className="btn-primary" onClick={handleAddScholarship} style={{ padding: '0 20px' }}>
+                <Plus size={16} /> Add
+              </button>
             </div>
-          </div>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <DataTable
+                columns={schColumns}
+                data={scholarshipTypes}
+                customStyles={customStyles}
+                pagination
+                paginationPerPage={5}
+                paginationRowsPerPageOptions={[5, 10, 20]}
+                noHeader
+              />
+            </div>
+          </section>
 
-          <div className="form-group">
-            <label>Valid Terms (comma-separated)</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
+          <section className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ margin: '0 0 20px 0' }}>Registered Colleges</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
                 type="text" 
-                defaultValue={(settings.VALID_TERMS || []).join(', ')} 
-                id="cfg-terms"
+                placeholder="New College (e.g. ENG)" 
+                value={newCollege} 
+                onChange={e => setNewCollege(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddLookup('VALID_COLLEGES', newCollege, setNewCollege)}
+                style={{ flex: 1 }}
               />
-              <button className="btn-secondary" onClick={() => saveSetting('VALID_TERMS', (document.getElementById('cfg-terms') as HTMLInputElement).value)}>Save</button>
+              <button className="btn-primary" onClick={() => handleAddLookup('VALID_COLLEGES', newCollege, setNewCollege)}>
+                <Plus size={16} /> Add
+              </button>
             </div>
-          </div>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <DataTable
+                columns={createColumns('VALID_COLLEGES')}
+                data={(settings.VALID_COLLEGES || []).map((v: string) => ({ value: v }))}
+                customStyles={customStyles}
+                pagination
+                paginationPerPage={5}
+                paginationRowsPerPageOptions={[5, 10]}
+                noHeader
+              />
+            </div>
+          </section>
 
-          <div className="form-group">
-            <label>Valid Student Statuses (comma-separated)</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <textarea 
-                defaultValue={(settings.VALID_STATUSES || []).join(', ')} 
-                id="cfg-statuses"
-                rows={3}
-                style={{ width: '100%', background: 'var(--bg-color)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px', fontFamily: 'inherit' }}
+          <section className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ margin: '0 0 20px 0' }}>Academic Terms</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <input 
+                type="text" 
+                placeholder="New Term (e.g. Winter)" 
+                value={newTerm} 
+                onChange={e => setNewTerm(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddLookup('VALID_TERMS', newTerm, setNewTerm)}
+                style={{ flex: 1 }}
               />
-              <button className="btn-secondary" onClick={() => saveSetting('VALID_STATUSES', (document.getElementById('cfg-statuses') as HTMLTextAreaElement).value)}>Save</button>
+              <button className="btn-primary" onClick={() => handleAddLookup('VALID_TERMS', newTerm, setNewTerm)}>
+                <Plus size={16} /> Add
+              </button>
             </div>
-          </div>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <DataTable
+                columns={createColumns('VALID_TERMS')}
+                data={(settings.VALID_TERMS || []).map((v: string) => ({ value: v }))}
+                customStyles={customStyles}
+                pagination
+                paginationPerPage={5}
+                paginationRowsPerPageOptions={[5, 10]}
+                noHeader
+              />
+            </div>
+          </section>
+
+          <section className="glass-panel" style={{ padding: '24px' }}>
+            <h3 style={{ margin: '0 0 20px 0' }}>Student Statuses</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <input 
+                type="text" 
+                placeholder="New Status (e.g. Graduated)" 
+                value={newStatus} 
+                onChange={e => setNewStatus(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddLookup('VALID_STATUSES', newStatus, setNewStatus)}
+                style={{ flex: 1 }}
+              />
+              <button className="btn-primary" onClick={() => handleAddLookup('VALID_STATUSES', newStatus, setNewStatus)}>
+                <Plus size={16} /> Add
+              </button>
+            </div>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <DataTable
+                columns={createColumns('VALID_STATUSES')}
+                data={(settings.VALID_STATUSES || []).map((v: string) => ({ value: v }))}
+                customStyles={customStyles}
+                pagination
+                paginationPerPage={5}
+                paginationRowsPerPageOptions={[5, 10]}
+                noHeader
+              />
+            </div>
+          </section>
+
         </div>
       )}
 

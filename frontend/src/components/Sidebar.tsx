@@ -111,11 +111,6 @@ export default function Sidebar() {
           <span>Email Follow-up</span>
         </NavLink>
         
-        <NavLink to="/admin/lookups" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Settings size={20} />
-          <span>Data Lookups</span>
-        </NavLink>
-        
         {role === 'Admin' && (
           <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <ShieldCheck size={20} />
