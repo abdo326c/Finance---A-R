@@ -6,38 +6,38 @@
 
 .d365-grid {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 320px;
   gap: 24px;
   align-items: flex-start;
 }
 
 .d365-form {
-  padding: 24px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
 }
 
 .form-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .section-title {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #60a5fa;
-  font-size: 1.1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 8px;
+  gap: 10px;
+  color: var(--primary-color);
+  font-size: 1.15rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
 }
 
 .form-row {
   display: flex;
-  gap: 16px;
+  gap: 20px;
 }
 
 .form-row.two-cols > .form-group {
@@ -51,12 +51,18 @@
 .info-banner {
   margin-top: 8px;
   background: rgba(59, 130, 246, 0.1);
-  border-left: 4px solid #3b82f6;
-  padding: 12px 16px;
-  border-radius: 6px;
-  color: #bfdbfe;
-  font-size: 0.9rem;
+  border-left: 4px solid var(--primary-color);
+  padding: 16px;
+  border-radius: var(--glass-radius);
+  color: var(--primary-hover);
+  font-size: 0.95rem;
   line-height: 1.5;
+}
+
+/* Light mode specific adjustment for the info banner since blue on white needs to be readable */
+[data-theme='light'] .info-banner {
+  color: #1e3a8a;
+  background: #eff6ff;
 }
 
 .generate-btn {
@@ -67,6 +73,7 @@
   justify-content: center;
   align-items: center;
   gap: 8px;
+  margin-top: 16px;
 }
 
 .instructions-sidebar {
@@ -77,21 +84,24 @@
 
 .instructions-sidebar h3 {
   margin: 0 0 16px 0;
-  color: #fff;
-  font-size: 1.1rem;
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .instructions-sidebar > p {
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.6;
   margin-bottom: 24px;
 }
 
 .instruction-step {
   display: flex;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .instruction-step:last-child {
@@ -99,31 +109,31 @@
 }
 
 .step-num {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
+  background: var(--primary-transparent);
+  color: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
 .instruction-step strong {
   display: block;
-  color: #fff;
-  font-size: 0.95rem;
-  margin-bottom: 4px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 6px;
 }
 
 .instruction-step p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 1024px) {
