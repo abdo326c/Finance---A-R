@@ -139,7 +139,7 @@ export default function Reports() {
   };
 
   return (
-    <div className="reports-container">
+    <div className="page-container reports-container">
       <header className="page-header">
         <h1 className="page-title">Financial Management Reports</h1>
         <p className="page-subtitle">Generate dynamic reports with advanced filtering capabilities.</p>
