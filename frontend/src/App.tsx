@@ -15,6 +15,8 @@ import Reconciliation from './pages/Reconciliation';
 import BulkOperations from './pages/BulkOperations';
 import BatchManagement from './pages/BatchManagement';
 import EmailFollowup from './pages/EmailFollowup';
+import Admin from './pages/Admin';
+import StudentExplorer from './pages/StudentExplorer';
 import Sidebar from './components/Sidebar';
 
 // Layout wrapper for authenticated pages
