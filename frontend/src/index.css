@@ -170,6 +170,16 @@ select {
   font-family: inherit;
 }
 
+/* Hide spin buttons for number inputs */
+input[type="number"]::-webkit-inner-spin-button, 
+input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type="number"] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
 input:focus, select:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
