@@ -158,6 +158,22 @@ function App() {
             </ProtectedRoute>
           } 
         />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/explorer" 
+          element={
+            <ProtectedRoute>
+              <StudentExplorer />
+            </ProtectedRoute>
+          } 
+        />
       </Routes>
     </BrowserRouter>
   );

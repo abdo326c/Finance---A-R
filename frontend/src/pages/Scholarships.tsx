@@ -6,12 +6,12 @@ import './Scholarships.css';
 
 interface Scholarship {
   id: number;
-  student_id: int;
-  scholarship_type_id: int;
+  student_id: number;
+  scholarship_type_id: number;
   scholarship_name: string;
-  percentage: float;
+  percentage: number;
   term: string;
-  academic_year: int;
+  academic_year: number;
   is_active: boolean;
   internal_note: string | null;
 }
