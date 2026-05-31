@@ -321,7 +321,7 @@ export default function Reconciliation() {
   };
 
   return (
-    <div className="recon-container">
+    <div className="page-container recon-container">
       <header className="page-header">
         <h1 className="page-title">Multi-System Account Reconciliation Hub</h1>
         <p className="page-subtitle">Bridge the legacy PowerCampus database, our Local A/R database, and Microsoft Dynamics ERP to spot mismatches instantly.</p>

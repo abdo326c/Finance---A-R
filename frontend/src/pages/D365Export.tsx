@@ -101,7 +101,7 @@ export default function D365Export() {
   };
 
   return (
-    <div className="d365-container">
+    <div className="page-container d365-container">
       <header className="page-header">
         <h1 className="page-title">Dynamics 365 Integration - FTI Export</h1>
         <p className="page-subtitle">Extract financial transactions in a format ready for direct upload as a Free Text Invoice.</p>
