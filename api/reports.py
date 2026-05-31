@@ -86,7 +86,9 @@ def generate_report_df(
                     (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
                     OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
                 )
-            GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr ORDER BY s.id
+            GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr 
+            HAVING COUNT(t.id) > 0 OR (:t_cnt=0 AND :y_cnt=0 AND COALESCE(SUM(t.debit)-SUM(t.credit),0) != 0)
+            ORDER BY s.id
         """).bindparams(
             bindparam('cls', expanding=True),
             bindparam('trms', expanding=True),
