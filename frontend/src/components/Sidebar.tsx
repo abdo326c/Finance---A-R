@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key, X } from 'lucide-react';
 import axios from 'axios';
 import './Sidebar.css';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIsOpen?: (val: boolean) => void }) {
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
   
@@ -47,11 +47,20 @@ export default function Sidebar() {
   };
 
   return (
-    <div className="sidebar glass-panel">
-      <div className="sidebar-header">
-        <div className="logo-icon">🏦</div>
-        <h2>Finance A/R</h2>
-      </div>
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={() => setIsOpen && setIsOpen(false)}></div>}
+      <div className={`sidebar glass-panel ${isOpen ? 'mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="logo-icon">🏦</div>
+            <h2>Finance A/R</h2>
+          </div>
+          {setIsOpen && (
+            <button className="mobile-close-btn btn-icon" onClick={() => setIsOpen(false)}>
+              <X size={24} />
+            </button>
+          )}
+        </div>
       
       <div className="user-profile">
         <div className="avatar">{username?.charAt(0).toUpperCase()}</div>
@@ -177,5 +186,6 @@ export default function Sidebar() {
         </div>
       )}
     </div>
+    </>
   );
 }

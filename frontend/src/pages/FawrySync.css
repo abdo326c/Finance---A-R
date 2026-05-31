@@ -211,3 +211,5 @@
     position: static;
   }
 }
+
+@media (max-width: 768px) { .fawry-grid { grid-template-columns: 1fr; } .fawry-layout { grid-template-columns: 1fr; } }

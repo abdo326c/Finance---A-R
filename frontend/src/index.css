@@ -252,3 +252,47 @@ select option {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+/* Mobile Header */
+.mobile-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.mobile-header h2 {
+  font-size: 1.1rem;
+  color: var(--primary-color);
+  margin: 0;
+}
+
+/* Global Mobile Responsiveness */
+@media (max-width: 768px) {
+  .mobile-header {
+    display: flex;
+  }
+  
+  .glass-panel {
+    padding: 16px !important;
+  }
+  
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+  
+  .page-header p {
+    font-size: 0.9rem;
+  }
+  
+  /* Make all primary and secondary buttons stack well if in flex */
+  .btn-primary, .btn-secondary {
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+}
