@@ -71,3 +71,49 @@ async def update_lookup(key: str, data: ConfigUpdate, current_user = Depends(get
         
     db.commit()
     return {"message": "Config updated successfully", "key": key, "values": data.values}
+
+@router.get("/scholarship_types")
+async def get_scholarship_types(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from models import ScholarshipType
+    types = db.query(ScholarshipType).all()
+    return [{"id": t.id, "name": t.name} for t in types]
+
+@router.post("/scholarship_types")
+async def add_scholarship_type(data: dict, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from models import ScholarshipType
+    name = data.get("name")
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    new_type = ScholarshipType(name=name)
+    db.add(new_type)
+    db.commit()
+    get_static_lookups.cache_clear()
+    return {"message": "Added", "id": new_type.id, "name": new_type.name}
+
+@router.delete("/scholarship_types/{id}")
+async def delete_scholarship_type(id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from models import ScholarshipType
+    st = db.get(ScholarshipType, id)
+    if st:
+        db.delete(st)
+        db.commit()
+        get_static_lookups.cache_clear()
+    return {"message": "Deleted"}
+
+@router.get("/students/search")
+async def search_students(q: str, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    from models import Student
+    from sqlalchemy import or_
+    
+    query = db.query(Student)
+    if q.isdigit():
+        query = query.filter(Student.id == int(q))
+    else:
+        query = query.filter(Student.name.ilike(f"%{q}%"))
+        
+    students = query.limit(20).all()
+    return [{"id": s.id, "name": s.name, "email": s.email or f"student{s.id}@nu.edu.eg"} for s in students]
