@@ -1,39 +1,34 @@
-.scholarships-container {
-  padding: 32px;
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
 .tabs-container {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .tab-btn {
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--surface-color);
   color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
   padding: 10px 24px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
   transition: var(--transition);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
 
 .tab-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .tab-btn.active {
   background: var(--primary-color);
-  color: white;
+  color: #ffffff;
   border-color: var(--primary-hover);
+  box-shadow: 0 4px 12px var(--primary-transparent);
 }
 
 .tab-content {
-  padding: 32px;
   min-height: 400px;
 }
 
@@ -41,6 +36,11 @@
   display: flex;
   gap: 16px;
   align-items: flex-end;
+  background: var(--surface-color);
+  padding: 20px;
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
 }
 
 .flex-1 {
@@ -49,21 +49,23 @@
 
 /* Gauge */
 .gauge-container {
-  background: rgba(15, 23, 42, 0.4);
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--surface-color);
+  padding: 24px;
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
 .gauge-container h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 16px 0;
   color: var(--text-primary);
+  font-size: 1.1rem;
 }
 
 .progress-bg {
   width: 100%;
   height: 12px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--border-color);
   border-radius: 6px;
   overflow: hidden;
   margin-bottom: 12px;
@@ -71,20 +73,20 @@
 
 .progress-fill {
   height: 100%;
-  transition: width 0.5s ease;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .bg-success {
-  background: #10b981;
+  background: var(--success);
 }
 
 .bg-danger {
-  background: #ef4444;
+  background: var(--danger);
 }
 
 .gauge-text {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--text-secondary);
 }
 
@@ -96,51 +98,64 @@
 }
 
 .sch-item {
-  background: rgba(15, 23, 42, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--glass-radius);
   overflow: hidden;
+  transition: var(--transition);
+}
+
+.sch-item:hover {
+  border-color: var(--primary-transparent);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 
 .sch-item-header {
-  padding: 16px 20px;
+  padding: 16px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-hover);
 }
 
 .sch-name {
   font-weight: 600;
   color: var(--primary-color);
   margin-right: 12px;
+  font-size: 1.05rem;
 }
 
 .sch-pct {
-  font-weight: bold;
+  font-weight: 700;
   color: var(--text-primary);
+  background: var(--primary-transparent);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
 .status-badge {
-  padding: 4px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
 .status-badge.active {
   background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .status-badge.inactive {
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .sch-item-body {
-  padding: 16px 20px;
+  padding: 20px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -149,20 +164,21 @@
 .note-display {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .note-text {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .note-empty {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
   font-style: italic;
 }
 
@@ -173,12 +189,7 @@
 }
 
 .edit-note-form input {
-  padding: 6px 12px;
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: white;
-  border-radius: 4px;
-  min-width: 250px;
+  min-width: 300px;
 }
 
 .sch-item-actions {
@@ -190,10 +201,11 @@
   background: none;
   border: none;
   color: var(--primary-color);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   cursor: pointer;
   padding: 0;
   text-align: left;
+  font-weight: 500;
 }
 
 .btn-link:hover {
@@ -202,14 +214,19 @@
 
 /* Assign Tab */
 .assign-form {
-  max-width: 600px;
+  max-width: 650px;
   margin: 0 auto;
+  background: var(--surface-color);
+  padding: 32px;
+  border-radius: var(--glass-radius);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.02);
 }
 
 .form-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
 .form-row .form-group {
@@ -220,39 +237,46 @@
 /* Tools Tab */
 .tools-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
 }
 
 .tool-card {
-  background: rgba(15, 23, 42, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--glass-radius);
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+  transition: var(--transition);
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.04);
 }
 
 .tool-header {
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 24px;
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tool-header h3 {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .tool-body {
-  padding: 20px;
+  padding: 24px;
 }
 
 .tool-body p {
-  margin: 0 0 16px 0;
+  margin: 0 0 20px 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  font-size: 0.95rem;
+  line-height: 1.6;
 }

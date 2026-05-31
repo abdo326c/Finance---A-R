@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key, X } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key, X, Sun, Moon } from 'lucide-react';
 import axios from 'axios';
 import './Sidebar.css';
+import './Sidebar.css';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIsOpen?: (val: boolean) => void }) {
   const navigate = useNavigate();
   const username = localStorage.getItem('username');
+  const { theme, toggleTheme } = useTheme();
   
   const [role] = useState(() => {
     try {
@@ -129,6 +132,9 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
             <p className="user-name" style={{ fontSize: '0.85rem' }}>{username}</p>
             <p className="user-role" style={{ fontSize: '0.7rem' }}>{role}</p>
           </div>
+          <button onClick={toggleTheme} className="btn-icon" style={{ marginLeft: 'auto' }} title="Toggle Theme">
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </div>
 
         <button onClick={handleLogout} className="btn-logout-sidebar" style={{ padding: '8px 12px', fontSize: '0.85rem' }}>

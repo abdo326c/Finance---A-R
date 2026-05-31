@@ -58,7 +58,7 @@ export default function Scholarships() {
   };
 
   return (
-    <div className="scholarships-container">
+    <div className="page-container">
       <header className="page-header">
         <h1 className="page-title"><GraduationCap size={28} /> Student Scholarships Management</h1>
         <p className="page-subtitle">Assign scholarships, manage student coverage limits, and synchronize past discounts.</p>

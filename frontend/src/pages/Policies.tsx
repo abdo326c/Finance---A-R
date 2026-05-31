@@ -162,7 +162,7 @@ export default function Policies() {
   };
 
   return (
-    <div className="policies-container">
+    <div className="page-container policies-container">
       <header className="page-header">
         <h1 className="page-title"><FileText size={28} /> University Financial Policies</h1>
         <p className="page-subtitle">View and manage official scholarship policies, tuition guidelines, and procedural documents.</p>

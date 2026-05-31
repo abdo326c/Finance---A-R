@@ -165,7 +165,7 @@ export default function FawrySync() {
   ];
 
   return (
-    <div className="fawry-container">
+    <div className="page-container fawry-container">
       <header className="page-header">
         <h1 className="page-title">Fawry Sync Bridge</h1>
         <p className="page-subtitle">Pull live payment transactions from Supabase into the local A/R system.</p>
@@ -258,7 +258,7 @@ export default function FawrySync() {
             <button 
               onClick={handleSync} 
               disabled={syncing || transactions.filter(t => t.include && t.student_found).length === 0} 
-              className="btn-success full-width"
+              className="btn-primary full-width"
               style={{ marginTop: '20px' }}
             >
               {syncing ? <div className="spinner-small"></div> : <Save size={18} />}
@@ -272,13 +272,7 @@ export default function FawrySync() {
               data={transactions}
               pagination
               highlightOnHover
-              theme="dark"
-              customStyles={{
-                table: { style: { backgroundColor: 'transparent' } },
-                headRow: { style: { backgroundColor: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.1)' } },
-                rows: { style: { backgroundColor: 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)' } },
-                pagination: { style: { backgroundColor: 'transparent', borderTop: '1px solid rgba(255,255,255,0.1)' } }
-              }}
+              className="react-data-table-custom"
             />
           </div>
         </div>

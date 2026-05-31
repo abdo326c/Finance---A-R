@@ -18,7 +18,7 @@ import EmailFollowup from './pages/EmailFollowup';
 import Admin from './pages/Admin';
 import StudentExplorer from './pages/StudentExplorer';
 import Sidebar from './components/Sidebar';
-
+import { ThemeProvider } from './context/ThemeContext';
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
 
@@ -67,132 +67,134 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route 
-          path="/dashboard" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/statement" 
-          element={
-            <ProtectedRoute>
-              <StudentStatement />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/reports" 
-          element={
-            <ProtectedRoute>
-              <Reports />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/operations" 
-          element={
-            <ProtectedRoute>
-              <Operations />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/policies" 
-          element={
-            <ProtectedRoute>
-              <Policies />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/scholarships" 
-          element={
-            <ProtectedRoute>
-              <Scholarships />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/registration" 
-          element={
-            <ProtectedRoute>
-              <Registration />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/fawry" 
-          element={
-            <ProtectedRoute>
-              <FawrySync />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/d365" 
-          element={
-            <ProtectedRoute>
-              <D365Export />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/reconciliation" 
-          element={
-            <ProtectedRoute>
-              <Reconciliation />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/bulk" 
-          element={
-            <ProtectedRoute>
-              <BulkOperations />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/batches" 
-          element={
-            <ProtectedRoute>
-              <BatchManagement />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/emails" 
-          element={
-            <ProtectedRoute>
-              <EmailFollowup />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin" 
-          element={
-            <ProtectedRoute>
-              <Admin />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/explorer" 
-          element={
-            <ProtectedRoute>
-              <StudentExplorer />
-            </ProtectedRoute>
-          } 
-        />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/statement" 
+            element={
+              <ProtectedRoute>
+                <StudentStatement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/reports" 
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/operations" 
+            element={
+              <ProtectedRoute>
+                <Operations />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/policies" 
+            element={
+              <ProtectedRoute>
+                <Policies />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/scholarships" 
+            element={
+              <ProtectedRoute>
+                <Scholarships />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/registration" 
+            element={
+              <ProtectedRoute>
+                <Registration />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/fawry" 
+            element={
+              <ProtectedRoute>
+                <FawrySync />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/d365" 
+            element={
+              <ProtectedRoute>
+                <D365Export />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/reconciliation" 
+            element={
+              <ProtectedRoute>
+                <Reconciliation />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/bulk" 
+            element={
+              <ProtectedRoute>
+                <BulkOperations />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/batches" 
+            element={
+              <ProtectedRoute>
+                <BatchManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/emails" 
+            element={
+              <ProtectedRoute>
+                <EmailFollowup />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/explorer" 
+            element={
+              <ProtectedRoute>
+                <StudentExplorer />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 
