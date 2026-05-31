@@ -43,6 +43,11 @@ export default function Sidebar() {
           <span>Reports</span>
         </NavLink>
         
+        <NavLink to="/policies" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <FileText size={20} />
+          <span>Policies</span>
+        </NavLink>
+        
         <NavLink to="/operations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Calculator size={20} />
           <span>Operations</span>
