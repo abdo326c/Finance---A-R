@@ -186,7 +186,7 @@ async def sync_fawry_payments(
                 db.add(new_tx)
                 
                 write_audit(
-                    db, current_user, "FAWRY_SYNC",
+                    db, current_user.username, "FAWRY_SYNC",
                     f"student_id={student_id}",
                     f"Synced Fawry Ref={ref} as {new_ref_no} | batch={batch_id}"
                 )

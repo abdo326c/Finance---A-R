@@ -17,6 +17,7 @@ def get_dynamic_configs():
     If the database is not ready or the keys don't exist,
     it populates them with initial defaults and returns them.
     """
+    from contextlib import contextmanager
     from models import get_db, SystemConfig
     
     defaults = {
@@ -29,7 +30,7 @@ def get_dynamic_configs():
     
     configs = {}
     try:
-        with get_db() as db:
+        with contextmanager(get_db)() as db:
             for key, def_val in defaults.items():
                 row = db.query(SystemConfig).filter_by(key=key).first()
                 if not row:

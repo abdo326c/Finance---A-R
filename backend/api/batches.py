@@ -50,7 +50,7 @@ async def export_batch(batch_id: str, db: Session = Depends(get_db)):
         WHERE t.batch_id=:bid ORDER BY t.id
     """)
     
-    df = pd.read_sql(sql, con=db.connection(), params={"bid": batch_id})
+    df = pd.read_sql(sql, con=db.get_bind(), params={"bid": batch_id})
     if df.empty:
         raise HTTPException(status_code=404, detail="Batch ID not found or is empty.")
         
@@ -69,7 +69,7 @@ async def delete_batch(
     current_user = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.get("role") != "Admin":
+    if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Only Admins can delete batches.")
         
     summaries = (
@@ -97,12 +97,12 @@ async def delete_batch(
             record_count=total_records,
             total_debit=sum(b.total_debit or 0 for b in summaries),
             total_credit=sum(b.total_credit or 0 for b in summaries),
-            deleted_by=current_user.get("sub", "Unknown")
+            deleted_by=current_user.username
         ))
         
         db.query(Transaction).filter(Transaction.batch_id == batch_id).delete()
         
-        write_audit(db, current_user, "DELETE_BATCH", batch_id, f"{total_records} records removed")
+        write_audit(db, current_user.username, "DELETE_BATCH", batch_id, f"{total_records} records removed")
         db.commit()
     except Exception as e:
         db.rollback()

@@ -103,7 +103,7 @@ async def process_bulk_upload(
                     failed.append(orig)
                     
         if success > 0:
-            write_audit(db, current_user, "BULK_RATE_UPDATE", "batch", f"{success} students updated")
+            write_audit(db, current_user.username, "BULK_RATE_UPDATE", "batch", f"{success} students updated")
             db.commit()
             
     else:
@@ -189,7 +189,7 @@ async def process_bulk_upload(
         if txns:
             try:
                 db.bulk_save_objects(txns)
-                write_audit(db, current_user, "BULK_TX", batch_id, f"{b_type} | {success} rows | batch={batch_id}")
+                write_audit(db, current_user.username, "BULK_TX", batch_id, f"{b_type} | {success} rows | batch={batch_id}")
                 db.commit()
             except Exception as e:
                 db.rollback()
