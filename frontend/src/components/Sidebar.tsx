@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight } from 'lucide-react';
+import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail } from 'lucide-react';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -80,6 +80,21 @@ export default function Sidebar() {
         </NavLink>
         
         <div className="sidebar-title" style={{ marginTop: '32px' }}>ADMINISTRATION</div>
+        <NavLink to="/bulk" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <FileSpreadsheet size={20} />
+          <span>Bulk Operations</span>
+        </NavLink>
+        
+        <NavLink to="/batches" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Archive size={20} />
+          <span>Batch Management</span>
+        </NavLink>
+        
+        <NavLink to="/emails" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Mail size={20} />
+          <span>Email Follow-up</span>
+        </NavLink>
+        
         <NavLink to="/admin/lookups" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Settings size={20} />
           <span>Data Lookups</span>
