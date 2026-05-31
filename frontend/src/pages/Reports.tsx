@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FileBarChart, Download, Settings } from 'lucide-react';
+import { FileBarChart, Download, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import './Reports.css';
 
 const FORMATS = [
@@ -14,6 +14,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<{ columns: string[], data: any[] }>({ columns: [], data: [] });
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [configOpen, setConfigOpen] = useState(true);
 
   // Dynamic Lookups
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
@@ -75,12 +76,15 @@ export default function Reports() {
     
     try {
       const token = localStorage.getItem('token');
-      // Using paramsSerializer to handle array queries like `?colleges=ENG&colleges=CS` correctly in axios
       const response = await axios.get('http://127.0.0.1:8000/api/reports/generate', {
         params: buildParams(),
         headers: { Authorization: `Bearer ${token}` }
       });
       setReportData(response.data);
+      // Auto-collapse config panel if data is found to maximize table space
+      if (response.data.data.length > 0) {
+        setConfigOpen(false);
+      }
     } catch (error) {
       console.error("Error generating report", error);
       setReportData({ columns: [], data: [] });
@@ -124,78 +128,90 @@ export default function Reports() {
         <p className="page-subtitle">Generate dynamic reports with advanced filtering capabilities.</p>
       </header>
 
-      <div className="reports-layout">
-        <aside className="reports-sidebar glass-panel animate-fade-in">
-          <div className="sidebar-title">
-            <Settings size={18} /> Configuration
-          </div>
-          <form onSubmit={handleGenerate} className="reports-form">
-            
-            <div className="form-group">
-              <label>Report Format</label>
-              <select value={format} onChange={e => setFormat(e.target.value)} required>
-                {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
+      <div className="reports-layout-top">
+        <section className="reports-config-panel glass-panel animate-fade-in">
+          <div className="config-header" onClick={() => setConfigOpen(!configOpen)} style={{ cursor: 'pointer' }}>
+            <div className="sidebar-title" style={{ marginBottom: 0, borderBottom: 'none', paddingBottom: 0 }}>
+              <Settings size={18} /> Configuration
             </div>
-
-            <div className="form-group">
-              <label>Date Range (Optional)</label>
-              <div className="date-inputs">
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="filter-group">
-              <label>Colleges</label>
-              <div className="checkbox-grid">
-                {availableColleges.map(c => (
-                  <label key={c} className="custom-checkbox">
-                    <input type="checkbox" checked={colleges.includes(c)} onChange={() => handleMultiSelect(setColleges, c)} />
-                    <span>{c}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="filter-group">
-              <label>Terms</label>
-              <div className="checkbox-grid">
-                {availableTerms.map(t => (
-                  <label key={t} className="custom-checkbox">
-                    <input type="checkbox" checked={terms.includes(t)} onChange={() => handleMultiSelect(setTerms, t)} />
-                    <span>{t}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Year</label>
-              <select 
-                value={years.length > 0 ? years[0].toString() : ""} 
-                onChange={e => {
-                  const val = e.target.value;
-                  setYears(val ? [parseInt(val)] : []);
-                }}
-              >
-                <option value="">All Years</option>
-                {availableYears.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Note: If statuses filtering is needed in the UI, we can add it here too */}
-
-            <button type="submit" className="btn-generate" disabled={loading}>
-              {loading ? <div className="spinner-small"></div> : <FileBarChart size={18} />}
-              Generate Report
+            <button className="btn-toggle-config">
+              {configOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
-          </form>
-        </aside>
+          </div>
+          
+          {configOpen && (
+            <form onSubmit={handleGenerate} className="reports-form-grid">
+              <div className="form-row-top">
+                <div className="form-group">
+                  <label>Report Format</label>
+                  <select value={format} onChange={e => setFormat(e.target.value)} required>
+                    {FORMATS.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
+                </div>
 
-        <main className="reports-content glass-panel animate-fade-in">
+                <div className="form-group">
+                  <label>Date Range (Optional)</label>
+                  <div className="date-inputs-row">
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                    <span className="date-separator">to</span>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Year</label>
+                  <select 
+                    value={years.length > 0 ? years[0].toString() : ""} 
+                    onChange={e => {
+                      const val = e.target.value;
+                      setYears(val ? [parseInt(val)] : []);
+                    }}
+                  >
+                    <option value="">All Years</option>
+                    {availableYears.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row-bottom">
+                <div className="filter-group">
+                  <label>Colleges</label>
+                  <div className="checkbox-row">
+                    {availableColleges.map(c => (
+                      <label key={c} className="custom-checkbox">
+                        <input type="checkbox" checked={colleges.includes(c)} onChange={() => handleMultiSelect(setColleges, c)} />
+                        <span>{c}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <label>Terms</label>
+                  <div className="checkbox-row">
+                    {availableTerms.map(t => (
+                      <label key={t} className="custom-checkbox">
+                        <input type="checkbox" checked={terms.includes(t)} onChange={() => handleMultiSelect(setTerms, t)} />
+                        <span>{t}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="action-group">
+                  <button type="submit" className="btn-generate" disabled={loading}>
+                    {loading ? <div className="spinner-small"></div> : <FileBarChart size={18} />}
+                    Generate Report
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
+        </section>
+
+        <section className="reports-content glass-panel animate-fade-in">
           {!hasGenerated ? (
             <div className="empty-state">
               <FileBarChart size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
@@ -222,7 +238,7 @@ export default function Reports() {
               </div>
               <div className="table-responsive">
                 <table className="data-table reports-table">
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr>
                       {reportData.columns.map((col, i) => <th key={i}>{col}</th>)}
                     </tr>
@@ -242,7 +258,7 @@ export default function Reports() {
               </div>
             </div>
           )}
-        </main>
+        </section>
       </div>
     </div>
   );
