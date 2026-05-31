@@ -220,7 +220,8 @@ run_migrations()
 # ── Seed default users (first run only) ───────
 def seed_default_users():
     from api.auth import hash_pw
-    with contextmanager(get_db)() as db:
+    db = SessionLocal()
+    try:
         if not db.query(SystemUser).first():
             db.add(SystemUser(
                 username="fin_admin",
@@ -236,6 +237,8 @@ def seed_default_users():
             ))
             db.add(RefCounter(id=1, seq=0))
             db.commit()
+    finally:
+        db.close()
 
 
 # ── Ref-counter helper (replaces full table scan) ──

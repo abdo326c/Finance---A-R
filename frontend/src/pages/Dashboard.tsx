@@ -74,15 +74,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-layout">
-      {/* Sidebar / Navigation Header Placeholder */}
-      <header className="dashboard-header glass-panel">
-        <div className="logo">🏦 Finance A/R System</div>
-        <div className="user-controls">
-          <span className="welcome-text">Welcome, {localStorage.getItem('username')}</span>
-          <button onClick={handleLogout} className="btn-logout"><LogOut size={18} /> Logout</button>
-        </div>
-      </header>
-
       <main className="dashboard-content">
         <div className="filters-bar glass-panel animate-fade-in">
           <div className="filter-group">
