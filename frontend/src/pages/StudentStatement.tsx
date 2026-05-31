@@ -49,7 +49,7 @@ export default function StudentStatement() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/statement/search', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/statement/search`, {
         params: buildParams(),
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -70,7 +70,7 @@ export default function StudentStatement() {
   const downloadFile = async (type: 'pdf' | 'excel') => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://127.0.0.1:8000/api/statement/${type}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/statement/${type}`, {
         params: buildParams(),
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'

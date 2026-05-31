@@ -42,7 +42,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/dashboard/metrics', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/dashboard/metrics`, {
         params: { term, year, college },
         headers: { Authorization: `Bearer ${token}` }
       });

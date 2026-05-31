@@ -26,7 +26,7 @@ export default function BatchManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/batches/active', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/batches/active`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setActiveBatches(res.data);
@@ -41,7 +41,7 @@ export default function BatchManagement() {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get('http://127.0.0.1:8000/api/batches/deleted', {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/batches/deleted`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDeletedBatches(res.data);
@@ -60,7 +60,7 @@ export default function BatchManagement() {
   const handleDownload = async (batchId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://127.0.0.1:8000/api/batches/export/${batchId}`, {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/batches/export/${batchId}`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob'
       });
@@ -84,7 +84,7 @@ export default function BatchManagement() {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://127.0.0.1:8000/api/batches/${batchToDelete}`, {
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/batches/${batchToDelete}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBatchToDelete('');

@@ -21,7 +21,7 @@ export default function Login() {
 
     if (isChangingPw) {
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/auth/change-password', {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/auth/change-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -53,7 +53,7 @@ export default function Login() {
       formData.append('username', username);
       formData.append('password', password);
 
-      const response = await fetch('http://127.0.0.1:8000/api/auth/token', {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/auth/token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

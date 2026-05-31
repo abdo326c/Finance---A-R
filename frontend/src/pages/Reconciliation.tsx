@@ -51,7 +51,7 @@ export default function Reconciliation() {
   const fetchLookups = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://127.0.0.1:8000/api/lookups', {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTerms(response.data.terms || []);
@@ -107,7 +107,7 @@ export default function Reconciliation() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://127.0.0.1:8000/api/reconciliation/analyze', formData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/reconciliation/analyze`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -124,7 +124,7 @@ export default function Reconciliation() {
   const handleDisputeUpdate = async (studentId: number, isDisputed: boolean, notes: string) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`http://127.0.0.1:8000/api/reconciliation/dispute/${studentId}`, 
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/reconciliation/dispute/${studentId}`, 
         { is_disputed: isDisputed, notes },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -145,7 +145,7 @@ export default function Reconciliation() {
     if (!window.confirm(`Are you sure you want to safe-import a ${action} of ${amount} EGP?`)) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`http://127.0.0.1:8000/api/reconciliation/resolve/${action}`, 
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/reconciliation/resolve/${action}`, 
         { student_id: studentId, term: targetTerm, year: parseInt(targetYear), amount },
         { headers: { Authorization: `Bearer ${token}` } }
       );

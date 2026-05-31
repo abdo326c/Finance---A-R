@@ -12,7 +12,7 @@ export default function Registration() {
     const fetchColleges = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get('http://127.0.0.1:8000/api/lookups', {
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setColleges(res.data.colleges || []);
@@ -89,7 +89,7 @@ function ManualEntryTab({ colleges, showFlash }: { colleges: string[], showFlash
     
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://127.0.0.1:8000/api/registration', {
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/registration`, {
         id: Number(formData.id),
         name: formData.name,
         college: formData.college,
@@ -221,7 +221,7 @@ function BulkUploadTab({ showFlash }: { showFlash: (m: string, t: 'success'|'err
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://127.0.0.1:8000/api/registration/bulk', formData, {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/registration/bulk`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'

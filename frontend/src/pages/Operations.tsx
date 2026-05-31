@@ -48,7 +48,7 @@ export default function Operations() {
     const fetchLookups = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await axios.get('http://127.0.0.1:8000/api/lookups', {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAvailableTerms(response.data.terms || []);
@@ -79,7 +79,7 @@ export default function Operations() {
     setPreviewLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`http://127.0.0.1:8000/api/operations/preview/${studentId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/operations/preview/${studentId}`, {
         params: { term, year },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -122,7 +122,7 @@ export default function Operations() {
         internal_note: internalNote
       };
       
-      const res = await axios.post('http://127.0.0.1:8000/api/operations/transaction', payload, {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/operations/transaction`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
