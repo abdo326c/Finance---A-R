@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Download, FileText, Medal, Edit3, Save, User, GraduationCap, MapPin, Mail, Phone, Calendar, HeartHandshake, FileCheck, CircleUserRound } from 'lucide-react';
+import { Search, Download, FileText, Medal, Edit3, Save, User, Users, GraduationCap, MapPin, Mail, Phone, Calendar, HeartHandshake, CheckCircle } from 'lucide-react';
 import './StudentExplorer.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -227,7 +227,7 @@ export default function StudentExplorer() {
             </button>
             {profile.balance <= 0 && (
               <button className="btn-primary" onClick={handleDownloadClearance} style={{ flex: 1, justifyContent: 'center', background: '#22c55e', borderColor: '#22c55e' }}>
-                <FileCheck size={18}/> Issue Financial Clearance
+                <CheckCircle size={18}/> Issue Financial Clearance
               </button>
             )}
             <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => {
@@ -241,7 +241,7 @@ export default function StudentExplorer() {
 
           {/* Tabs */}
           <div className="admin-tabs">
-            <button className={`admin-tab ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><CircleUserRound size={18} /> Profile Details</button>
+            <button className={`admin-tab ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><User size={18} /> Profile Details</button>
             <button className={`admin-tab ${activeTab === 'scholarships' ? 'active' : ''}`} onClick={() => setActiveTab('scholarships')}><Medal size={18} /> Scholarships</button>
           </div>
 
