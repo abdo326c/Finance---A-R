@@ -1,0 +1,240 @@
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell
+} from 'recharts';
+import { TrendingUp, Users, DollarSign, Activity, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import './Dashboard.css';
+
+interface DashboardData {
+  metrics: {
+    gross_billed: number;
+    total_discounts: number;
+    total_payments: number;
+    net_balance: number;
+    net_adjustments: number;
+    total_students: number;
+    active_count: number;
+  };
+  breakdown: Array<{
+    College: string;
+    Students: number;
+    Tuition_Billed: number;
+    Discounts: number;
+    Payments: number;
+    Net_Balance: number;
+  }>;
+}
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // Filters state
+  const [term, setTerm] = useState('All Terms');
+  const [year, setYear] = useState('All Years');
+  const [college, setCollege] = useState('All Colleges');
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://127.0.0.1:8000/api/dashboard/metrics', {
+        params: { term, year, college },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setData(response.data);
+    } catch (error) {
+      console.error("Error fetching dashboard data", error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        handleLogout();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [term, year, college]);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate('/login');
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP', maximumFractionDigits: 0 }).format(value);
+  };
+
+  const COLORS = ['#0d47a1', '#e53935', '#00897b', '#fb8c00', '#5e35b1'];
+
+  return (
+    <div className="dashboard-layout">
+      {/* Sidebar / Navigation Header Placeholder */}
+      <header className="dashboard-header glass-panel">
+        <div className="logo">🏦 Finance A/R System</div>
+        <div className="user-controls">
+          <span className="welcome-text">Welcome, {localStorage.getItem('username')}</span>
+          <button onClick={handleLogout} className="btn-logout"><LogOut size={18} /> Logout</button>
+        </div>
+      </header>
+
+      <main className="dashboard-content">
+        <div className="filters-bar glass-panel animate-fade-in">
+          <div className="filter-group">
+            <label>Term</label>
+            <select value={term} onChange={e => setTerm(e.target.value)} className="input-field">
+              <option>All Terms</option>
+              <option>Fall</option>
+              <option>Spring</option>
+              <option>Summer</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>Year</label>
+            <select value={year} onChange={e => setYear(e.target.value)} className="input-field">
+              <option>All Years</option>
+              <option>2023</option>
+              <option>2024</option>
+              <option>2025</option>
+            </select>
+          </div>
+          <div className="filter-group">
+            <label>College</label>
+            <select value={college} onChange={e => setCollege(e.target.value)} className="input-field">
+              <option>All Colleges</option>
+              <option>Engineering</option>
+              <option>Business</option>
+              <option>Computer Science</option>
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="loading-state">
+            <div className="spinner"></div>
+            <p>Loading financial data...</p>
+          </div>
+        ) : data ? (
+          <>
+            <div className="kpi-grid animate-fade-in">
+              <div className="kpi-card kpi-blue glass-panel">
+                <div className="kpi-icon"><TrendingUp /></div>
+                <div>
+                  <p className="kpi-label">Gross Billed</p>
+                  <h3 className="kpi-value">{formatCurrency(data.metrics.gross_billed)}</h3>
+                </div>
+              </div>
+              <div className="kpi-card kpi-red glass-panel">
+                <div className="kpi-icon"><DollarSign /></div>
+                <div>
+                  <p className="kpi-label">Total Scholarships</p>
+                  <h3 className="kpi-value">{formatCurrency(data.metrics.total_discounts)}</h3>
+                </div>
+              </div>
+              <div className="kpi-card kpi-teal glass-panel">
+                <div className="kpi-icon"><Activity /></div>
+                <div>
+                  <p className="kpi-label">Total Payments</p>
+                  <h3 className="kpi-value">{formatCurrency(data.metrics.total_payments)}</h3>
+                </div>
+              </div>
+              <div className="kpi-card kpi-purple glass-panel">
+                <div className="kpi-icon"><Users /></div>
+                <div>
+                  <p className="kpi-label">Net Balance Due</p>
+                  <h3 className="kpi-value">{formatCurrency(data.metrics.net_balance)}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="charts-grid animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <div className="chart-container glass-panel">
+                <h3 className="chart-title">💳 Financial Breakdown by College</h3>
+                <div style={{ height: 350 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.breakdown} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis dataKey="College" />
+                      <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
+                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Legend />
+                      <Bar dataKey="Tuition_Billed" name="Tuition Billed" fill="#0d47a1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Discounts" name="Discounts" fill="#e53935" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Payments" name="Payments" fill="#00897b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="chart-container glass-panel">
+                <h3 className="chart-title">👥 Students by College</h3>
+                <div style={{ height: 350 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.breakdown}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={120}
+                        paddingAngle={5}
+                        dataKey="Students"
+                        nameKey="College"
+                        label
+                      >
+                        {data.breakdown.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="table-container glass-panel animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <h3 className="chart-title">📋 Detailed Revenue Breakdown</h3>
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>College</th>
+                      <th>Students</th>
+                      <th>Tuition Billed</th>
+                      <th>Discounts</th>
+                      <th>Payments</th>
+                      <th>Net Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.breakdown.map((row, idx) => (
+                      <tr key={idx}>
+                        <td style={{fontWeight: 600}}>{row.College}</td>
+                        <td>{row.Students}</td>
+                        <td>{formatCurrency(row.Tuition_Billed)}</td>
+                        <td>{formatCurrency(row.Discounts)}</td>
+                        <td>{formatCurrency(row.Payments)}</td>
+                        <td className={row.Net_Balance > 0 ? 'text-positive' : 'text-neutral'}>
+                          {formatCurrency(row.Net_Balance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="error-state">Failed to load data</div>
+        )}
+      </main>
+    </div>
+  );
+}

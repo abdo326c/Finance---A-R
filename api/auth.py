@@ -9,7 +9,21 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 
 from models import get_db, SystemUser
-from auth import verify_pw, hash_pw  # Reuse existing hashing logic
+from config import TIMEOUT_MIN
+import bcrypt
+
+def hash_pw(plain: str) -> str:
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+def verify_pw(plain: str, hashed: str) -> bool:
+    try:
+        if hashed.startswith("$2b$") or hashed.startswith("$2a$"):
+            return bcrypt.checkpw(plain.encode(), hashed.encode())
+        else:
+            import hashlib
+            return hashlib.sha256(plain.encode()).hexdigest() == hashed
+    except Exception:
+        return False
 from config import TIMEOUT_MIN
 
 # Configuration for JWT
