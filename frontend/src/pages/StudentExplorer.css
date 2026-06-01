@@ -91,8 +91,8 @@
 }
 
 .info-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 16px 20px;
   display: flex;
@@ -126,10 +126,10 @@
 }
 
 .detail-box {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-hover);
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
   height: 100%;
 }
 
@@ -147,7 +147,7 @@
   margin: 10px 0;
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
 }
 
@@ -156,8 +156,8 @@
 }
 
 .master-data-form {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
+  background: var(--surface-hover);
+  border: 1px dashed var(--border-color);
   padding: 24px;
   border-radius: 12px;
   margin-top: 24px;

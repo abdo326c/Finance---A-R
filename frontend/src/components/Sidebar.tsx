@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, LogOut, FileBarChart, Calculator, Settings, GraduationCap, UserPlus, Award, CloudRain, ShieldCheck, RefreshCw, ArrowLeftRight, FileSpreadsheet, Archive, Mail, Search, Key, X, Sun, Moon } from 'lucide-react';
-import axios from 'axios';
-import './Sidebar.css';
 import './Sidebar.css';
 import { useTheme } from '../context/ThemeContext';
 

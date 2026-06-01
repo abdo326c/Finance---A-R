@@ -48,7 +48,7 @@
 }
 
 .btn-toggle-config:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 
@@ -279,7 +279,7 @@
   overflow-x: auto;
   /* Custom scrollbar for table */
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: var(--text-secondary) transparent;
 }
 
 .table-responsive::-webkit-scrollbar {
@@ -347,7 +347,7 @@
 .spinner-small {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--border-color);
   border-top-color: white;
 }
 
