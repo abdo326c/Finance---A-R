@@ -128,14 +128,14 @@ export default function StudentExplorer() {
 
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', position: 'relative', zIndex: 50 }}>
         <div className="form-group" style={{ marginBottom: 0 }}>
-          <label>Search Student ID or Name</label>
+          <label>Search Student ID, Name, or Email</label>
           <div style={{ display: 'flex', gap: '10px' }}>
             <input 
               type="text" 
               value={searchQuery} 
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="e.g. 211001234 or 'Ahmed'"
+              placeholder="e.g. 211001234, 'Ahmed', or email@nu.edu.eg"
             />
             <button className="btn-primary" onClick={handleSearch}>Search</button>
           </div>
