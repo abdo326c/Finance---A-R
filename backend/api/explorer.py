@@ -37,12 +37,7 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
     latest_status = db.query(StudentStatus).filter_by(student_id=student.id).order_by(StudentStatus.academic_year.desc(), StudentStatus.id.desc()).first()
     status_val = latest_status.status if latest_status else "Active"
     
-    # Calc balance
-    rows = db.query(Transaction).filter(Transaction.student_id == student.id).all()
-    total_d = sum(t.debit for t in rows)
-    total_c = sum(t.credit for t in rows)
-    net_bal = total_d - total_c
-    
+
     # Status history
     statuses = db.query(StudentStatus).filter_by(student_id=student.id).order_by(StudentStatus.academic_year.desc(), StudentStatus.id.desc()).all()
     
@@ -67,7 +62,6 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
             "general_notes": student.general_notes
         },
         "status": status_val,
-        "balance": net_bal,
         "status_history": [{"term": s.term, "year": s.academic_year, "status": s.status} for s in statuses],
         "scholarships": [{"term": ss.term, "year": ss.academic_year, "name": st.name, "percentage": ss.percentage, "is_active": ss.is_active} for ss, st in sch_rows]
     }

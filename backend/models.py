@@ -212,6 +212,12 @@ def run_migrations():
             if "internal_note" not in columns:
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE student_scholarships ADD COLUMN internal_note VARCHAR(1000) NULL"))
+            
+            # Enable pg_trgm for fast ILIKE searches (if PostgreSQL)
+            if "postgres" in DB_URL:
+                with engine.begin() as conn:
+                    conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_name_trgm ON students USING gin (name gin_trgm_ops);"))
     except Exception as e:
         print(f"Note: Database auto-migration alert: {e}")
 
