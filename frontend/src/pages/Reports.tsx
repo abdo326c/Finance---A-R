@@ -188,7 +188,28 @@ export default function Reports() {
       });
     }
 
-    if (totalRow) filtered.push(totalRow);
+    if (totalRow) {
+      const dynamicSubtotal: any = { ...totalRow };
+      dynamicSubtotal["Student Name"] = "SUBTOTAL";
+      
+      // Reset numeric fields to 0
+      for (const col of reportData.columns) {
+        if (typeof totalRow[col] === 'number') {
+          dynamicSubtotal[col] = 0;
+        }
+      }
+
+      // Sum up the filtered rows
+      for (const row of filtered) {
+        for (const col of reportData.columns) {
+          if (typeof totalRow[col] === 'number') {
+            dynamicSubtotal[col] += (Number(row[col]) || 0);
+          }
+        }
+      }
+      filtered.push(dynamicSubtotal);
+    }
+    
     return filtered;
   };
 
@@ -335,7 +356,7 @@ export default function Reports() {
                   </thead>
                   <tbody>
                     {processedData.map((row, i) => (
-                      <tr key={i} className={row["Student Name"] === "TOTAL" ? "total-row" : ""}>
+                      <tr key={i} className={(row["Student Name"] === "TOTAL" || row["Student Name"] === "SUBTOTAL") ? "total-row" : ""}>
                         {reportData.columns.map((col, j) => (
                           <td key={j} className={typeof row[col] === 'number' ? 'text-right' : ''}>
                             {formatValue(col, row[col])}
