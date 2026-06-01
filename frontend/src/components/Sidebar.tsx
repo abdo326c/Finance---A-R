@@ -81,6 +81,11 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
           <span>Operations</span>
         </NavLink>
 
+        <NavLink to="/bulk" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <FileSpreadsheet size={20} />
+          <span>Bulk Operations</span>
+        </NavLink>
+
         <div className="sidebar-title" style={{ marginTop: '32px' }}>INTEGRATIONS</div>
         
         <NavLink to="/d365" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
@@ -94,10 +99,6 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
         </NavLink>
         
         <div className="sidebar-title" style={{ marginTop: '32px' }}>ADMINISTRATION</div>
-        <NavLink to="/bulk" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <FileSpreadsheet size={20} />
-          <span>Bulk Operations</span>
-        </NavLink>
         
         <NavLink to="/batches" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Archive size={20} />
