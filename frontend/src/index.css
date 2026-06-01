@@ -91,19 +91,19 @@ body {
    ========================================================================== */
 
 .page-container {
-  padding: 24px 32px;
-  max-width: 1400px;
+  padding: 16px 20px;
+  max-width: 1600px;
   margin: 0 auto;
   width: 100%;
   animation: fadeIn 0.4s ease-out forwards;
 }
 
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-header h1 {
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--text-primary);
   display: flex;
@@ -113,7 +113,7 @@ body {
 
 .page-header p {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   margin-top: 4px;
 }
 
@@ -124,7 +124,7 @@ body {
   border: var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: var(--glass-radius);
-  padding: 24px;
+  padding: 16px;
   transition: var(--transition);
 }
 
@@ -132,7 +132,7 @@ body {
   background: var(--surface-color);
   border: 1px solid var(--border-color);
   border-radius: var(--glass-radius);
-  padding: 20px;
+  padding: 16px;
 }
 
 /* ==========================================================================
@@ -147,10 +147,10 @@ button {
   background-color: var(--primary-color);
   color: #ffffff; /* Always white text for primary */
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.95rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: var(--transition);
   display: inline-flex;
@@ -170,10 +170,10 @@ button {
   background-color: var(--surface-color);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: var(--transition);
   display: inline-flex;
@@ -191,10 +191,10 @@ button {
   background-color: rgba(239, 68, 68, 0.1);
   color: var(--danger);
   border: 1px solid rgba(239, 68, 68, 0.2);
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
   font-weight: 500;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   cursor: pointer;
   transition: var(--transition);
   display: inline-flex;
@@ -235,15 +235,15 @@ button:disabled {
    ========================================================================== */
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .form-label {
   display: block;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -256,12 +256,12 @@ input[type="date"],
 select,
 textarea {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
   background: var(--surface-color);
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   transition: var(--transition);
   outline: none;
   font-family: inherit;
@@ -385,6 +385,11 @@ input[type="number"]::-webkit-outer-spin-button {
   font-weight: 600 !important;
   text-transform: uppercase;
   font-size: 0.8rem;
+}
+
+.react-data-table-custom .rdt_TableCell {
+  padding: 8px 12px !important;
+  font-size: 0.85rem !important;
 }
 
 .react-data-table-custom .rdt_TableRow {
