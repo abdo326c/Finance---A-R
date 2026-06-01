@@ -25,6 +25,7 @@ class RegisterStudentRequest(BaseModel):
     nationality: str = "Egyptian"
     birth_date: Optional[date] = None
     admit_year: int = DEFAULT_YEAR
+    academic_status: str = "Active"
 
 @router.post("/")
 async def register_student(req: RegisterStudentRequest, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -50,7 +51,8 @@ async def register_student(req: RegisterStudentRequest, current_user = Depends(g
         national_id=req.national_id,
         nationality=req.nationality,
         admit_year=req.admit_year,
-        birth_date=req.birth_date
+        birth_date=req.birth_date,
+        current_academic_status=req.academic_status
     )
     
     db.add(new_student)
@@ -107,7 +109,8 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
             national_id=str(row.get("National ID", "")),
             nationality=str(row.get("Nationality", "Egyptian")),
             admit_year=int(row.get("Admit Year", DEFAULT_YEAR)),
-            birth_date=bd.date() if pd.notna(bd) else None
+            birth_date=bd.date() if pd.notna(bd) else None,
+            current_academic_status=str(row.get("Academic Status", "Active")).strip()
         )
         new_students.append(new_student)
         existing_ids.add(sid) # Prevent duplicates within the same file

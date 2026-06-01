@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from models import get_db, Student, Transaction, write_audit, next_ref_block
+from models import get_db, Student, Transaction, AcademicStatusHistory, write_audit, next_ref_block
 from api.auth import get_current_user
 from config import VALID_TERMS, DEFAULT_YEAR, MAX_BULK_ROWS
 from helpers import build_auto_discount_transactions
@@ -19,6 +19,7 @@ BULK_TYPES = [
     "Credit Hours Adjustments",
     "Update Student Rates",
     "General Adjustments",
+    "Bulk Academic Status",
 ]
 
 TEMPLATES = {
@@ -28,6 +29,7 @@ TEMPLATES = {
     "Credit Hours Adjustments": {"ID":0,"Hours_Delta":3.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR},
     "Update Student Rates":     {"ID":0,"New_Price_Per_Hr":5500.0},
     "General Adjustments":      {"ID":0,"Debit":0.0,"Credit":0.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR,"Description":"note"},
+    "Bulk Academic Status":     {"ID":0,"Academic_Status":"Active","Term":"Spring","Year":DEFAULT_YEAR},
 }
 
 def _safe_float(val, default=0.0) -> float:
@@ -105,7 +107,41 @@ async def process_bulk_upload(
         if success > 0:
             write_audit(db, current_user.username, "BULK_RATE_UPDATE", "batch", f"{success} students updated")
             db.commit()
-            
+
+    elif b_type == "Bulk Academic Status":
+        histories = []
+        for i, row in df_raw.iterrows():
+            rid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
+            orig = row.to_dict()
+            if rid <= 0 or rid not in all_students:
+                orig["Error Reason"] = "Invalid or unregistered ID"
+                failed.append(orig)
+            else:
+                try:
+                    term_v = str(row.get("Term", VALID_TERMS[1]))
+                    year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
+                    status_v = str(row.get("Academic_Status", "Active")).strip()
+                    
+                    db.query(Student).filter(Student.id == rid).update({"current_academic_status": status_v})
+                    
+                    history = AcademicStatusHistory(
+                        student_id=rid,
+                        status=status_v,
+                        term=term_v,
+                        academic_year=year_v,
+                        updated_by=current_user.username
+                    )
+                    histories.append(history)
+                    success += 1
+                except Exception as e:
+                    orig["Error Reason"] = str(e)
+                    failed.append(orig)
+        
+        if success > 0:
+            db.add_all(histories)
+            write_audit(db, current_user.username, "BULK_STATUS_UPDATE", "batch", f"{success} statuses updated")
+            db.commit()
+
     else:
         start = next_ref_block(db, total * 2 + 100)
         ctr = start
