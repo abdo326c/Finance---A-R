@@ -93,7 +93,7 @@
 }
 
 .btn-search:disabled {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--surface-hover);
   color: var(--text-secondary);
   cursor: not-allowed;
   box-shadow: none;
@@ -136,7 +136,7 @@
 
 .metric-box.highlight {
   border-left-color: var(--primary-color);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(15, 23, 42, 0.6));
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), var(--glass-bg));
 }
 
 .action-buttons {
@@ -203,7 +203,7 @@
 .spinner-small {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--border-color);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 1s linear infinite;

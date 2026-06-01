@@ -22,9 +22,15 @@ import Sidebar from './components/Sidebar';
 import { ThemeProvider } from './context/ThemeContext';
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
+  const location = useLocation();
 
-  // Optional: Listen to window resize to auto-collapse/open
-  React.useEffect(() => {
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth <= 768) setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Listen to window resize to auto-collapse/open
+  useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth <= 768) setSidebarOpen(false);
       else setSidebarOpen(true);
@@ -216,6 +222,8 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          {/* Catch-all: redirect unknown routes to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

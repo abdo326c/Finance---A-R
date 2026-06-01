@@ -220,18 +220,21 @@ run_migrations()
 # ── Seed default users (first run only) ───────
 def seed_default_users():
     from api.auth import hash_pw
+    import os
     db = SessionLocal()
     try:
         if not db.query(SystemUser).first():
+            admin_pw = os.getenv("SEED_ADMIN_PW", "ChangeMe123!")
+            editor_pw = os.getenv("SEED_EDITOR_PW", "ChangeMe123!")
             db.add(SystemUser(
                 username="fin_admin",
-                password_hash=hash_pw("NU_2026"),
+                password_hash=hash_pw(admin_pw),
                 role="Admin",
                 is_active=True,
             ))
             db.add(SystemUser(
                 username="abdo_finance",
-                password_hash=hash_pw("Finance2026"),
+                password_hash=hash_pw(editor_pw),
                 role="Editor",
                 is_active=True,
             ))
@@ -304,12 +307,3 @@ def get_static_lookups():
             years = [DEFAULT_YEAR]
             
         return sch_map, colleges, years
-
-
-def highlight_negatives(val):
-    """Pandas Styler: colour negative numbers red."""
-    try:
-        v = float(str(val).replace(",", ""))
-        return "color: #d32f2f; font-weight: bold;" if v < 0 else ""
-    except Exception:
-        return ""

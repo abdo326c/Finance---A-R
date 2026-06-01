@@ -1,5 +1,7 @@
 import smtplib
 import datetime
+import os
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -14,7 +16,14 @@ from models import get_db, Student, Transaction
 from api.statement import create_landscape_pdf
 from api.auth import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# SMTP config loaded from environment
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_EMAIL = os.getenv("SMTP_EMAIL", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 
 class EmailPreviewRequest(BaseModel):
     student_id: int
@@ -31,10 +40,6 @@ class SendEmailRequest(BaseModel):
     year: Optional[int] = None
     subject: str
     body: str
-    smtp_server: str
-    smtp_port: int
-    sender_email: str
-    sender_password: str
 
 @router.post("/preview")
 async def preview_email(req: EmailPreviewRequest, db: Session = Depends(get_db)):
@@ -97,10 +102,13 @@ async def send_emails(
     if current_user.role not in ["Admin", "Editor"]:
         raise HTTPException(status_code=403, detail="Not authorized to send emails.")
         
+    if not SMTP_EMAIL or not SMTP_PASSWORD:
+        raise HTTPException(status_code=500, detail="SMTP credentials not configured on the server. Contact your administrator.")
+        
     try:
-        server = smtplib.SMTP(req.smtp_server, req.smtp_port)
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
         server.starttls()
-        server.login(req.sender_email.strip(), req.sender_password.replace(" ", ""))
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"SMTP Connection Failed: {str(e)}")
         
@@ -149,7 +157,8 @@ async def send_emails(
                 date=formatted_date,
                 scope=scope_text
             )
-        except:
+        except Exception as e:
+            logger.warning(f"Template formatting error for student {sid}: {e}")
             skipped_count += 1
             continue
             
@@ -168,7 +177,7 @@ async def send_emails(
         
         msg = MIMEMultipart("mixed")
         msg["Subject"] = formatted_subject
-        msg["From"] = f"Finance Department <{req.sender_email.strip()}>"
+        msg["From"] = f"Finance Department <{SMTP_EMAIL}>"
         msg["To"] = student.email
         
         msg_alternative = MIMEMultipart("alternative")
@@ -195,9 +204,10 @@ async def send_emails(
         msg.attach(part)
         
         try:
-            server.sendmail(req.sender_email.strip(), student.email, msg.as_string())
+            server.sendmail(SMTP_EMAIL, student.email, msg.as_string())
             success_count += 1
-        except:
+        except Exception as e:
+            logger.warning(f"Failed to send email to {student.email}: {e}")
             skipped_count += 1
             
     server.quit()

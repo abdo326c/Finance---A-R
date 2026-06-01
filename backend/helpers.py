@@ -11,37 +11,16 @@ from models import (
     Student, StudentScholarship, ScholarshipType,
     Transaction, next_ref_block,
 )
-import concurrent.futures
-import threading
-
-# ── Background Task Executor ──────────────────
-background_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
-
-def run_in_background(func, *args, **kwargs):
-    """
-    Submits a function to the background executor and attaches the Streamlit context
-    so the background thread can safely access st.session_state if needed.
-    Returns a Future.
-    """
-    try:
-        from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
-        ctx = get_script_run_ctx()
-    except ImportError:
-        ctx = None
-
-    def wrapped_func():
-        if ctx:
-            add_script_run_ctx(threading.current_thread(), ctx)
-        return func(*args, **kwargs)
-        
-    future = background_executor.submit(wrapped_func)
-    return future
 
 
 # ── Normalize percentage to 0–100 ─────────────
 def _pct(raw: float) -> float:
-    """Accept both 0.60 (old decimal) and 60.0 (current) and return 0–100."""
-    return raw * 100.0 if raw <= 1.0 else raw
+    """
+    All DB values are stored as 0–100 (e.g. 60.0 for 60%).
+    This function is kept for backward compatibility but now simply returns
+    the raw value since the migration already standardized everything.
+    """
+    return raw
 
 
 # ── Active scholarships for a student/term ────
@@ -218,8 +197,14 @@ def enforce_scholarship_cap(db, student_id, term, academic_year):
     for ss, st_type in active:
         pct = _pct(ss.percentage)
         if running + pct > 100.0:
-            ss.is_active = False
-            deactivated.append(st_type.name)
+            remaining = round(100.0 - running, 4)
+            if remaining > 0:
+                # Cap the percentage instead of fully deactivating
+                ss.percentage = remaining
+                running = 100.0
+            else:
+                ss.is_active = False
+                deactivated.append(st_type.name)
         else:
             running += pct
     return deactivated

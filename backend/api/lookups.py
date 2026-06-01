@@ -2,10 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from models import get_static_lookups, get_db, SystemConfig
 from api.auth import get_current_user
-from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 import json
-from config import VALID_TERMS, VALID_STATUSES, VALID_COLLEGES
+import logging
+from config import VALID_TERMS, VALID_STATUSES, VALID_COLLEGES, get_dynamic_configs
+from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -17,8 +20,8 @@ def get_db_config_list(db: Session, key: str, default_list: List[str]) -> List[s
     if conf:
         try:
             return json.loads(conf.value)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to parse config '{key}' as JSON: {e}")
     return default_list
 
 @router.get("/")
@@ -70,6 +73,10 @@ async def update_lookup(key: str, data: ConfigUpdate, current_user = Depends(get
         db.add(new_conf)
         
     db.commit()
+    
+    # Invalidate the cached config so changes take effect immediately
+    get_dynamic_configs.cache_clear()
+    
     return {"message": "Config updated successfully", "key": key, "values": data.values}
 
 @router.get("/scholarship_types")
@@ -107,7 +114,6 @@ async def delete_scholarship_type(id: int, current_user = Depends(get_current_us
 @router.get("/students/search")
 async def search_students(q: str, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     from models import Student
-    from sqlalchemy import or_
     
     query = db.query(Student)
     if q.isdigit():
