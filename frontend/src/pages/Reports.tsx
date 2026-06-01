@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import axios from 'axios';
 import { FileBarChart, Download, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import './Reports.css';
@@ -154,7 +154,10 @@ export default function Reports() {
     setColumnFilters(prev => ({ ...prev, [col]: value }));
   };
 
-  const getProcessedData = () => {
+  const deferredFilters = useDeferredValue(columnFilters);
+  const deferredSortConfig = useDeferredValue(sortConfig);
+
+  const processedData = useMemo(() => {
     if (!reportData || !reportData.data.length) return [];
     
     // Separate TOTAL row
@@ -163,10 +166,10 @@ export default function Reports() {
 
     // Filter
     let filtered = dataRows.filter(row => {
-      for (const col in columnFilters) {
-        if (!columnFilters[col]) continue;
+      for (const col in deferredFilters) {
+        if (!deferredFilters[col]) continue;
         const cellValue = String(row[col]).toLowerCase();
-        if (!cellValue.includes(columnFilters[col].toLowerCase())) {
+        if (!cellValue.includes(deferredFilters[col].toLowerCase())) {
           return false;
         }
       }
@@ -174,16 +177,16 @@ export default function Reports() {
     });
 
     // Sort
-    if (sortConfig) {
+    if (deferredSortConfig) {
       filtered.sort((a, b) => {
-        let aVal = a[sortConfig.key];
-        let bVal = b[sortConfig.key];
+        let aVal = a[deferredSortConfig.key];
+        let bVal = b[deferredSortConfig.key];
         // Handle nulls
         if (aVal == null) aVal = "";
         if (bVal == null) bVal = "";
         
-        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (aVal < bVal) return deferredSortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return deferredSortConfig.direction === 'asc' ? 1 : -1;
         return 0;
       });
     }
@@ -211,9 +214,7 @@ export default function Reports() {
     }
     
     return filtered;
-  };
-
-  const processedData = getProcessedData();
+  }, [reportData, deferredFilters, deferredSortConfig]);
 
   return (
     <div className="page-container reports-container">
