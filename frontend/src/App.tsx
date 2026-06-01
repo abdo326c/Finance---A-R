@@ -10,12 +10,10 @@ import Operations from './pages/Operations';
 import Policies from './pages/Policies';
 import Scholarships from './pages/Scholarships';
 import Registration from './pages/Registration';
-import FawrySync from './pages/FawrySync';
 import D365Export from './pages/D365Export';
 import Reconciliation from './pages/Reconciliation';
 import BulkOperations from './pages/BulkOperations';
 import BatchManagement from './pages/BatchManagement';
-import EmailFollowup from './pages/EmailFollowup';
 import Admin from './pages/Admin';
 import StudentExplorer from './pages/StudentExplorer';
 import Sidebar from './components/Sidebar';
@@ -159,14 +157,6 @@ function App() {
             } 
           />
           <Route 
-            path="/fawry" 
-            element={
-              <ProtectedRoute>
-                <FawrySync />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
             path="/d365" 
             element={
               <ProtectedRoute>
@@ -195,14 +185,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <BatchManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/emails" 
-            element={
-              <ProtectedRoute>
-                <EmailFollowup />
               </ProtectedRoute>
             } 
           />
