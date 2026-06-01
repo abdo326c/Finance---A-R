@@ -74,45 +74,7 @@ export default function StudentExplorer() {
     }
   };
 
-  const handleDownloadClearance = async () => {
-    if (!profile) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/clearance/${profile.student.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `Clearance_${profile.student.id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (e: any) {
-      alert("Could not issue clearance. Student might have an outstanding balance.");
-    }
-  };
 
-  const handleDownloadSOA = async () => {
-    if (!profile) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/statement/pdf?sid=${profile.student.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `SOA_${profile.student.id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (e) {
-      alert("Failed to download Statement of Account");
-    }
-  };
 
   const handleSaveMasterData = async () => {
     try {
@@ -209,12 +171,6 @@ export default function StudentExplorer() {
             </div>
             
             <div className="balance-wrapper">
-              <div className="balance-display">
-                <span className="balance-label">{profile.balance > 0 ? 'Outstanding Balance' : 'Credit Balance'}</span>
-                <span className="balance-amount" style={{ color: profile.balance > 0 ? '#ff8a80' : '#b9f6ca' }}>
-                  {Math.abs(profile.balance).toLocaleString('en-US', {minimumFractionDigits: 2})} EGP
-                </span>
-              </div>
               <div className="status-pill" style={{ ...(STATUS_COLORS[profile.status] ? Object.fromEntries(STATUS_COLORS[profile.status].split(';').filter(Boolean).map(s => s.split(':').map(v => v.trim()))) : { backgroundColor: '#e2e3e5', color: '#383d41' }) }}>
                 ● {profile.status}
               </div>
@@ -223,14 +179,6 @@ export default function StudentExplorer() {
 
           {/* Quick Actions */}
           <div style={{ display: 'flex', gap: '15px', marginBottom: '24px' }}>
-            <button className={`btn-${profile.balance > 0 ? 'primary' : 'secondary'}`} onClick={handleDownloadSOA} style={{ flex: 1, justifyContent: 'center' }}>
-              <FileText size={18}/> Download Statement
-            </button>
-            {profile.balance <= 0 && (
-              <button className="btn-primary" onClick={handleDownloadClearance} style={{ flex: 1, justifyContent: 'center', background: '#22c55e', borderColor: '#22c55e' }}>
-                <CheckCircle size={18}/> Issue Financial Clearance
-              </button>
-            )}
             <button className="btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => {
               const csv = `Student ID,Name,College,Program,Email,Mobile\n${profile.student.id},"${profile.student.name}","${profile.student.college}","${profile.student.program}","${profile.student.email}","${profile.student.mobile}"`;
               const url = window.URL.createObjectURL(new Blob([csv]));
