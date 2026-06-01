@@ -191,6 +191,7 @@ export default function StudentExplorer() {
           {/* Tabs */}
           <div className="admin-tabs">
             <button className={`admin-tab ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><User size={18} /> Profile Details</button>
+            <button className={`admin-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><FileText size={18} /> Academic History</button>
             <button className={`admin-tab ${activeTab === 'scholarships' ? 'active' : ''}`} onClick={() => setActiveTab('scholarships')}><Medal size={18} /> Scholarships</button>
           </div>
 
@@ -255,48 +256,7 @@ export default function StudentExplorer() {
                   <p style={{ margin: '5px 0 0 0' }}>{profile.student.general_notes}</p>
                 </div>
               )}
-              <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
-                <h3 style={{ marginTop: 0 }}>Academic Status History</h3>
-                {profile.status_history.length > 0 ? (
-                  <table className="data-table">
-                    <thead><tr><th>Term</th><th>Year</th><th>Status</th></tr></thead>
-                    <tbody>
-                      {profile.status_history.map((s: any, idx: number) => (
-                        <tr key={idx}>
-                          <td>{s.term}</td>
-                          <td>{s.year}</td>
-                          <td><span className="status-pill" style={{ padding: '4px 10px', fontSize: '11px', ...(STATUS_COLORS[s.status] ? Object.fromEntries(STATUS_COLORS[s.status].split(';').filter(Boolean).map(st => st.split(':').map(v => v.trim()))) : {}) }}>{s.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p style={{ color: 'gray' }}>No status history yet.</p>
-                )}
-                
-                <div style={{ marginTop: '20px', padding: '15px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 15px 0' }}>Update / Add Status</h4>
-                  <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-                      <label>Term</label>
-                      <select value={newStatus.term} onChange={e => setNewStatus({...newStatus, term: e.target.value})}>
-                        {validTerms.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-                      <label>Year</label>
-                      <input type="number" value={newStatus.year} onChange={e => setNewStatus({...newStatus, year: parseInt(e.target.value)})} />
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
-                      <label>Status</label>
-                      <select value={newStatus.status} onChange={e => setNewStatus({...newStatus, status: e.target.value})}>
-                        {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </div>
-                    <button className="btn-primary" onClick={handleUpdateStatus}>Update</button>
-                  </div>
-                </div>
-              </div>
+
 
               {/* Edit Master Data */}
               {localStorage.getItem('role') !== 'Viewer' && (
@@ -369,6 +329,51 @@ export default function StudentExplorer() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'history' && (
+            <div className="glass-panel animate-fade-in" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginTop: 0 }}>Academic Status History</h3>
+              {profile.status_history.length > 0 ? (
+                <table className="data-table">
+                  <thead><tr><th>Term</th><th>Year</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {profile.status_history.map((s: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{s.term}</td>
+                        <td>{s.year}</td>
+                        <td><span className="status-pill" style={{ padding: '4px 10px', fontSize: '11px', ...(STATUS_COLORS[s.status] ? Object.fromEntries(STATUS_COLORS[s.status].split(';').filter(Boolean).map(st => st.split(':').map(v => v.trim()))) : {}) }}>{s.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p style={{ color: 'gray' }}>No status history yet.</p>
+              )}
+              
+              <div style={{ marginTop: '20px', padding: '15px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                <h4 style={{ margin: '0 0 15px 0' }}>Update / Add Status</h4>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+                  <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                    <label>Term</label>
+                    <select value={newStatus.term} onChange={e => setNewStatus({...newStatus, term: e.target.value})}>
+                      {validTerms.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                    <label>Year</label>
+                    <input type="number" value={newStatus.year} onChange={e => setNewStatus({...newStatus, year: parseInt(e.target.value)})} />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
+                    <label>Status</label>
+                    <select value={newStatus.status} onChange={e => setNewStatus({...newStatus, status: e.target.value})}>
+                      {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <button className="btn-primary" onClick={handleUpdateStatus}>Update</button>
+                </div>
+              </div>
             </div>
           )}
 
