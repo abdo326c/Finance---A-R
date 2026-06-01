@@ -12,7 +12,7 @@ from models import seed_default_users
 app = FastAPI(title="Finance A/R API")
 
 # Setup CORS — whitelist your actual domains
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://finance-a-r.vercel.app").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
