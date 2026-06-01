@@ -171,13 +171,6 @@ export default function StudentExplorer() {
             </div>
             
             <div className="balance-wrapper">
-              <div className="status-pill" style={{ 
-                backgroundColor: profile.student.current_academic_status === 'Active' ? 'var(--success-transparent)' : 'var(--danger-transparent)',
-                color: profile.student.current_academic_status === 'Active' ? 'var(--success-color)' : 'var(--danger-color)',
-                border: `1px solid ${profile.student.current_academic_status === 'Active' ? 'var(--success-color)' : 'var(--danger-color)'}`
-              }}>
-                🎓 {profile.student.current_academic_status}
-              </div>
               <div className="status-pill" style={{ ...(STATUS_COLORS[profile.status] ? Object.fromEntries(STATUS_COLORS[profile.status].split(';').filter(Boolean).map(s => s.split(':').map(v => v.trim()))) : { backgroundColor: '#e2e3e5', color: '#383d41' }) }}>
                 ● {profile.status}
               </div>
@@ -199,7 +192,6 @@ export default function StudentExplorer() {
           <div className="admin-tabs">
             <button className={`admin-tab ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><User size={18} /> Profile Details</button>
             <button className={`admin-tab ${activeTab === 'scholarships' ? 'active' : ''}`} onClick={() => setActiveTab('scholarships')}><Medal size={18} /> Scholarships</button>
-            <button className={`admin-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><FileText size={18} /> Academic History</button>
           </div>
 
           {activeTab === 'profile' && (
@@ -263,9 +255,8 @@ export default function StudentExplorer() {
                   <p style={{ margin: '5px 0 0 0' }}>{profile.student.general_notes}</p>
                 </div>
               )}
-
               <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
-                <h3 style={{ marginTop: 0 }}>Financial Status History</h3>
+                <h3 style={{ marginTop: 0 }}>Academic Status History</h3>
                 {profile.status_history.length > 0 ? (
                   <table className="data-table">
                     <thead><tr><th>Term</th><th>Year</th><th>Status</th></tr></thead>
@@ -284,7 +275,7 @@ export default function StudentExplorer() {
                 )}
                 
                 <div style={{ marginTop: '20px', padding: '15px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                  <h4 style={{ margin: '0 0 15px 0' }}>Update / Add Financial Status</h4>
+                  <h4 style={{ margin: '0 0 15px 0' }}>Update / Add Status</h4>
                   <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
                     <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
                       <label>Term</label>
@@ -299,7 +290,7 @@ export default function StudentExplorer() {
                     <div className="form-group" style={{ marginBottom: 0, flex: 1 }}>
                       <label>Status</label>
                       <select value={newStatus.status} onChange={e => setNewStatus({...newStatus, status: e.target.value})}>
-                        {['Good Standing', 'Financial Hold', 'Warning', 'Suspended'].map(s => <option key={s} value={s}>{s}</option>)}
+                        {validStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
                     <button className="btn-primary" onClick={handleUpdateStatus}>Update</button>

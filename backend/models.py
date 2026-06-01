@@ -76,19 +76,6 @@ class Student(Base):
     sponsor_name  = Column(String, nullable=True)
     general_notes = Column(String, nullable=True)
     sibling_id    = Column(Integer, ForeignKey("students.id"), nullable=True)
-    current_academic_status = Column(String, default="Active")
-
-class AcademicStatusHistory(Base):
-    __tablename__ = "academic_status_history"
-    id            = Column(Integer, primary_key=True, autoincrement=True)
-    student_id    = Column(Integer, ForeignKey("students.id"), nullable=False)
-    status        = Column(String, nullable=False)
-    term          = Column(String, nullable=False)
-    academic_year = Column(Integer, nullable=False)
-    updated_at    = Column(DateTime, default=func.now())
-    updated_by    = Column(String, nullable=True)
-
-
 class ScholarshipType(Base):
     __tablename__ = "scholarship_types"
     id   = Column(Integer, primary_key=True, autoincrement=True)
