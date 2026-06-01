@@ -37,6 +37,29 @@ export default function Dashboard() {
   const [term, setTerm] = useState('All Terms');
   const [year, setYear] = useState('All Years');
   const [college, setCollege] = useState('All Colleges');
+  
+  // Dynamic lookups
+  const [lookups, setLookups] = useState({ terms: [], years: [], colleges: [] });
+
+  const fetchLookups = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setLookups({
+        terms: response.data.terms || [],
+        years: response.data.years || [],
+        colleges: response.data.colleges || []
+      });
+    } catch (error) {
+      console.error("Error fetching lookups", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLookups();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,28 +102,22 @@ export default function Dashboard() {
           <div className="filter-group">
             <label>Term</label>
             <select value={term} onChange={e => setTerm(e.target.value)} className="input-field">
-              <option>All Terms</option>
-              <option>Fall</option>
-              <option>Spring</option>
-              <option>Summer</option>
+              <option value="All Terms">All Terms</option>
+              {lookups.terms.map((t: string) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div className="filter-group">
             <label>Year</label>
             <select value={year} onChange={e => setYear(e.target.value)} className="input-field">
-              <option>All Years</option>
-              <option>2023</option>
-              <option>2024</option>
-              <option>2025</option>
+              <option value="All Years">All Years</option>
+              {lookups.years.map((y: number) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="filter-group">
             <label>College</label>
             <select value={college} onChange={e => setCollege(e.target.value)} className="input-field">
-              <option>All Colleges</option>
-              <option>Engineering</option>
-              <option>Business</option>
-              <option>Computer Science</option>
+              <option value="All Colleges">All Colleges</option>
+              {lookups.colleges.map((c: string) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
