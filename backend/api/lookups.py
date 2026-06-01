@@ -25,7 +25,7 @@ def get_db_config_list(db: Session, key: str, default_list: List[str]) -> List[s
     return default_list
 
 @router.get("/")
-async def get_lookups(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_lookups(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     sch_map, db_colleges, db_years = get_static_lookups()
     
     colleges = get_db_config_list(db, "VALID_COLLEGES", VALID_COLLEGES if VALID_COLLEGES else db_colleges)
@@ -41,7 +41,7 @@ async def get_lookups(current_user = Depends(get_current_user), db: Session = De
     }
 
 @router.get("/manage")
-async def get_manageable_lookups(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_manageable_lookups(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     # Returns the lists directly for the admin UI
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Admin access required")
@@ -55,7 +55,7 @@ async def get_manageable_lookups(current_user = Depends(get_current_user), db: S
     }
 
 @router.put("/manage/{key}")
-async def update_lookup(key: str, data: ConfigUpdate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_lookup(key: str, data: ConfigUpdate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Admin access required")
         
@@ -80,13 +80,13 @@ async def update_lookup(key: str, data: ConfigUpdate, current_user = Depends(get
     return {"message": "Config updated successfully", "key": key, "values": data.values}
 
 @router.get("/scholarship_types")
-async def get_scholarship_types(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_scholarship_types(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     from models import ScholarshipType
     types = db.query(ScholarshipType).all()
     return [{"id": t.id, "name": t.name} for t in types]
 
 @router.post("/scholarship_types")
-async def add_scholarship_type(data: dict, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def add_scholarship_type(data: dict, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     from models import ScholarshipType
@@ -100,7 +100,7 @@ async def add_scholarship_type(data: dict, current_user = Depends(get_current_us
     return {"message": "Added", "id": new_type.id, "name": new_type.name}
 
 @router.delete("/scholarship_types/{id}")
-async def delete_scholarship_type(id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_scholarship_type(id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     from models import ScholarshipType
@@ -112,7 +112,7 @@ async def delete_scholarship_type(id: int, current_user = Depends(get_current_us
     return {"message": "Deleted"}
 
 @router.get("/students/search")
-async def search_students(q: str, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+def search_students(q: str, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     from models import Student
     
     query = db.query(Student)
