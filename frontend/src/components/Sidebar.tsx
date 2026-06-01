@@ -82,10 +82,6 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
         </NavLink>
 
         <div className="sidebar-title" style={{ marginTop: '32px' }}>INTEGRATIONS</div>
-        <NavLink to="/fawry" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <CloudRain size={20} />
-          <span>Fawry Sync</span>
-        </NavLink>
         
         <NavLink to="/d365" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <RefreshCw size={20} />
@@ -106,11 +102,6 @@ export default function Sidebar({ isOpen, setIsOpen }: { isOpen?: boolean, setIs
         <NavLink to="/batches" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Archive size={20} />
           <span>Batch Management</span>
-        </NavLink>
-        
-        <NavLink to="/emails" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          <Mail size={20} />
-          <span>Email Follow-up</span>
         </NavLink>
         
         {role === 'Admin' && (
