@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,8 +9,8 @@ from pydantic import BaseModel
 from jose import JWTError, jwt
 
 from models import get_db, SystemUser
-from config import TIMEOUT_MIN
 import bcrypt
+import os
 
 def hash_pw(plain: str) -> str:
     return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
@@ -24,9 +24,6 @@ def verify_pw(plain: str, hashed: str) -> bool:
             return hashlib.sha256(plain.encode()).hexdigest() == hashed
     except Exception:
         return False
-from config import TIMEOUT_MIN
-
-import os
 
 # Configuration for JWT
 SECRET_KEY = os.getenv("JWT_SECRET", "your-very-secret-key-please-change-in-production")
@@ -49,9 +46,9 @@ class TokenData(BaseModel):
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -91,7 +88,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
         
-    # Upgrade password hash if it's legacy (like in auth.py)
+    # Upgrade password hash if it's legacy
     if not user.password_hash.startswith(("$2b$", "$2a$")):
         user.password_hash = hash_pw(form_data.password)
         db.commit()

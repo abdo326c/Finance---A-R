@@ -3,10 +3,6 @@ import axios from 'axios';
 import { Mail, Settings, Users, Send, FileText } from 'lucide-react';
 
 export default function EmailFollowup() {
-  const [smtpServer, setSmtpServer] = useState('smtp.gmail.com');
-  const [smtpPort, setSmtpPort] = useState(587);
-  const [senderEmail, setSenderEmail] = useState('');
-  const [senderPassword, setSenderPassword] = useState('');
   
   const [balanceScope, setBalanceScope] = useState('Total Historical Balance (All Terms)');
   const [term, setTerm] = useState('Spring');
@@ -87,10 +83,6 @@ Nile University`);
   };
 
   const handleSend = async () => {
-    if (!senderEmail || !senderPassword) {
-      alert("Please configure SMTP settings.");
-      return;
-    }
     if (selectedStudents.length === 0) {
       alert("Please select at least one student.");
       return;
@@ -107,11 +99,7 @@ Nile University`);
         term: term,
         year: year,
         subject: subject,
-        body: body,
-        smtp_server: smtpServer,
-        smtp_port: smtpPort,
-        sender_email: senderEmail,
-        sender_password: senderPassword
+        body: body
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -132,24 +120,7 @@ Nile University`);
 
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: 0 }}><Settings size={18} /> SMTP Settings</h3>
-        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-            <label>Sender Email</label>
-            <input type="email" value={senderEmail} onChange={e => setSenderEmail(e.target.value)} placeholder="abdo.325c@gmail.com" />
-          </div>
-          <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-            <label>App Password</label>
-            <input type="password" value={senderPassword} onChange={e => setSenderPassword(e.target.value)} placeholder="••••••••••••••••" />
-          </div>
-          <div className="form-group" style={{ flex: 1, minWidth: '200px' }}>
-            <label>SMTP Server</label>
-            <input type="text" value={smtpServer} onChange={e => setSmtpServer(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ width: '100px' }}>
-            <label>Port</label>
-            <input type="number" value={smtpPort} onChange={e => setSmtpPort(Number(e.target.value))} />
-          </div>
-        </div>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>✅ SMTP is configured server-side by your administrator. No credentials needed here.</p>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>

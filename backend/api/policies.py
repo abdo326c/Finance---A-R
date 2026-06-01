@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from typing import List
 from models import get_db, PolicyDocument
 from api.auth import get_current_user
-import io
+import mimetypes
 
 router = APIRouter()
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 @router.get("/")
 async def get_documents(academic_year: str = None, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -42,6 +44,9 @@ async def upload_document(
         
     contents = await file.read()
     
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB.")
+    
     new_doc = PolicyDocument(
         title=title,
         academic_year=academic_year,
@@ -69,16 +74,19 @@ async def delete_document(doc_id: int, current_user = Depends(get_current_user),
     db.commit()
     return {"message": "Document deleted successfully"}
 
-from fastapi.responses import Response
-
 @router.get("/{doc_id}/download")
 async def download_document(doc_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     doc = db.query(PolicyDocument).filter(PolicyDocument.id == doc_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Detect content type from filename instead of hardcoding PDF
+    content_type, _ = mimetypes.guess_type(doc.file_name)
+    if not content_type:
+        content_type = "application/octet-stream"
         
     return Response(
         content=doc.file_data,
-        media_type="application/pdf",
+        media_type=content_type,
         headers={"Content-Disposition": f'attachment; filename="{doc.file_name}"'}
     )
