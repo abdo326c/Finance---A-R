@@ -54,8 +54,9 @@ export default function StudentExplorer() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(res.data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(e.response?.data?.detail || e.message || "Failed to search. Check if backend is running.");
     }
   };
 
