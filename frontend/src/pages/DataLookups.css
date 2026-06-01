@@ -19,8 +19,8 @@
 
 .lookup-card-header {
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(15, 23, 42, 0.2);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface-hover);
 }
 
 .lookup-card-header h3 {
@@ -46,10 +46,10 @@
 }
 
 .table-wrapper {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   overflow: hidden;
-  background: rgba(15, 23, 42, 0.2);
+  background: var(--surface-hover);
 }
 
 /* Override react-data-table-component transparent backgrounds */

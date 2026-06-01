@@ -6,7 +6,7 @@
   display: flex;
   gap: 10px;
   margin-bottom: 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 10px;
 }
 
@@ -26,7 +26,7 @@
 }
 
 .admin-tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 
@@ -44,8 +44,8 @@
 }
 
 .user-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -78,8 +78,8 @@
 }
 
 .fix-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
   margin-bottom: 20px;
@@ -95,15 +95,15 @@
 .fix-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .upload-zone {
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 2px dashed var(--border-color);
   border-radius: 12px;
   padding: 40px 20px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-hover);
   transition: all 0.2s;
   cursor: pointer;
   margin-top: 15px;
@@ -122,16 +122,16 @@
 }
 
 .audit-chart-container {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
   height: 350px;
 }
 
 .audit-table-wrapper {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 20px;
   max-height: 500px;
@@ -146,7 +146,7 @@
 .audit-table th, .audit-table td {
   padding: 10px 15px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .audit-table th {
@@ -155,12 +155,12 @@
   font-size: 13px;
   position: sticky;
   top: 0;
-  background: #151b23; /* Or slightly lighter depending on your theme */
+  background: var(--surface-color);
   z-index: 10;
 }
 
 .audit-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--surface-hover);
 }
 
 .badge {

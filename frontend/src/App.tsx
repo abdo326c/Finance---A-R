@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
@@ -56,10 +57,33 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Check if JWT token is expired
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+};
+
+// Axios interceptor: redirect to login on 401
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.clear();
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Protected route logic
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
-  if (!token) {
+  if (!token || isTokenExpired(token)) {
+    localStorage.clear();
     return <Navigate to="/login" replace />;
   }
   return <AppLayout>{children}</AppLayout>;
