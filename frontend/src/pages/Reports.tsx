@@ -16,6 +16,10 @@ export default function Reports() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [configOpen, setConfigOpen] = useState(true);
 
+  // Table state
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+  const [columnFilters, setColumnFilters] = useState<{ [key: string]: string }>({});
+
   // Dynamic Lookups
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
   const [availableTerms, setAvailableTerms] = useState<string[]>([]);
@@ -138,6 +142,58 @@ export default function Reports() {
     return val;
   };
 
+  const handleSort = (col: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === col && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key: col, direction });
+  };
+
+  const handleFilterChange = (col: string, value: string) => {
+    setColumnFilters(prev => ({ ...prev, [col]: value }));
+  };
+
+  const getProcessedData = () => {
+    if (!reportData || !reportData.data.length) return [];
+    
+    // Separate TOTAL row
+    const dataRows = reportData.data.filter(row => row["Student Name"] !== "TOTAL");
+    const totalRow = reportData.data.find(row => row["Student Name"] === "TOTAL");
+
+    // Filter
+    let filtered = dataRows.filter(row => {
+      for (const col in columnFilters) {
+        if (!columnFilters[col]) continue;
+        const cellValue = String(row[col]).toLowerCase();
+        if (!cellValue.includes(columnFilters[col].toLowerCase())) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Sort
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aVal = a[sortConfig.key];
+        let bVal = b[sortConfig.key];
+        // Handle nulls
+        if (aVal == null) aVal = "";
+        if (bVal == null) bVal = "";
+        
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    if (totalRow) filtered.push(totalRow);
+    return filtered;
+  };
+
+  const processedData = getProcessedData();
+
   return (
     <div className="page-container reports-container">
       <header className="page-header">
@@ -257,11 +313,28 @@ export default function Reports() {
                 <table className="data-table reports-table">
                   <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                     <tr>
-                      {reportData.columns.map((col, i) => <th key={i}>{col}</th>)}
+                      {reportData.columns.map((col, i) => (
+                        <th key={i} style={{ minWidth: '150px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => handleSort(col)}>
+                            <span>{col}</span>
+                            <span style={{ fontSize: '0.8rem', opacity: sortConfig?.key === col ? 1 : 0.3 }}>
+                              {sortConfig?.key === col ? (sortConfig.direction === 'asc' ? '▲' : '▼') : '↕'}
+                            </span>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder={`Filter ${col}...`} 
+                            value={columnFilters[col] || ''}
+                            onChange={(e) => handleFilterChange(col, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '0.75rem', fontWeight: 'normal', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-color)', color: 'var(--text-primary)', outline: 'none' }}
+                          />
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {reportData.data.map((row, i) => (
+                    {processedData.map((row, i) => (
                       <tr key={i} className={row["Student Name"] === "TOTAL" ? "total-row" : ""}>
                         {reportData.columns.map((col, j) => (
                           <td key={j} className={typeof row[col] === 'number' ? 'text-right' : ''}>
