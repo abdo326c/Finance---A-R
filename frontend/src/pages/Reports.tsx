@@ -19,6 +19,8 @@ export default function Reports() {
   // Table state
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [columnFilters, setColumnFilters] = useState<{ [key: string]: string }>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 100;
 
   // Dynamic Lookups
   const [availableColleges, setAvailableColleges] = useState<string[]>([]);
@@ -216,6 +218,30 @@ export default function Reports() {
     return filtered;
   }, [reportData, deferredFilters, deferredSortConfig]);
 
+  // Reset to page 1 when filters or sort change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredFilters, deferredSortConfig]);
+
+  // Pagination logic
+  const totalRows = processedData.length > 0 && (processedData[processedData.length - 1]["Student Name"] === "SUBTOTAL" || processedData[processedData.length - 1]["Student Name"] === "TOTAL") 
+    ? processedData.length - 1 
+    : processedData.length;
+    
+  const totalPages = Math.ceil(totalRows / rowsPerPage) || 1;
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  
+  const paginatedData = useMemo(() => {
+    const dataRows = processedData.slice(0, totalRows);
+    const subtotalRow = processedData.length > totalRows ? processedData[processedData.length - 1] : null;
+    
+    const currentSlice = dataRows.slice(startIndex, startIndex + rowsPerPage);
+    if (subtotalRow) {
+      currentSlice.push(subtotalRow);
+    }
+    return currentSlice;
+  }, [processedData, startIndex, totalRows]);
+
   return (
     <div className="page-container reports-container">
       <header className="page-header">
@@ -356,7 +382,7 @@ export default function Reports() {
                     </tr>
                   </thead>
                   <tbody>
-                    {processedData.map((row, i) => (
+                    {paginatedData.map((row, i) => (
                       <tr key={i} className={(row["Student Name"] === "TOTAL" || row["Student Name"] === "SUBTOTAL") ? "total-row" : ""}>
                         {reportData.columns.map((col, j) => (
                           <td key={j} className={typeof row[col] === 'number' ? 'text-right' : ''}>
@@ -368,6 +394,35 @@ export default function Reports() {
                   </tbody>
                 </table>
               </div>
+              
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderTop: '1px solid var(--border-color)', background: 'var(--surface-color)', borderRadius: '0 0 var(--glass-radius) var(--glass-radius)' }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Showing {startIndex + 1} to {Math.min(startIndex + rowsPerPage, totalRows)} of {totalRows} entries
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      style={{ padding: '4px 12px', fontSize: '0.85rem' }}
+                    >
+                      Previous
+                    </button>
+                    <span style={{ display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '0.85rem', fontWeight: 600 }}>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      style={{ padding: '4px 12px', fontSize: '0.85rem' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </section>
