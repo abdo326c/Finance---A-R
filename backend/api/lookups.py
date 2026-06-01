@@ -119,7 +119,8 @@ async def search_students(q: str, current_user = Depends(get_current_user), db: 
     if q.isdigit():
         query = query.filter(Student.id == int(q))
     else:
-        query = query.filter(Student.name.ilike(f"%{q}%"))
+        from sqlalchemy import or_
+        query = query.filter(or_(Student.name.ilike(f"%{q}%"), Student.email.ilike(f"%{q}%")))
         
     students = query.limit(20).all()
     return [{"id": s.id, "name": s.name, "email": s.email or f"student{s.id}@nu.edu.eg"} for s in students]

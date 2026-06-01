@@ -218,6 +218,7 @@ def run_migrations():
                 with engine.begin() as conn:
                     conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_name_trgm ON students USING gin (name gin_trgm_ops);"))
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_email_trgm ON students USING gin (email gin_trgm_ops);"))
     except Exception as e:
         print(f"Note: Database auto-migration alert: {e}")
 
