@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from models import get_db, Student, Transaction, AcademicStatusHistory, write_audit, next_ref_block
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, write_audit, next_ref_block
 from api.auth import get_current_user
 from config import VALID_TERMS, DEFAULT_YEAR, MAX_BULK_ROWS
 from helpers import build_auto_discount_transactions
@@ -122,14 +122,13 @@ async def process_bulk_upload(
                     year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
                     status_v = str(row.get("Academic_Status", "Active")).strip()
                     
-                    db.query(Student).filter(Student.id == rid).update({"current_academic_status": status_v})
+                    db.query(StudentStatus).filter_by(student_id=rid, term=term_v, academic_year=year_v).delete()
                     
-                    history = AcademicStatusHistory(
+                    history = StudentStatus(
                         student_id=rid,
                         status=status_v,
                         term=term_v,
                         academic_year=year_v,
-                        updated_by=current_user.username
                     )
                     histories.append(history)
                     success += 1
