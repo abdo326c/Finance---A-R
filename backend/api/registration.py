@@ -68,7 +68,9 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
     try:
         df = pd.read_excel(io.BytesIO(contents))
         df.columns = [str(c).strip() for c in df.columns]
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Failed to read bulk registration Excel file: {e}")
         raise HTTPException(status_code=400, detail="Invalid Excel file format")
         
     valid_colleges = get_db_config_list(db, "VALID_COLLEGES", VALID_COLLEGES)

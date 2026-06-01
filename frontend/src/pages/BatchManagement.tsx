@@ -124,8 +124,8 @@ export default function BatchManagement() {
             <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--text-primary)' }}>Active Ledger Batches</h3>
             
             {isAdmin && (
-              <div style={{ background: 'rgba(255, 95, 86, 0.05)', border: '1px solid rgba(255, 95, 86, 0.2)', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
-                <h4 style={{ margin: '0 0 10px 0', color: '#ff5f56', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ background: 'var(--surface-hover)', border: '1px solid var(--danger-color)', padding: '20px', borderRadius: '8px', marginBottom: '24px' }}>
+                <h4 style={{ margin: '0 0 10px 0', color: 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertTriangle size={18} /> Danger Zone: Rollback Batch
                 </h4>
                 <form onSubmit={handleDelete} style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', alignItems: 'flex-end' }}>
@@ -148,7 +148,7 @@ export default function BatchManagement() {
                       I confirm deletion of this entire batch.
                     </label>
                   </div>
-                  <button type="submit" disabled={!batchToDelete || !confirmDelete} style={{ background: '#ff5f56', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
+                  <button type="submit" disabled={!batchToDelete || !confirmDelete} className="btn-danger" style={{ padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}>
                     <Trash2 size={16} style={{ marginRight: '6px', verticalAlign: 'text-bottom' }} />
                     Delete Batch
                   </button>
@@ -176,10 +176,10 @@ export default function BatchManagement() {
                         <td><strong>{b.batch_id}</strong></td>
                         <td>{b.type}</td>
                         <td>{b.records}</td>
-                        <td style={{ color: b.total_debit > 0 ? '#ff5f56' : '' }}>
+                        <td style={{ color: b.total_debit > 0 ? 'var(--danger-color)' : '' }}>
                           {b.total_debit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td style={{ color: b.total_credit > 0 ? '#27c93f' : '' }}>
+                        <td style={{ color: b.total_credit > 0 ? 'var(--success-color)' : '' }}>
                           {b.total_credit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
                         <td>{new Date(b.uploaded_at).toLocaleString()}</td>
