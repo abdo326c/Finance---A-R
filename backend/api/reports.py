@@ -70,6 +70,7 @@ def generate_report_df(
             SELECT s.id AS "ID", s.name AS "Student Name", s.college AS "College",
                 s.email AS "Email",
                 COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') AS "Current Status",
+                s.current_academic_status AS "Academic Status",
                 s.price_per_hr AS "Price/Hr",
                 COALESCE(SUM(t.hours_change),0) AS "Reg. Hours",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END),0) AS "Tuition Billed",
@@ -170,6 +171,7 @@ def generate_report_df(
         sql = text("""
             SELECT t.student_id AS "Student ID", s.name AS "Student Name", s.college AS "College",
                 COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') AS "Current Status",
+                s.current_academic_status AS "Academic Status",
                 t.reference_no AS "Ref No", t.entry_date AS "Date", t.term AS "Term", t.academic_year AS "Year",
                 t.description AS "Description", t.hours_change AS "Hours", t.debit AS "Debit", t.credit AS "Credit"
             FROM transactions t JOIN students s ON t.student_id=s.id

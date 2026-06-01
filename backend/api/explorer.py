@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, write_audit
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, AcademicStatusHistory, write_audit
 from api.auth import get_current_user
 
 router = APIRouter()
@@ -41,6 +41,9 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
     # Status history
     statuses = db.query(StudentStatus).filter_by(student_id=student.id).order_by(StudentStatus.academic_year.desc(), StudentStatus.id.desc()).all()
     
+    # Academic history
+    ac_history = db.query(AcademicStatusHistory).filter_by(student_id=student.id).order_by(AcademicStatusHistory.academic_year.desc(), AcademicStatusHistory.id.desc()).all()
+    
     # Scholarships
     sch_rows = db.query(StudentScholarship, ScholarshipType).join(ScholarshipType).filter(StudentScholarship.student_id == student.id).order_by(StudentScholarship.academic_year.desc()).all()
     
@@ -59,10 +62,12 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
             "is_sponsored": student.is_sponsored,
             "sponsor_name": student.sponsor_name,
             "sibling_id": student.sibling_id,
-            "general_notes": student.general_notes
+            "general_notes": student.general_notes,
+            "current_academic_status": getattr(student, 'current_academic_status', 'Active')
         },
         "status": status_val,
         "status_history": [{"term": s.term, "year": s.academic_year, "status": s.status} for s in statuses],
+        "academic_history": [{"term": h.term, "year": h.academic_year, "status": h.status, "updated_at": h.updated_at.isoformat()} for h in ac_history],
         "scholarships": [{"term": ss.term, "year": ss.academic_year, "name": st.name, "percentage": ss.percentage, "is_active": ss.is_active} for ss, st in sch_rows]
     }
 
