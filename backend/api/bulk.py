@@ -39,7 +39,7 @@ def _safe_float(val, default=0.0) -> float:
         return default
 
 @router.get("/template/{b_type}")
-async def get_template(b_type: str):
+async def get_template(b_type: str, current_user = Depends(get_current_user)):
     if b_type not in TEMPLATES:
         raise HTTPException(status_code=400, detail="Invalid template type.")
         

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
@@ -160,24 +160,29 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="charts-grid animate-fade-in" style={{ animationDelay: '0.1s' }}>
-              <div className="chart-container glass-panel">
-                <h3 className="chart-title">💳 Financial Breakdown by College</h3>
-                <div style={{ height: 350 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.breakdown} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="College" />
-                      <YAxis tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
-                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
-                      <Legend />
-                      <Bar dataKey="Tuition_Billed" name="Tuition Billed" fill="#0d47a1" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Discounts" name="Discounts" fill="#e53935" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Payments" name="Payments" fill="#00897b" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            <div className="charts-grid">
+                {useMemo(() => (
+                  <div className="chart-card glass-panel">
+                    <h3 className="chart-title">Revenue Breakdown by College</h3>
+                    <div style={{ width: '100%', height: 350 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={data.breakdown} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+                          <XAxis dataKey="College" stroke="var(--text-secondary)" tick={{fontSize: 12}} />
+                          <YAxis stroke="var(--text-secondary)" tickFormatter={(v) => `${(v/1000000).toFixed(1)}M`} />
+                          <RechartsTooltip 
+                            formatter={(value: number) => formatCurrency(value)}
+                            contentStyle={{ backgroundColor: 'var(--surface-color)', borderColor: 'var(--border-color)', borderRadius: '8px' }}
+                          />
+                          <Legend wrapperStyle={{ paddingTop: '20px' }}/>
+                          <Bar dataKey="Tuition_Billed" name="Gross Tuition" fill="var(--primary-color)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Discounts" name="Scholarships" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Payments" name="Collected" fill="var(--success)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                ), [data.breakdown])}
 
               <div className="chart-container glass-panel">
                 <h3 className="chart-title">👥 Students by College</h3>

@@ -243,7 +243,7 @@ export default function Reconciliation() {
         )}
 
         <div className="sandbox-toggle" style={{ marginTop: '24px' }}>
-          <label className="checkbox-label" style={{ fontSize: '1.1rem', color: '#60a5fa' }}>
+          <label className="checkbox-label" style={{ fontSize: '1.1rem', color: 'var(--primary-color)' }}>
             <input type="checkbox" checked={simActive} onChange={e => setSimActive(e.target.checked)} />
             🧪 Open 'Before vs. After' Ledger Simulation Sandbox & Remedies
           </label>
@@ -425,21 +425,21 @@ export default function Reconciliation() {
       {result && (
         <div className="recon-results animate-fade-in">
           <div className="metrics-grid">
-            <div className="metric-card" style={{ borderLeftColor: '#10b981' }}>
-              <span>🟢 Matched Accounts</span>
-              <h2>{result.matched.length}</h2>
+            <div className="metric-card" style={{ borderLeftColor: 'var(--success-color)' }}>
+              <span className="metric-label">Clean Matches</span>
+              <span className="metric-value">{result.matched_count}</span>
             </div>
-            <div className="metric-card" style={{ borderLeftColor: '#f59e0b' }}>
-              <span>🟡 Mismatched Balances</span>
-              <h2>{result.mismatched.length}</h2>
+            <div className="metric-card" style={{ borderLeftColor: 'var(--warning-color)' }}>
+              <span className="metric-label">Mismatched Students</span>
+              <span className="metric-value">{result.mismatched_count}</span>
             </div>
-            <div className="metric-card" style={{ borderLeftColor: '#ef4444' }}>
-              <span>🔴 Missing in Local</span>
-              <h2>{result.missing_local.length}</h2>
+            <div className="metric-card" style={{ borderLeftColor: 'var(--danger-color)' }}>
+              <span className="metric-label">Missing Records</span>
+              <span className="metric-value">{result.missing_in_powercampus + result.missing_in_local}</span>
             </div>
-            <div className="metric-card" style={{ borderLeftColor: '#3b82f6' }}>
-              <span>🔵 Missing in External</span>
-              <h2>{result.missing_ext.length}</h2>
+            <div className="metric-card" style={{ borderLeftColor: 'var(--primary-color)' }}>
+              <span className="metric-label">Missing in External</span>
+              <span className="metric-value">{result.missing_ext.length}</span>
             </div>
           </div>
 
@@ -462,10 +462,10 @@ export default function Reconciliation() {
                     {result.mismatched.map((m: any, idx) => (
                       <tr key={idx} className={selectedAuditId === m.student_id ? 'selected-row' : ''}>
                         <td>{m.student_id}</td>
-                        <td>{m.name} {m.is_disputed ? <ShieldAlert size={14} color="#ef4444" style={{verticalAlign:'middle'}}/> : ''}</td>
+                        <td>{m.name} {m.is_disputed ? <ShieldAlert size={14} color="var(--danger-color)" style={{verticalAlign:'middle'}}/> : ''}</td>
                         <td className="text-right">{m.pc_balance.toLocaleString()}</td>
                         <td className="text-right">{m.loc_balance.toLocaleString()}</td>
-                        <td className="text-right" style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                        <td className="text-right" style={{ color: 'var(--danger-color)', fontWeight: 'bold' }}>
                           {m.discrepancy > 0 ? '+' : ''}{m.discrepancy.toLocaleString()}
                         </td>
                         <td>

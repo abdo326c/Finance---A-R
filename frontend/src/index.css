@@ -334,6 +334,50 @@ input[type="number"]::-webkit-outer-spin-button {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px !important;
+  }
+  
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--glass-radius);
+  }
+  
+  .reports-form-grid, 
+  .form-row-top, 
+  .filters-row, 
+  .kpi-grid, 
+  .metrics-grid, 
+  .admin-grid {
+    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  .modern-table, .data-table {
+    min-width: 600px; /* Force tables to scroll on small screens instead of squishing */
+  }
+
+  .sidebar {
+    width: 100% !important;
+    max-width: 280px;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

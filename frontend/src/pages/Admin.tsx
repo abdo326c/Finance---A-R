@@ -128,14 +128,14 @@ export default function Admin() {
   const customStyles = {
     table: { style: { backgroundColor: 'transparent' } },
     header: { style: { backgroundColor: 'transparent', color: 'var(--text-primary)' } },
-    headRow: { style: { backgroundColor: 'rgba(15, 23, 42, 0.4)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' } },
+    headRow: { style: { backgroundColor: 'var(--surface-hover)', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)' } },
     headCells: { style: { fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' as any } },
     rows: {
       style: {
         backgroundColor: 'transparent',
         color: 'var(--text-primary)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-        '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.02)' },
+        borderBottom: '1px solid var(--border-color)',
+        '&:hover': { backgroundColor: 'var(--surface-hover)' },
       },
     },
     pagination: {

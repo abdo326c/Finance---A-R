@@ -22,11 +22,13 @@ def verify_pw(plain: str, hashed: str) -> bool:
         else:
             import hashlib
             return hashlib.sha256(plain.encode()).hexdigest() == hashed
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Password verification failed: {e}")
         return False
 
 # Configuration for JWT
-SECRET_KEY = os.getenv("JWT_SECRET", "your-very-secret-key-please-change-in-production")
+SECRET_KEY = os.environ["JWT_SECRET"]
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days for testing
 
