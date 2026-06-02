@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import func, case, and_
 
 from models import get_db, Student, Transaction, write_audit, next_ref_block, DisputeLog
 from api.auth import get_current_user
@@ -145,40 +146,50 @@ async def analyze_reconciliation(
         ext_students = {sid: data for sid, data in ext_students.items() if sid in local_active_student_ids}
 
     local_students = {}
-    db_txs = (
-        db.query(Transaction, Student)
+    
+    loc_agg = (
+        db.query(
+            Student.id,
+            Student.name,
+            func.sum(case((Transaction.debit > 0, Transaction.debit), else_=0.0)).label("charges"),
+            func.sum(case((and_(Transaction.credit > 0, Transaction.transaction_type.in_(['Discount', 'Bulk Scholarships'])), Transaction.credit), else_=0.0)).label("discounts"),
+            func.sum(case((and_(Transaction.credit > 0, Transaction.transaction_type.notin_(['Discount', 'Bulk Scholarships'])), Transaction.credit), else_=0.0)).label("payments")
+        )
+        .select_from(Transaction)
         .join(Student, Transaction.student_id == Student.id)
+        .filter(Transaction.term == target_term, Transaction.academic_year == target_year)
+        .group_by(Student.id, Student.name)
+        .all()
+    )
+    
+    for sid, name, chg, disc, pay in loc_agg:
+        sid_str = str(sid)
+        local_students[sid_str] = {
+            "name": name,
+            "charges": float(chg or 0.0),
+            "discounts": float(disc or 0.0),
+            "payments": float(pay or 0.0),
+            "net_balance": float(chg or 0.0) - float(disc or 0.0) - float(pay or 0.0),
+            "transactions": []
+        }
+
+    # Fetch transaction details
+    db_txs = (
+        db.query(Transaction)
         .filter(Transaction.term == target_term, Transaction.academic_year == target_year)
         .all()
     )
     
-    for tx, student in db_txs:
-        sid_str = str(student.id)
-        if sid_str not in local_students:
-            local_students[sid_str] = {
-                "name": student.name,
-                "charges": 0.0, "discounts": 0.0, "payments": 0.0,
-                "transactions": []
-            }
-            
-        local_students[sid_str]["transactions"].append({
-            "type": tx.transaction_type,
-            "debit": float(tx.debit),
-            "credit": float(tx.credit),
-            "desc": tx.description,
-            "date": str(tx.entry_date)
-        })
-        
-        if tx.debit > 0:
-            local_students[sid_str]["charges"] += float(tx.debit)
-        elif tx.credit > 0:
-            if tx.transaction_type in ['Discount', 'Bulk Scholarships']:
-                local_students[sid_str]["discounts"] += float(tx.credit)
-            else:
-                local_students[sid_str]["payments"] += float(tx.credit)
-
-    for sid_str, details in local_students.items():
-        details["net_balance"] = details["charges"] - details["discounts"] - details["payments"]
+    for tx in db_txs:
+        sid_str = str(tx.student_id)
+        if sid_str in local_students:
+            local_students[sid_str]["transactions"].append({
+                "type": tx.transaction_type,
+                "debit": float(tx.debit),
+                "credit": float(tx.credit),
+                "desc": tx.description,
+                "date": str(tx.entry_date)
+            })
 
     matched_list = []
     mismatch_list = []

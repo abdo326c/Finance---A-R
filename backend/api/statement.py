@@ -174,19 +174,22 @@ async def search_statement(
     total_debit = 0
     total_credit = 0
     
+    is_staff = current_user.role in ['Admin', 'Editor']
     for t, s in rows:
         total_debit += t.debit
         total_credit += t.credit
-        results.append({
+        row = {
             "Student ID": s.id, "Name": s.name, "College": s.college,
             "Is Sponsored": s.is_sponsored, "Sponsor Name": s.sponsor_name, 
             "Sibling ID": s.sibling_id, "General Notes": s.general_notes,
             "Ref No": t.reference_no, "Date": t.entry_date.isoformat() if hasattr(t.entry_date, 'isoformat') else str(t.entry_date),
             "Term": t.term, "Year": t.academic_year,
             "Type": t.transaction_type, "Description": t.description,
-            "Internal Note": t.internal_note,
             "Debit": t.debit, "Credit": t.credit,
-        })
+        }
+        if is_staff:
+            row["Internal Note"] = t.internal_note
+        results.append(row)
         
     net_balance = total_debit - total_credit
     
@@ -250,24 +253,35 @@ async def download_statement_excel(
     if not rows:
         raise HTTPException(status_code=404, detail="No transactions found")
         
-    df = pd.DataFrame([{
-        "Student ID": s.id, "Name": s.name, "College": s.college,
-        "Is Sponsored": s.is_sponsored, "Sponsor Name": s.sponsor_name, 
-        "Sibling ID": s.sibling_id, "General Notes": s.general_notes,
-        "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, "Year": t.academic_year,
-        "Type": t.transaction_type, "Description": t.description,
-        "Internal Note": t.internal_note,
-        "Debit": t.debit, "Credit": t.credit,
-    } for t, s in rows])
+    is_staff = current_user.role in ['Admin', 'Editor']
+    data = []
+    for t, s in rows:
+        row = {
+            "Student ID": s.id, "Name": s.name, "College": s.college,
+            "Is Sponsored": s.is_sponsored, "Sponsor Name": s.sponsor_name, 
+            "Sibling ID": s.sibling_id, "General Notes": s.general_notes,
+            "Ref No": t.reference_no, "Date": t.entry_date, "Term": t.term, "Year": t.academic_year,
+            "Type": t.transaction_type, "Description": t.description,
+            "Debit": t.debit, "Credit": t.credit,
+        }
+        if is_staff:
+            row["Internal Note"] = t.internal_note
+        data.append(row)
+        
+    df = pd.DataFrame(data)
     
     total_d = sum(t.debit for t, _ in rows)
     total_c = sum(t.credit for t, _ in rows)
     
-    df.loc[len(df)] = {
+    total_row = {
         "Student ID":"","Name":"","College":"","Is Sponsored":"","Sponsor Name":"",
         "Sibling ID":"","General Notes":"","Ref No":"","Date":"","Term":"","Year":"",
-        "Type":"","Description":"TOTALS","Internal Note":"","Debit":total_d,"Credit":total_c,
+        "Type":"","Description":"TOTALS","Debit":total_d,"Credit":total_c,
     }
+    if is_staff:
+        total_row["Internal Note"] = ""
+        
+    df.loc[len(df)] = total_row
     
     buf = io.BytesIO()
     df.to_excel(buf, index=False)

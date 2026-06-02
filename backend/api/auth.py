@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
@@ -28,9 +28,14 @@ def verify_pw(plain: str, hashed: str) -> bool:
         return False
 
 # Configuration for JWT
-SECRET_KEY = os.environ["JWT_SECRET"]
+SECRET_KEY = os.environ.get("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not set. "
+        "Add it to your Render environment variables before starting."
+    )
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days for testing
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours for production
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
@@ -72,12 +77,28 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     
     user = db.query(SystemUser).filter(SystemUser.username == token_data.username).first()
-    if user is None:
+    if user is None or not user.is_active:
         raise credentials_exception
+        
+    # Issue #15: Invalidate tokens issued before the password was last changed
+    iat_ts = payload.get("iat")
+    if iat_ts and getattr(user, "password_changed_at", None):
+        iat_dt = datetime.fromtimestamp(iat_ts, tz=timezone.utc)
+        # Assuming user.password_changed_at is timezone-aware or we make it naive
+        # Let's ensure both are compared safely
+        pwd_changed = user.password_changed_at
+        if pwd_changed.tzinfo is None:
+            pwd_changed = pwd_changed.replace(tzinfo=timezone.utc)
+        if iat_dt < pwd_changed:
+            raise credentials_exception
+
     return user
 
+from main import limiter
+
 @router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(SystemUser).filter(
         func.lower(SystemUser.username) == form_data.username.lower().strip(),
         SystemUser.is_active == True
@@ -111,16 +132,11 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 @router.post("/change-password")
-async def change_password(req: ChangePasswordRequest, db: Session = Depends(get_db)):
-    user = db.query(SystemUser).filter(
-        func.lower(SystemUser.username) == req.username.lower().strip()
-    ).first()
+async def change_password(req: ChangePasswordRequest, current_user: SystemUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not verify_pw(req.current_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
     
-    if not user or not verify_pw(req.current_password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect username or current password")
-    if len(req.new_password) < 4:
-        raise HTTPException(status_code=400, detail="New password too short")
-        
-    user.password_hash = hash_pw(req.new_password)
+    current_user.password_hash = hash_pw(req.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)
     db.commit()
-    return {"message": "Password updated successfully"}
+    return {"message": "Password changed successfully"}

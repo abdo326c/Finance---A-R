@@ -45,15 +45,22 @@ def generate_report_df(
 
     if rep_format == "Student Academic Status Report":
         sql = text("""
+            WITH latest_status AS (
+                SELECT student_id, status,
+                       ROW_NUMBER() OVER (PARTITION BY student_id ORDER BY id DESC) AS rn
+                FROM student_statuses
+            )
             SELECT s.id AS "Student ID", s.name AS "Student Name",
                 s.college AS "College", s.program AS "Program",
                 ss.term AS "Term", ss.academic_year AS "Year", ss.status AS "Academic Status"
-            FROM student_statuses ss JOIN students s ON ss.student_id=s.id
+            FROM student_statuses ss 
+            JOIN students s ON ss.student_id=s.id
+            LEFT JOIN latest_status ls ON ls.student_id = s.id AND ls.rn = 1
             WHERE (:c_cnt=0 OR s.college IN :cls)
                 AND (:t_cnt=0 OR ss.term IN :trms)
                 AND (:y_cnt=0 OR ss.academic_year IN :yrs)
                 AND (
-                    (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
+                    (:s_cnt=0 AND COALESCE(ls.status,'Not Set') != 'Test')
                     OR (:s_cnt>0 AND ss.status IN :stats)
                 )
             ORDER BY ss.academic_year DESC, ss.term, s.college, s.id
@@ -67,9 +74,14 @@ def generate_report_df(
 
     elif rep_format == "Accounting Summary":
         sql = text("""
+            WITH latest_status AS (
+                SELECT student_id, status,
+                       ROW_NUMBER() OVER (PARTITION BY student_id ORDER BY id DESC) AS rn
+                FROM student_statuses
+            )
             SELECT s.id AS "ID", s.name AS "Student Name", s.college AS "College",
                 s.email AS "Email",
-                COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') AS "Current Status",
+                COALESCE(ls.status,'Not Set') AS "Current Status",
                 s.price_per_hr AS "Price/Hr",
                 COALESCE(SUM(t.hours_change),0) AS "Reg. Hours",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END),0) AS "Tuition Billed",
@@ -78,15 +90,17 @@ def generate_report_df(
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt','Bulk Payments') THEN t.credit-t.debit ELSE 0 END),0) AS "Payments",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment','Credit Hours Adjustments','General Adjustment','General Adjustments') THEN t.debit-t.credit ELSE 0 END),0) AS "Adjustments",
                 COALESCE(SUM(t.debit)-SUM(t.credit),0) AS "Balance"
-            FROM students s LEFT JOIN transactions t ON s.id=t.student_id
+            FROM students s 
+            LEFT JOIN latest_status ls ON ls.student_id=s.id AND ls.rn = 1
+            LEFT JOIN transactions t ON s.id=t.student_id
                 AND (:t_cnt=0 OR t.term IN :trms)
                 AND (:y_cnt=0 OR t.academic_year IN :yrs)
             WHERE (:c_cnt=0 OR s.college IN :cls)
                 AND (
-                    (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
-                    OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    (:s_cnt=0 AND COALESCE(ls.status,'Not Set') != 'Test')
+                    OR (:s_cnt>0 AND COALESCE(ls.status,'Not Set') IN :stats)
                 )
-            GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr 
+            GROUP BY s.id,s.name,s.college,s.email,s.price_per_hr,ls.status
             HAVING COUNT(t.id) > 0 OR (:t_cnt=0 AND :y_cnt=0 AND COALESCE(SUM(t.debit)-SUM(t.credit),0) != 0)
             ORDER BY s.id
         """).bindparams(
@@ -118,8 +132,13 @@ def generate_report_df(
             
         params = {**common, "s_date": start_date, "e_date": end_date}
         sql = text("""
+            WITH latest_status AS (
+                SELECT student_id, status,
+                       ROW_NUMBER() OVER (PARTITION BY student_id ORDER BY id DESC) AS rn
+                FROM student_statuses
+            )
             SELECT s.id AS "ID", s.name AS "Student Name", s.college AS "College",
-                COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') AS "Current Status",
+                COALESCE(ls.status,'Not Set') AS "Current Status",
                 COALESCE(SUM(t.hours_change),0) AS "CH Changed",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Invoice','Bulk Invoices (Tuition)') THEN t.debit ELSE 0 END),0) AS "Tuition Billed",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Other Fees','Bulk Other Fees') THEN t.debit ELSE 0 END),0) AS "Other Fees",
@@ -127,16 +146,18 @@ def generate_report_df(
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Payment Receipt','Bulk Payments') THEN t.credit-t.debit ELSE 0 END),0) AS "Payments Received",
                 COALESCE(SUM(CASE WHEN t.transaction_type IN ('Credit Hours Adjustment','Credit Hours Adjustments','General Adjustment','General Adjustments') THEN t.debit-t.credit ELSE 0 END),0) AS "Adjustments",
                 COALESCE(SUM(t.debit)-SUM(t.credit),0) AS "Net Period Change"
-            FROM transactions t JOIN students s ON t.student_id=s.id
+            FROM transactions t 
+            JOIN students s ON t.student_id=s.id
+            LEFT JOIN latest_status ls ON ls.student_id=s.id AND ls.rn = 1
             WHERE (:c_cnt=0 OR s.college IN :cls)
                 AND (:t_cnt=0 OR t.term IN :trms)
                 AND (:y_cnt=0 OR t.academic_year IN :yrs)
                 AND (
-                    (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
-                    OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    (:s_cnt=0 AND COALESCE(ls.status,'Not Set') != 'Test')
+                    OR (:s_cnt>0 AND COALESCE(ls.status,'Not Set') IN :stats)
                 )
                 AND t.entry_date BETWEEN :s_date AND :e_date
-            GROUP BY s.id,s.name,s.college
+            GROUP BY s.id,s.name,s.college,ls.status
             HAVING COALESCE(SUM(t.debit),0)>0 OR COALESCE(SUM(t.credit),0)>0
             ORDER BY s.id
         """).bindparams(
@@ -168,17 +189,24 @@ def generate_report_df(
                   "s_date": start_date,
                   "e_date": end_date}
         sql = text("""
+            WITH latest_status AS (
+                SELECT student_id, status,
+                       ROW_NUMBER() OVER (PARTITION BY student_id ORDER BY id DESC) AS rn
+                FROM student_statuses
+            )
             SELECT t.student_id AS "Student ID", s.name AS "Student Name", s.college AS "College",
-                COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') AS "Current Status",
+                COALESCE(ls.status,'Not Set') AS "Current Status",
                 t.reference_no AS "Ref No", t.entry_date AS "Date", t.term AS "Term", t.academic_year AS "Year",
                 t.description AS "Description", t.hours_change AS "Hours", t.debit AS "Debit", t.credit AS "Credit"
-            FROM transactions t JOIN students s ON t.student_id=s.id
+            FROM transactions t 
+            JOIN students s ON t.student_id=s.id
+            LEFT JOIN latest_status ls ON ls.student_id=s.id AND ls.rn = 1
             WHERE (:c_cnt=0 OR s.college IN :cls)
                 AND (:t_cnt=0 OR t.term IN :trms)
                 AND (:y_cnt=0 OR t.academic_year IN :yrs)
                 AND (
-                    (:s_cnt=0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') != 'Test')
-                    OR (:s_cnt>0 AND COALESCE((SELECT status FROM student_statuses WHERE student_id=s.id ORDER BY id DESC LIMIT 1),'Not Set') IN :stats)
+                    (:s_cnt=0 AND COALESCE(ls.status,'Not Set') != 'Test')
+                    OR (:s_cnt>0 AND COALESCE(ls.status,'Not Set') IN :stats)
                 )
                 AND (:has_dates=0 OR (t.entry_date BETWEEN :s_date AND :e_date))
             ORDER BY t.student_id, t.entry_date DESC

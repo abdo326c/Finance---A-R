@@ -21,10 +21,10 @@ def get_dynamic_configs():
     from models import get_db, SystemConfig
     
     defaults = {
-        "VALID_TERMS": "Fall,Spring,Summer",
-        "VALID_STATUSES": "Active,Inactive,Graduated,Program Withdraw,Semester Withdraw",
-        "VALID_COLLEGES": "ENG,BBA,IT_CS,BIO_TECH",
-        "VALID_ROLES": "Admin,Editor,Viewer",
+        "VALID_TERMS": '["Fall", "Spring", "Summer"]',
+        "VALID_STATUSES": '["Active", "Inactive", "Graduated", "Program Withdraw", "Semester Withdraw"]',
+        "VALID_COLLEGES": '["ENG", "BBA", "IT_CS", "BIO_TECH"]',
+        "VALID_ROLES": '["Admin", "Editor", "Viewer"]',
         "DEFAULT_YEAR": "2026"
     }
     
@@ -41,11 +41,22 @@ def get_dynamic_configs():
     except Exception:
         configs = defaults
         
+    import json
+    
+    def _parse_list(val):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return [str(x).strip() for x in parsed if str(x).strip()]
+        except Exception:
+            pass
+        return [x.strip() for x in str(val).split(",") if x.strip()]
+
     return {
-        "VALID_TERMS": [t.strip() for t in configs["VALID_TERMS"].split(",") if t.strip()],
-        "VALID_STATUSES": [s.strip() for s in configs["VALID_STATUSES"].split(",") if s.strip()],
-        "VALID_COLLEGES": [c.strip() for c in configs["VALID_COLLEGES"].split(",") if c.strip()],
-        "VALID_ROLES": [r.strip() for r in configs["VALID_ROLES"].split(",") if r.strip()],
+        "VALID_TERMS": _parse_list(configs["VALID_TERMS"]),
+        "VALID_STATUSES": _parse_list(configs["VALID_STATUSES"]),
+        "VALID_COLLEGES": _parse_list(configs["VALID_COLLEGES"]),
+        "VALID_ROLES": _parse_list(configs["VALID_ROLES"]),
         "DEFAULT_YEAR": int(configs["DEFAULT_YEAR"])
     }
 

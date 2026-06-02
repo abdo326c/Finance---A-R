@@ -52,6 +52,7 @@ class SystemUser(Base):
     id            = Column(Integer, primary_key=True, autoincrement=True)
     username      = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)   # bcrypt hash
+    password_changed_at = Column(DateTime, server_default=func.now())
     role          = Column(String, nullable=False, default="Editor")
     is_active     = Column(Boolean, default=True)
 
@@ -241,8 +242,17 @@ def seed_default_users():
     db = SessionLocal()
     try:
         if not db.query(SystemUser).first():
-            admin_pw = os.getenv("SEED_ADMIN_PW", "ChangeMe123!")
-            editor_pw = os.getenv("SEED_EDITOR_PW", "ChangeMe123!")
+            admin_pw = os.getenv("SEED_ADMIN_PW")
+            if not admin_pw:
+                print('WARNING: SEED_ADMIN_PW not set — skipping user seed.')
+                print('Set this env var on first deploy, then restart the service.')
+                return
+                
+            editor_pw = os.getenv("SEED_EDITOR_PW")
+            if not editor_pw:
+                print('WARNING: SEED_EDITOR_PW not set — skipping user seed.')
+                return
+                
             db.add(SystemUser(
                 username="fin_admin",
                 password_hash=hash_pw(admin_pw),
@@ -259,6 +269,14 @@ def seed_default_users():
             db.commit()
     finally:
         db.close()
+
+def sync_ref_counter(db):
+    """Called once at startup to align counter with actual max ID."""
+    max_id = db.query(func.max(Transaction.id)).scalar() or 0
+    row = db.get(RefCounter, 1)
+    if row and row.seq < max_id:
+        row.seq = max_id + 100
+        db.commit()
 
 
 # ── Ref-counter helper (replaces full table scan) ──
@@ -292,10 +310,15 @@ from pythonjsonlogger import jsonlogger
 audit_logger = logging.getLogger("finance_audit")
 audit_logger.setLevel(logging.INFO)
 if not audit_logger.handlers:
-    logHandler = logging.FileHandler("finance_audit.log")
+    audit_log_path = os.getenv("AUDIT_LOG_PATH")
+    if audit_log_path:
+        log_handler = logging.FileHandler(audit_log_path)
+    else:
+        log_handler = logging.StreamHandler()
+        
     formatter = jsonlogger.JsonFormatter('%(asctime)s %(levelname)s %(name)s %(message)s')
-    logHandler.setFormatter(formatter)
-    audit_logger.addHandler(logHandler)
+    log_handler.setFormatter(formatter)
+    audit_logger.addHandler(log_handler)
 
 # ── Audit helper ──────────────────────────────
 def write_audit(db, username: str, action: str, target: str = "", detail: str = ""):

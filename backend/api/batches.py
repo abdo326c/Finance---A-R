@@ -11,7 +11,7 @@ from api.auth import get_current_user
 router = APIRouter()
 
 @router.get("/active")
-async def get_active_batches(db: Session = Depends(get_db)):
+async def get_active_batches(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     summaries = (
         db.query(
             Transaction.batch_id,
@@ -39,7 +39,7 @@ async def get_active_batches(db: Session = Depends(get_db)):
     ]
 
 @router.get("/export/{batch_id}")
-async def export_batch(batch_id: str, db: Session = Depends(get_db)):
+async def export_batch(batch_id: str, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     sql = text("""
         SELECT t.reference_no AS "Ref No", s.id AS "Student ID",
             s.name AS "Student Name", t.transaction_type AS "Type",
@@ -111,7 +111,7 @@ async def delete_batch(
     return {"message": f"Batch {batch_id} successfully deleted.", "deleted_records": total_records}
 
 @router.get("/deleted")
-async def get_deleted_batches(db: Session = Depends(get_db)):
+async def get_deleted_batches(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     logs = db.query(DeletedBatchLog).order_by(DeletedBatchLog.deleted_at.desc()).all()
     
     return [

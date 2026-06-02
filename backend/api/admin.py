@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel
 from typing import List, Optional
+from fastapi import Query
 import pandas as pd
 import io
 
@@ -175,16 +176,41 @@ async def bulk_update_dimensions(file: UploadFile = File(...), current_user = De
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/audit-logs")
-async def get_audit_logs(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_audit_logs(
+    username: Optional[str] = None,
+    action: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    current_user = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Admin access required")
         
-    logs = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(500).all()
-    return [{
-        "id": l.id,
-        "time": l.created_at.isoformat(),
-        "user": l.username,
-        "action": l.action,
-        "target": l.target,
-        "detail": l.detail
-    } for l in logs]
+    q = db.query(AuditLog)
+    
+    if username:
+        q = q.filter(AuditLog.username == username)
+    if action:
+        q = q.filter(AuditLog.action == action)
+    if start_date:
+        q = q.filter(AuditLog.created_at >= start_date)
+    if end_date:
+        q = q.filter(AuditLog.created_at <= end_date + " 23:59:59")
+        
+    total = q.count()
+    logs = q.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit).all()
+    
+    return {
+        "total": total,
+        "items": [{
+            "id": l.id,
+            "time": l.created_at.isoformat() if hasattr(l.created_at, 'isoformat') else str(l.created_at),
+            "user": l.username,
+            "action": l.action,
+            "target": l.target,
+            "detail": l.detail
+        } for l in logs]
+    }

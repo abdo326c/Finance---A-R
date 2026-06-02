@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, FinancialStatusHistory, write_audit, next_ref_block
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, FinancialStatusHistory, write_audit, next_ref_block, get_static_lookups
 from api.auth import get_current_user
 from config import VALID_TERMS, DEFAULT_YEAR, MAX_BULK_ROWS
 from helpers import build_auto_discount_transactions, get_semester_rank
@@ -178,7 +178,14 @@ async def process_bulk_upload(
             db.commit()
 
     else:
-        start = next_ref_block(db, total * 2 + 100)
+        from sqlalchemy import func
+        max_schs = db.query(func.count(StudentScholarship.id)).filter(
+            StudentScholarship.is_active == True
+        ).group_by(StudentScholarship.student_id).order_by(
+            func.count(StudentScholarship.id).desc()
+        ).limit(1).scalar() or 1
+        
+        start = next_ref_block(db, total * (1 + max_schs) + 100)
         ctr = start
         txns = []
         
@@ -272,6 +279,7 @@ async def process_bulk_upload(
                 db.bulk_save_objects(txns)
                 write_audit(db, current_user.username, "BULK_TX", batch_id, f"{b_type} | {success} rows | batch={batch_id}")
                 db.commit()
+                get_static_lookups.cache_clear()
             except Exception as e:
                 db.rollback()
                 raise HTTPException(status_code=500, detail=f"Database error during bulk save: {str(e)}")

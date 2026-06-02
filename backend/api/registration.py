@@ -6,7 +6,7 @@ from datetime import date
 import pandas as pd
 import io
 
-from models import get_db, Student, write_audit
+from models import get_db, Student, write_audit, get_static_lookups
 from api.auth import get_current_user
 from api.lookups import get_db_config_list
 from config import VALID_COLLEGES, DEFAULT_YEAR
@@ -56,6 +56,7 @@ async def register_student(req: RegisterStudentRequest, current_user = Depends(g
     db.add(new_student)
     write_audit(db, current_user.username, "REGISTER_STUDENT", f"student_id={req.id}", req.name)
     db.commit()
+    get_static_lookups.cache_clear()
     
     return {"message": f"Student '{req.name}' registered successfully"}
 
@@ -116,6 +117,7 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
         db.add_all(new_students)
         write_audit(db, current_user.username, "BULK_REGISTER", "bulk", f"{len(new_students)} students")
         db.commit()
+        get_static_lookups.cache_clear()
         
     return {
         "message": f"Registered {len(new_students)} students.",

@@ -7,9 +7,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, d365, reconciliation, bulk, batches, admin, explorer
-from models import seed_default_users
+from models import seed_default_users, sync_ref_counter, SessionLocal
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="Finance A/R API")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Setup CORS — whitelist your actual domains
 allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://finance-a-r.vercel.app").split(",")
@@ -41,6 +49,8 @@ app.include_router(explorer.router, prefix="/api/explorer", tags=["explorer"])
 @app.on_event("startup")
 def startup_event():
     seed_default_users()
+    with SessionLocal() as db:
+        sync_ref_counter(db)
 
 @app.get("/")
 def root():

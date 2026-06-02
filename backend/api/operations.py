@@ -84,12 +84,7 @@ def process_transaction(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
         
-    # Sync ref counter
-    max_tx_id = db.query(func.max(Transaction.id)).scalar() or 0
-    ref_row = db.get(RefCounter, 1)
-    if ref_row and ref_row.seq <= max_tx_id:
-        ref_row.seq = max_tx_id + 500
-        db.flush()
+    # Removed inline ref counter sync to prevent race conditions
         
     rate = student.price_per_hr or 0.0
     extra_txs = []
