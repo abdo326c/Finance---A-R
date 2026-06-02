@@ -116,11 +116,12 @@ def search_students(q: str, current_user = Depends(get_current_user), db: Sessio
     from models import Student
     
     query = db.query(Student)
-    if q.isdigit():
-        query = query.filter(Student.id == int(q))
-    else:
-        from sqlalchemy import or_
-        query = query.filter(or_(Student.name.ilike(f"%{q}%"), Student.email.ilike(f"%{q}%")))
+    from sqlalchemy import or_, cast, String
+    query = query.filter(or_(
+        cast(Student.id, String).ilike(f"%{q}%"),
+        Student.name.ilike(f"%{q}%"), 
+        Student.email.ilike(f"%{q}%")
+    ))
         
     students = query.limit(20).all()
     return [{"id": s.id, "name": s.name, "email": s.email or f"student{s.id}@nu.edu.eg"} for s in students]
