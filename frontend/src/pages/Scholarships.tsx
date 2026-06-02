@@ -101,18 +101,6 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNote, setEditNote] = useState('');
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (studentId.length >= 3 && term && year) {
-        executeSearch();
-      } else if (!studentId && searched) {
-        setScholarships([]);
-        setSearched(false);
-      }
-    }, 400);
-    return () => clearTimeout(delayDebounceFn);
-  }, [studentId, term, year]);
-
   const executeSearch = async () => {
     setLoading(true);
     try {
@@ -129,6 +117,18 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (studentId.length >= 3 && term && year) {
+        executeSearch();
+      } else if (!studentId && searched) {
+        setScholarships([]);
+        setSearched(false);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [studentId, term, year, searched]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

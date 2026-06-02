@@ -48,17 +48,6 @@ export default function StudentExplorer() {
     }
   };
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (searchQuery.length >= 2) {
-        executeSearch(searchQuery);
-      } else {
-        setSearchResults([]);
-      }
-    }, 400);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
-
   const executeSearch = async (query: string) => {
     try {
       setIsSearching(true);
@@ -73,6 +62,17 @@ export default function StudentExplorer() {
       setIsSearching(false);
     }
   };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        executeSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -40,18 +40,6 @@ export default function StudentStatement() {
     return params;
   };
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (sid.length >= 2 || sysRef.length >= 3 || bankRef.length >= 3) {
-        executeSearch();
-      } else if (!sid && !sysRef && !bankRef && hasSearched) {
-        setTransactions([]);
-        setMetrics({ total_debit: 0, total_credit: 0, net_balance: 0 });
-      }
-    }, 400);
-    return () => clearTimeout(delayDebounceFn);
-  }, [sid, sysRef, bankRef, term, year]);
-
   const executeSearch = async () => {
     setLoading(true);
     setHasSearched(true);
@@ -75,6 +63,18 @@ export default function StudentStatement() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (sid.length >= 2 || sysRef.length >= 3 || bankRef.length >= 3) {
+        executeSearch();
+      } else if (!sid && !sysRef && !bankRef && hasSearched) {
+        setTransactions([]);
+        setMetrics({ total_debit: 0, total_credit: 0, net_balance: 0 });
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [sid, sysRef, bankRef, term, year, hasSearched]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
