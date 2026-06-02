@@ -21,6 +21,8 @@ BULK_TYPES = [
     "General Adjustments",
     "Bulk Academic Status",
     "Bulk Financial Status",
+    "Bulk Siblings",
+    "Bulk Sponsors",
 ]
 
 TEMPLATES = {
@@ -32,6 +34,8 @@ TEMPLATES = {
     "General Adjustments":      {"ID":0,"Debit":0.0,"Credit":0.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR,"Description":"note"},
     "Bulk Academic Status":     {"ID":0,"Academic_Status":"Active","Term":"Spring","Year":DEFAULT_YEAR},
     "Bulk Financial Status":    {"ID":0,"Financial_Status":"Financial Hold","Comment":"Missing tuition","Term":"Spring","Year":DEFAULT_YEAR},
+    "Bulk Siblings":            {"ID":0,"Sibling_ID":26100123},
+    "Bulk Sponsors":            {"ID":0,"Is_Sponsored":"Yes","Sponsor_Name":"Ministry of Education"},
 }
 
 def _safe_float(val, default=0.0) -> float:

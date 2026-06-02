@@ -189,25 +189,56 @@ function ManualEntryTab({ colleges, showFlash }: { colleges: string[], showFlash
   );
 }
 
+const BULK_REG_TYPES = [
+  "New Students Registration",
+  "Bulk Academic Status",
+  "Bulk Financial Status",
+  "Bulk Siblings",
+  "Bulk Sponsors"
+];
+
 function BulkUploadTab({ showFlash }: { showFlash: (m: string, t: 'success'|'error') => void }) {
+  const [bType, setBType] = useState(BULK_REG_TYPES[0]);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [failedRows, setFailedRows] = useState<any[]>([]);
+  const [successCount, setSuccessCount] = useState<number | null>(null);
 
-  const handleDownloadTemplate = () => {
-    // Generate dummy CSV template
-    const headers = ["ID", "Name", "College", "Program", "Price Per Hr", "Email", "Mobile", "National ID", "Nationality", "Admit Year", "Birth Date"];
-    const example = ["26100123", "Ahmed Ali", "ENG", "Computer Eng", "4600.0", "ahmed@nu.edu.eg", "01000000000", "29901010000000", "Egyptian", new Date().getFullYear().toString(), "2005-01-01"];
-    
-    const csv = [headers.join(','), example.map(x => `"${x}"`).join(',')].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "Template_Students.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownloadTemplate = async () => {
+    if (bType === "New Students Registration") {
+      // Generate dummy CSV template for student registration
+      const headers = ["ID", "Name", "College", "Program", "Price Per Hr", "Email", "Mobile", "National ID", "Nationality", "Admit Year", "Birth Date"];
+      const example = ["26100123", "Ahmed Ali", "ENG", "Computer Eng", "4600.0", "ahmed@nu.edu.eg", "01000000000", "29901010000000", "Egyptian", new Date().getFullYear().toString(), "2005-01-01"];
+      
+      const csv = [headers.join(','), example.map(x => `"${x}"`).join(',')].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "Template_Students.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Download from bulk templates endpoint
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/bulk/template/${encodeURIComponent(bType)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Tpl_${bType.replace(/ /g, '_')}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } catch (err) {
+        console.error(err);
+        showFlash('Failed to download template.', 'error');
+      }
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -216,22 +247,32 @@ function BulkUploadTab({ showFlash }: { showFlash: (m: string, t: 'success'|'err
 
     setUploading(true);
     setFailedRows([]);
+    setSuccessCount(null);
     const formData = new FormData();
     formData.append('file', file);
 
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/registration/bulk`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
       
-      showFlash(res.data.message, res.data.failed_count === 0 ? 'success' : 'error');
-      if (res.data.failed_rows?.length > 0) {
-        setFailedRows(res.data.failed_rows);
+      if (bType === "New Students Registration") {
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/registration/bulk`, formData, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        });
+        showFlash(res.data.message, res.data.failed_count === 0 ? 'success' : 'error');
+        if (res.data.failed_rows?.length > 0) setFailedRows(res.data.failed_rows);
+        setSuccessCount(res.data.success_count || 0);
+      } else {
+        formData.append('b_type', bType);
+        const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/bulk/upload`, formData, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        });
+        const success = res.data.success_count;
+        const failed = res.data.failed_count;
+        showFlash(`Batch complete: ${success} successful, ${failed} failed.`, failed === 0 ? 'success' : 'error');
+        if (res.data.failed_rows?.length > 0) setFailedRows(res.data.failed_rows);
+        setSuccessCount(success);
       }
+      
       setFile(null);
     } catch (err: any) {
       showFlash(err.response?.data?.detail || 'Upload failed', 'error');
@@ -239,12 +280,30 @@ function BulkUploadTab({ showFlash }: { showFlash: (m: string, t: 'success'|'err
       setUploading(false);
     }
   };
-
   return (
     <div className="bulk-upload-tab">
       <div className="upload-container">
+        
+        <div className="type-selector mb-4" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', background: 'var(--surface-hover)', padding: '16px', borderRadius: '8px' }}>
+          {BULK_REG_TYPES.map(type => (
+            <label key={type} className={`type-radio ${bType === type ? 'active' : ''}`} style={{
+              display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: bType === type ? 'var(--primary-color)' : 'transparent', color: bType === type ? '#fff' : 'var(--text-primary)', borderRadius: '20px', cursor: 'pointer', border: '1px solid var(--border-color)'
+            }}>
+              <input 
+                type="radio" 
+                name="bulkRegType" 
+                value={type} 
+                checked={bType === type}
+                onChange={(e) => setBType(e.target.value)} 
+                style={{ display: 'none' }}
+              />
+              {type}
+            </label>
+          ))}
+        </div>
+
         <div className="template-section mb-4">
-          <p className="text-secondary mb-2">Download the Excel/CSV template and fill it with student data. Ensure College codes match the system lookups exactly.</p>
+          <p className="text-secondary mb-2">Download the template and fill it with data. Ensure codes match the system lookups exactly.</p>
           <button className="btn-secondary" onClick={handleDownloadTemplate}><FileSpreadsheet size={18} /> Download Template</button>
         </div>
         
