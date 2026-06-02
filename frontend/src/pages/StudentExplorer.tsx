@@ -15,6 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function StudentExplorer() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   
   const [activeTab, setActiveTab] = useState('profile');
@@ -47,17 +48,36 @@ export default function StudentExplorer() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery) return;
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        executeSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const executeSearch = async (query: string) => {
     try {
+      setIsSearching(true);
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/students/search?q=${searchQuery}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/students/search?q=${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSearchResults(res.data);
     } catch (e: any) {
       console.error(e);
-      alert(e.response?.data?.detail || e.message || "Failed to search. Check if backend is running.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.length >= 2) {
+      executeSearch(searchQuery);
     }
   };
 
@@ -136,15 +156,20 @@ export default function StudentExplorer() {
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px', position: 'relative', zIndex: 50 }}>
         <div className="form-group" style={{ marginBottom: 0 }}>
           <label>Search Student ID, Name, or Email</label>
-          <form onSubmit={e => { e.preventDefault(); handleSearch(); }} style={{ display: 'flex', gap: '10px' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
             <input 
               type="text" 
-              value={searchQuery} 
+              placeholder="e.g. 211001234, 'Ahmed', or email@nu.edu.eg" 
+              value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="e.g. 211001234, 'Ahmed', or email@nu.edu.eg"
+              style={{ width: '100%', padding: '12px 15px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '15px' }}
             />
-            <button type="submit" className="btn-primary">Search</button>
-          </form>
+          </div>
+          <button type="submit" className="btn-primary" disabled={isSearching}>
+            {isSearching ? <div className="spinner-small" style={{ borderColor: 'white', borderRightColor: 'transparent', width: '16px', height: '16px' }}></div> : "Search"}
+          </button>
+        </form>
         </div>
         
         {searchResults.length > 0 && (

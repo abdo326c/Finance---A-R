@@ -101,10 +101,19 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNote, setEditNote] = useState('');
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!studentId || !term || !year) return;
-    
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (studentId.length >= 3 && term && year) {
+        executeSearch();
+      } else if (!studentId && searched) {
+        setScholarships([]);
+        setSearched(false);
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [studentId, term, year]);
+
+  const executeSearch = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -118,6 +127,13 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
       showFlash('Failed to fetch scholarships', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (studentId && term && year) {
+      executeSearch();
     }
   };
 
@@ -159,7 +175,7 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
 
   return (
     <div className="manage-tab">
-      <form className="search-bar" onSubmit={handleSearch}>
+      <form className="search-bar" onSubmit={handleSearchSubmit}>
         <div className="form-group flex-1">
           <input type="text" placeholder="Student ID (e.g. 26100123)" value={studentId} onChange={e => setStudentId(e.target.value)} required />
         </div>

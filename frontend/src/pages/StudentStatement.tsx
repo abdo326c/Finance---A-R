@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Search, Download, FileText, User } from 'lucide-react';
 import './StudentStatement.css';
@@ -40,10 +40,19 @@ export default function StudentStatement() {
     return params;
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sid && !sysRef && !bankRef) return;
-    
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (sid.length >= 2 || sysRef.length >= 3 || bankRef.length >= 3) {
+        executeSearch();
+      } else if (!sid && !sysRef && !bankRef && hasSearched) {
+        setTransactions([]);
+        setMetrics({ total_debit: 0, total_credit: 0, net_balance: 0 });
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [sid, sysRef, bankRef, term, year]);
+
+  const executeSearch = async () => {
     setLoading(true);
     setHasSearched(true);
     
@@ -64,6 +73,13 @@ export default function StudentStatement() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (sid || sysRef || bankRef) {
+      executeSearch();
     }
   };
 
@@ -107,7 +123,7 @@ export default function StudentStatement() {
         <p className="page-subtitle">Search and generate financial statements for students or global transactions.</p>
       </header>
 
-      <form onSubmit={handleSearch} className="search-form glass-panel animate-fade-in">
+      <form onSubmit={handleSearchSubmit} className="search-form glass-panel animate-fade-in">
         <div className="search-grid">
           <div className="input-group">
             <label>Student ID</label>
