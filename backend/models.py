@@ -218,6 +218,17 @@ def run_migrations():
     from sqlalchemy import inspect
     try:
         inspector = inspect(engine)
+        
+        if "system_users" in inspector.get_table_names():
+            user_cols = [c["name"] for c in inspector.get_columns("system_users")]
+            with engine.begin() as conn:
+                col_type = "TIMESTAMP WITH TIME ZONE" if "postgres" in DB_URL else "DATETIME"
+                bool_type = "BOOLEAN"
+                if "password_changed_at" not in user_cols:
+                    conn.execute(text(f"ALTER TABLE system_users ADD COLUMN password_changed_at {col_type} DEFAULT CURRENT_TIMESTAMP"))
+                if "is_active" not in user_cols:
+                    conn.execute(text(f"ALTER TABLE system_users ADD COLUMN is_active {bool_type} DEFAULT TRUE"))
+                    
         if "student_scholarships" in inspector.get_table_names():
             columns = [c["name"] for c in inspector.get_columns("student_scholarships")]
             if "internal_note" not in columns:
