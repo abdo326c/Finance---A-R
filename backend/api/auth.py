@@ -94,7 +94,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
     return user
 
-from main import limiter
+from limiter_instance import limiter
 
 @router.post("/token", response_model=Token)
 @limiter.limit("10/minute")

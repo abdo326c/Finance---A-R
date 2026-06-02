@@ -9,13 +9,12 @@ load_dotenv()
 from api import auth, registration, lookups, scholarships, operations, dashboard, reports, statement, policies, d365, reconciliation, bulk, batches, admin, explorer
 from models import seed_default_users, sync_ref_counter, SessionLocal
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from limiter_instance import limiter
 
 app = FastAPI(title="Finance A/R API")
 
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
