@@ -196,7 +196,7 @@ export default function StudentExplorer() {
               <AlertTriangle size={28} color="#856404" />
               <div>
                 <strong style={{ color: '#856404', fontSize: '16px', display: 'block', marginBottom: '4px' }}>Financial Hold Active</strong>
-                <div style={{ color: '#856404', fontSize: '14px', opacity: 0.9 }}>This student is strictly prohibited from registering for new semesters. (Note: You can still post payments).</div>
+                <div style={{ color: '#856404', fontSize: '14px', opacity: 0.9 }}>This student is strictly prohibited from registering for new semesters.</div>
               </div>
             </div>
           )}
