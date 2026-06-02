@@ -172,7 +172,14 @@ export default function StudentExplorer() {
             <div className="avatar-wrapper">
               <div className="premium-avatar">{getInitials(profile.student.name)}</div>
               <div className="student-identity">
-                <h2>{profile.student.name}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <h2 style={{ margin: 0 }}>{profile.student.name}</h2>
+                    {profile.financial_status === 'Financial Hold' && (
+                        <div style={{ background: '#dc3545', color: 'white', padding: '4px 12px', borderRadius: '50px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.5px' }}>
+                            <AlertTriangle size={14} /> FINANCIAL HOLD
+                        </div>
+                    )}
+                </div>
                 <p>🆔 Student ID: <b>{profile.student.id}</b> &nbsp;|&nbsp; admit: {profile.student.admit_year}</p>
               </div>
             </div>
@@ -183,6 +190,16 @@ export default function StudentExplorer() {
               </div>
             </div>
           </div>
+          
+          {profile.financial_status === 'Financial Hold' && (
+            <div style={{ padding: '15px 20px', background: '#fff3cd', borderLeft: '5px solid #ffc107', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '15px', boxShadow: '0 4px 15px rgba(255, 193, 7, 0.15)' }}>
+              <AlertTriangle size={28} color="#856404" />
+              <div>
+                <strong style={{ color: '#856404', fontSize: '16px', display: 'block', marginBottom: '4px' }}>Financial Hold Active</strong>
+                <div style={{ color: '#856404', fontSize: '14px', opacity: 0.9 }}>This student is strictly prohibited from registering for new semesters. (Note: You can still post payments).</div>
+              </div>
+            </div>
+          )}
 
           {/* Quick Actions */}
           <div style={{ display: 'flex', gap: '15px', marginBottom: '24px' }}>
@@ -203,15 +220,7 @@ export default function StudentExplorer() {
             <button className={`admin-tab ${activeTab === 'scholarships' ? 'active' : ''}`} onClick={() => setActiveTab('scholarships')}><Medal size={18} /> Scholarships</button>
           </div>
 
-          {profile.financial_status === 'Financial Hold' && (
-            <div style={{ padding: '15px', background: 'var(--danger-transparent)', border: '1px solid var(--danger-color)', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <AlertTriangle size={24} color="var(--danger-color)" />
-              <div>
-                <strong style={{ color: 'var(--danger-color)' }}>Financial Hold Active</strong>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>This student is prohibited from registering for new semesters. Note: You can still post payments.</div>
-              </div>
-            </div>
-          )}
+
 
           {activeTab === 'profile' && (
             <div className="animate-fade-in">
