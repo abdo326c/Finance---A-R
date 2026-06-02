@@ -85,7 +85,7 @@ async def add_scholarship(req: AddScholarshipRequest, current_user = Depends(get
     if st_type.name == "SCH: Sibiling %" and not req.sibling_id:
         raise HTTPException(status_code=400, detail="Sibling ID is required for Sibling scholarship")
         
-    if req.sibling_id and not student.sibling_id:
+    if req.sibling_id:
         student.sibling_id = req.sibling_id
         
     existing = db.query(StudentScholarship).filter_by(

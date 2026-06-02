@@ -139,21 +139,19 @@ def get_retroactive_scholarship_tx(
         return None
 
     other_pct = 0.0
-    other_txs = (
-        db.query(Transaction.description)
+    other_active = (
+        db.query(StudentScholarship.percentage)
         .filter(
-            Transaction.student_id       == student_id,
-            Transaction.term             == term,
-            Transaction.academic_year    == academic_year,
-            Transaction.reference_no.like("SCH-%"),
-            Transaction.scholarship_type_id != sch_type_id,
+            StudentScholarship.student_id == student_id,
+            StudentScholarship.term == term,
+            StudentScholarship.academic_year == academic_year,
+            StudentScholarship.is_active == True,
+            StudentScholarship.scholarship_type_id != sch_type_id,
         )
         .all()
     )
-    for (desc,) in other_txs:
-        m = re.search(r"\((\d+(?:\.\d+)?)%\)", desc)
-        if m:
-            other_pct += float(m.group(1))
+    for (pct,) in other_active:
+        other_pct += pct
 
     actual_pct = min(requested_pct, max(0.0, 100.0 - other_pct))
     target     = net_billed * (actual_pct / 100.0)
