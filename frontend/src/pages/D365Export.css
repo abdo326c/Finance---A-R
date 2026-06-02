@@ -18,6 +18,18 @@
   gap: 32px;
 }
 
+.error-banner {
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid var(--danger-color, #ef4444);
+  color: var(--danger-color, #ef4444);
+  border-radius: var(--glass-radius);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .form-section {
   display: flex;
   flex-direction: column;

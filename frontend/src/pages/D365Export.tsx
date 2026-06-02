@@ -109,7 +109,7 @@ export default function D365Export() {
 
       <div className="d365-grid">
         <form className="d365-form glass-panel animate-fade-in" onSubmit={handleExport}>
-          {errorMsg && <div className="error-banner">{errorMsg}</div>}
+          {errorMsg && <div className="error-banner">⚠️ {errorMsg}</div>}
           
           <div className="form-section">
             <h3 className="section-title"><Settings size={18} /> Basic Filters</h3>
@@ -142,24 +142,28 @@ export default function D365Export() {
           <div className="form-section">
             <h3 className="section-title"><FileSpreadsheet size={18} /> Accounting Routing Settings</h3>
             <div className="form-row two-cols">
-              <div className="form-group">
-                <label>Tuition Revenue Ledger Account</label>
-                <input 
-                  type="text" 
-                  value={revenueAccount} 
-                  onChange={e => setRevenueAccount(e.target.value)} 
-                  disabled={txTypeFilter === 'Discounts Only (Scholarships)' || txTypeFilter === 'Other Fees Only' || txTypeFilter === 'Adjustments Only'}
-                />
-              </div>
-              <div className="form-group">
-                <label>Discount Ledger Account</label>
-                <input 
-                  type="text" 
-                  value={discountAccount} 
-                  onChange={e => setDiscountAccount(e.target.value)} 
-                  disabled={txTypeFilter === 'Tuition Invoices Only' || txTypeFilter === 'Other Fees Only' || txTypeFilter === 'Adjustments Only'}
-                />
-              </div>
+              {(txTypeFilter === 'All (Tuition Invoices & Discounts)' || txTypeFilter === 'Tuition Invoices Only') && (
+                <div className="form-group">
+                  <label>Tuition Revenue Ledger Account</label>
+                  <input 
+                    type="text" 
+                    value={revenueAccount} 
+                    onChange={e => setRevenueAccount(e.target.value)} 
+                    required
+                  />
+                </div>
+              )}
+              {(txTypeFilter === 'All (Tuition Invoices & Discounts)' || txTypeFilter === 'Discounts Only (Scholarships)') && (
+                <div className="form-group">
+                  <label>Discount Ledger Account</label>
+                  <input 
+                    type="text" 
+                    value={discountAccount} 
+                    onChange={e => setDiscountAccount(e.target.value)} 
+                    required
+                  />
+                </div>
+              )}
             </div>
             
             {(txTypeFilter === 'Other Fees Only' || txTypeFilter === 'Adjustments Only') && (
