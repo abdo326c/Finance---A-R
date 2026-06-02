@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, write_audit, next_ref_block
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, FinancialStatusHistory, write_audit, next_ref_block
 from api.auth import get_current_user
 from config import VALID_TERMS, DEFAULT_YEAR, MAX_BULK_ROWS
-from helpers import build_auto_discount_transactions
+from helpers import build_auto_discount_transactions, get_semester_rank
 
 router = APIRouter()
 
@@ -20,6 +20,7 @@ BULK_TYPES = [
     "Update Student Rates",
     "General Adjustments",
     "Bulk Academic Status",
+    "Bulk Financial Status",
 ]
 
 TEMPLATES = {
@@ -30,6 +31,7 @@ TEMPLATES = {
     "Update Student Rates":     {"ID":0,"New_Price_Per_Hr":5500.0},
     "General Adjustments":      {"ID":0,"Debit":0.0,"Credit":0.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR,"Description":"note"},
     "Bulk Academic Status":     {"ID":0,"Academic_Status":"Active","Term":"Spring","Year":DEFAULT_YEAR},
+    "Bulk Financial Status":    {"ID":0,"Financial_Status":"Financial Hold","Comment":"Missing tuition","Term":"Spring","Year":DEFAULT_YEAR},
 }
 
 def _safe_float(val, default=0.0) -> float:
@@ -141,6 +143,40 @@ async def process_bulk_upload(
             write_audit(db, current_user.username, "BULK_STATUS_UPDATE", "batch", f"{success} statuses updated")
             db.commit()
 
+    elif b_type == "Bulk Financial Status":
+        histories = []
+        for i, row in df_raw.iterrows():
+            rid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
+            orig = row.to_dict()
+            if rid <= 0 or rid not in all_students:
+                orig["Error Reason"] = "Invalid or unregistered ID"
+                failed.append(orig)
+            else:
+                try:
+                    term_v = str(row.get("Term", VALID_TERMS[1]))
+                    year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
+                    status_v = str(row.get("Financial_Status", "Good Standing")).strip()
+                    comment_v = str(row.get("Comment", "")).strip()
+                    
+                    history = FinancialStatusHistory(
+                        student_id=rid,
+                        status=status_v,
+                        comment=comment_v,
+                        term=term_v,
+                        academic_year=year_v,
+                        created_by=current_user.username
+                    )
+                    histories.append(history)
+                    success += 1
+                except Exception as e:
+                    orig["Error Reason"] = str(e)
+                    failed.append(orig)
+        
+        if success > 0:
+            db.add_all(histories)
+            write_audit(db, current_user.username, "BULK_FIN_STATUS_UPDATE", "batch", f"{success} financial statuses updated")
+            db.commit()
+
     else:
         start = next_ref_block(db, total * 2 + 100)
         ctr = start
@@ -162,6 +198,16 @@ async def process_bulk_upload(
             raw_desc = str(row.get("Description", "")).strip()
             dsc = b_type if not raw_desc or raw_desc in ("0", "0.0", "nan") else raw_desc
             
+            if b_type == "Bulk Invoices (Tuition)":
+                latest_status = db.query(FinancialStatusHistory).filter_by(student_id=sid).order_by(FinancialStatusHistory.created_at.desc()).first()
+                if latest_status and latest_status.status == "Financial Hold":
+                    hold_rank = get_semester_rank(latest_status.term, latest_status.academic_year)
+                    inv_rank = get_semester_rank(term_v, year_v)
+                    if inv_rank > hold_rank:
+                        orig["Error Reason"] = f"Financial Hold from {latest_status.term} {latest_status.academic_year}"
+                        failed.append(orig)
+                        continue
+                        
             if b_type == "Bulk Payments":
                 pfx = "PAY"
                 cr = _safe_float(row.get("Amount"))

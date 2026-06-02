@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, write_audit
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, FinancialStatusHistory, write_audit
 from api.auth import get_current_user
 
 router = APIRouter()
@@ -28,6 +28,12 @@ class StatusUpdate(BaseModel):
     year: int
     status: str
 
+class FinancialStatusUpdate(BaseModel):
+    term: str
+    year: int
+    status: str
+    comment: str
+
 @router.get("/profile/{student_id}")
 async def get_student_profile(student_id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     student = db.get(Student, student_id)
@@ -40,6 +46,10 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
 
     # Status history
     statuses = db.query(StudentStatus).filter_by(student_id=student.id).order_by(StudentStatus.academic_year.desc(), StudentStatus.id.desc()).all()
+    
+    # Financial history
+    fin_history = db.query(FinancialStatusHistory).filter_by(student_id=student.id).order_by(FinancialStatusHistory.created_at.desc()).all()
+    current_fin_status = fin_history[0].status if fin_history else "Good Standing"
     
     # Scholarships
     sch_rows = db.query(StudentScholarship, ScholarshipType).join(ScholarshipType).filter(StudentScholarship.student_id == student.id).order_by(StudentScholarship.academic_year.desc()).all()
@@ -62,7 +72,9 @@ async def get_student_profile(student_id: int, current_user = Depends(get_curren
             "general_notes": student.general_notes
         },
         "status": status_val,
+        "financial_status": current_fin_status,
         "status_history": [{"term": s.term, "year": s.academic_year, "status": s.status} for s in statuses],
+        "financial_history": [{"term": h.term, "year": h.academic_year, "status": h.status, "comment": h.comment, "created_at": h.created_at.isoformat(), "created_by": h.created_by} for h in fin_history],
         "scholarships": [{"term": ss.term, "year": ss.academic_year, "name": st.name, "percentage": ss.percentage, "is_active": ss.is_active} for ss, st in sch_rows]
     }
 
@@ -194,3 +206,27 @@ async def export_all_students(current_user = Depends(get_current_user), db: Sess
     db.commit()
     
     return Response(content=buf.getvalue(), media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=All_Students_Master_Data.xlsx"})
+
+
+@router.post("/financial_status/{student_id}")
+def update_financial_status(student_id: int, req: FinancialStatusUpdate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role not in ["Admin", "Editor"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+        
+    student = db.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+        
+    new_fin = FinancialStatusHistory(
+        student_id=student.id,
+        term=req.term,
+        academic_year=req.year,
+        status=req.status,
+        comment=req.comment,
+        created_by=current_user.username
+    )
+    db.add(new_fin)
+    write_audit(db, current_user.username, "UPDATE_FINANCIAL_STATUS", f"student={student.id}", f"{req.term} {req.year} => {req.status} ({req.comment})")
+    db.commit()
+    
+    return {"message": "Financial status updated successfully"}

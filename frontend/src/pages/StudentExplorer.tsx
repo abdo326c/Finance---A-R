@@ -22,6 +22,7 @@ export default function StudentExplorer() {
   
   const [editData, setEditData] = useState<any>({});
   const [newStatus, setNewStatus] = useState({ term: 'Spring', year: 2026, status: 'Active' });
+  const [newFinStatus, setNewFinStatus] = useState({ term: 'Spring', year: 2026, status: 'Good Standing', comment: '' });
 
   // For data lookups
   const [validColleges, setValidColleges] = useState<string[]>([]);
@@ -67,6 +68,12 @@ export default function StudentExplorer() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setProfile(res.data);
+      if (res.data.status_history && res.data.status_history.length > 0) {
+        setNewStatus(prev => ({...prev, term: res.data.status_history[0].term, year: res.data.status_history[0].year}));
+      }
+      if (res.data.financial_history && res.data.financial_history.length > 0) {
+        setNewFinStatus(prev => ({...prev, term: res.data.financial_history[0].term, year: res.data.financial_history[0].year}));
+      }
       setEditData(res.data.student);
       setSearchResults([]);
       setSearchQuery('');
@@ -192,8 +199,19 @@ export default function StudentExplorer() {
           <div className="admin-tabs">
             <button className={`admin-tab ${activeTab === 'profile' ? 'active' : ''}`} onClick={() => setActiveTab('profile')}><User size={18} /> Profile Details</button>
             <button className={`admin-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}><FileText size={18} /> Academic History</button>
+            <button className={`admin-tab ${activeTab === 'fin_history' ? 'active' : ''}`} onClick={() => setActiveTab('fin_history')}><AlertTriangle size={18} /> Financial Status</button>
             <button className={`admin-tab ${activeTab === 'scholarships' ? 'active' : ''}`} onClick={() => setActiveTab('scholarships')}><Medal size={18} /> Scholarships</button>
           </div>
+
+          {profile.financial_status === 'Financial Hold' && (
+            <div style={{ padding: '15px', background: 'var(--danger-transparent)', border: '1px solid var(--danger-color)', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertTriangle size={24} color="var(--danger-color)" />
+              <div>
+                <strong style={{ color: 'var(--danger-color)' }}>Financial Hold Active</strong>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>This student is prohibited from registering for new semesters. Note: You can still post payments.</div>
+              </div>
+            </div>
+          )}
 
           {activeTab === 'profile' && (
             <div className="animate-fade-in">
@@ -372,6 +390,74 @@ export default function StudentExplorer() {
                     </select>
                   </div>
                   <button className="btn-primary" onClick={handleUpdateStatus}>Update</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'fin_history' && (
+            <div className="glass-panel animate-fade-in" style={{ padding: '24px', marginBottom: '24px' }}>
+              <h3 style={{ marginTop: 0 }}>Financial Status History</h3>
+              {profile.financial_history && profile.financial_history.length > 0 ? (
+                <table className="data-table">
+                  <thead><tr><th>Term</th><th>Year</th><th>Status</th><th>Comment</th><th>Date</th><th>User</th></tr></thead>
+                  <tbody>
+                    {profile.financial_history.map((h: any, idx: number) => (
+                      <tr key={idx}>
+                        <td>{h.term}</td>
+                        <td>{h.year}</td>
+                        <td>
+                          <span className="badge" style={{ 
+                            background: h.status === 'Good Standing' ? 'var(--success-transparent)' : (h.status === 'Financial Hold' ? 'var(--danger-transparent)' : 'var(--primary-transparent)'), 
+                            color: h.status === 'Good Standing' ? 'var(--success-color)' : (h.status === 'Financial Hold' ? 'var(--danger-color)' : 'var(--primary-color)') 
+                          }}>{h.status}</span>
+                        </td>
+                        <td>{h.comment}</td>
+                        <td>{new Date(h.created_at).toLocaleString()}</td>
+                        <td>{h.created_by}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p style={{ color: 'var(--text-secondary)' }}>No financial status history found. Student is implicitly in Good Standing.</p>
+              )}
+              
+              <div style={{ marginTop: '20px', padding: '15px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                <h4 style={{ margin: '0 0 15px 0' }}>Update Financial Status</h4>
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '100px' }}>
+                    <label>Term</label>
+                    <select value={newFinStatus.term} onChange={e => setNewFinStatus({...newFinStatus, term: e.target.value})}>
+                      {validTerms.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, width: '80px' }}>
+                    <label>Year</label>
+                    <input type="number" value={newFinStatus.year} onChange={e => setNewFinStatus({...newFinStatus, year: parseInt(e.target.value)})} />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '150px' }}>
+                    <label>Status</label>
+                    <select value={newFinStatus.status} onChange={e => setNewFinStatus({...newFinStatus, status: e.target.value})}>
+                      <option value="Good Standing">Good Standing</option>
+                      <option value="Financial Hold">Financial Hold</option>
+                      <option value="Cleared">Cleared</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, flex: 1, minWidth: '200px' }}>
+                    <label>Comment (Required)</label>
+                    <input type="text" placeholder="Reason for hold or clearance..." value={newFinStatus.comment} onChange={e => setNewFinStatus({...newFinStatus, comment: e.target.value})} />
+                  </div>
+                  <button className="btn-primary" onClick={async () => {
+                    if (!newFinStatus.comment.trim()) return alert("Comment is required to update financial status.");
+                    try {
+                      const token = localStorage.getItem('token');
+                      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/explorer/financial_status/${profile.student.id}`, newFinStatus, { headers: { Authorization: `Bearer ${token}` } });
+                      alert("Financial status updated");
+                      loadProfile(profile.student.id);
+                      setNewFinStatus({...newFinStatus, comment: ''});
+                    } catch (e: any) { alert(e.response?.data?.detail || "Failed"); }
+                  }}>Update</button>
                 </div>
               </div>
             </div>

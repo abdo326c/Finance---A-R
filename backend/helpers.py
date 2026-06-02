@@ -23,6 +23,26 @@ def _pct(raw: float) -> float:
     return raw
 
 
+# ── Semester Chronology ───────────────────────
+def get_semester_rank(term: str, year: int) -> int:
+    """
+    Ranks a semester chronologically to block future registration if on hold.
+    Order: Fall < Spring < Summer.
+    Example: Fall 2025 (20251) < Spring 2026 (20262) < Summer 2026 (20263)
+    """
+    term = term.strip().title()
+    term_val = 0
+    if term == "Fall":
+        term_val = 1
+    elif term == "Spring":
+        term_val = 2
+    elif term == "Summer":
+        term_val = 3
+    else:
+        term_val = 0
+    return year * 10 + term_val
+
+
 # ── Active scholarships for a student/term ────
 def get_student_scholarships(db, student_id, term, academic_year):
     rows = (

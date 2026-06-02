@@ -104,6 +104,18 @@ class StudentStatus(Base):
     status       = Column(String, nullable=False)
 
 
+class FinancialStatusHistory(Base):
+    __tablename__ = "financial_status_history"
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    student_id    = Column(Integer, ForeignKey("students.id"), nullable=False)
+    status        = Column(String, nullable=False) # Good Standing, Financial Hold, Cleared
+    comment       = Column(String, nullable=False)
+    term          = Column(String, nullable=False)
+    academic_year = Column(Integer, nullable=False)
+    created_at    = Column(DateTime, default=func.now())
+    created_by    = Column(String, nullable=True)
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
     id               = Column(Integer, primary_key=True, autoincrement=True)

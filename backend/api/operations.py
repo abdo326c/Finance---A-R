@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date
 
-from models import get_db, Student, Transaction, RefCounter, StudentScholarship, ScholarshipType, next_ref_block, write_audit
-from helpers import build_auto_discount_transactions
+from models import get_db, Student, Transaction, RefCounter, StudentScholarship, ScholarshipType, FinancialStatusHistory, next_ref_block, write_audit
+from helpers import build_auto_discount_transactions, get_semester_rank
 from api.auth import get_current_user
 
 router = APIRouter()
@@ -97,6 +97,15 @@ def process_transaction(
     
     dr, cr, dsc, h_change = 0.0, 0.0, req.description, 0.0
     pfx = "TXN"
+    
+    # Financial Hold Check
+    if action == "Invoice":
+        latest_status = db.query(FinancialStatusHistory).filter_by(student_id=student.id).order_by(FinancialStatusHistory.created_at.desc()).first()
+        if latest_status and latest_status.status == "Financial Hold":
+            hold_rank = get_semester_rank(latest_status.term, latest_status.academic_year)
+            inv_rank = get_semester_rank(req.term, req.year)
+            if inv_rank > hold_rank:
+                raise HTTPException(status_code=403, detail=f"Student is on Financial Hold from {latest_status.term} {latest_status.academic_year}. Cannot register for new semesters.")
     
     if action == "Payment Receipt":
         pfx = "PAY"
