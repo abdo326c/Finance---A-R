@@ -161,7 +161,6 @@ export default function Dashboard() {
             </div>
 
             <div className="charts-grid">
-                {useMemo(() => (
                   <div className="chart-card glass-panel">
                     <h3 className="chart-title">Revenue Breakdown by College</h3>
                     <div style={{ width: '100%', height: 350 }}>
@@ -182,7 +181,6 @@ export default function Dashboard() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                ), [data.breakdown])}
 
               <div className="chart-container glass-panel">
                 <h3 className="chart-title">👥 Students by College</h3>
