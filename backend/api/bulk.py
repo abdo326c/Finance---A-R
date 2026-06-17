@@ -321,6 +321,10 @@ async def preview_power_campus(
         except Exception:
             df = pd.read_csv(io.BytesIO(contents), encoding='cp1252', encoding_errors='replace')
             
+        # Format dates to YYYY-MM-DD standard before JSON serialization
+        if "ENTRY_DATE" in df.columns:
+            df["ENTRY_DATE"] = pd.to_datetime(df["ENTRY_DATE"], errors="coerce").dt.strftime('%Y-%m-%d')
+            
         # VERY IMPORTANT: JSON does not support NaN. Replace all NaNs with None so FastAPI doesn't crash on serialization.
         df = df.where(pd.notnull(df), None)
     except Exception as e:
@@ -383,13 +387,13 @@ async def preview_power_campus(
             # Cast all values to string to prevent numpy int64/float64 JSON serialization crashes
             orig = {str(k): (str(v) if pd.notna(v) else None) for k, v in row.items()}
             sid = int(row.get("PEOPLE_ORG_ID", 0)) if pd.notna(row.get("PEOPLE_ORG_ID")) else 0
-            cc_num = str(row.get("CHARGECREDITNUMBER", "")).strip()
-            rc_num = str(row.get("RECEIPT_NUMBER", "")).strip()
+            cc_num = str(row.get("CHARGECREDITNUMBER")).strip() if row.get("CHARGECREDITNUMBER") else ""
+            rc_num = str(row.get("RECEIPT_NUMBER")).strip() if row.get("RECEIPT_NUMBER") else ""
             amt = _safe_float(row.get("AMOUNT", 0.0))
-            c_type = str(row.get("CHARGE_CREDIT_TYPE", "")).strip()
-            s_type = str(row.get("SUMMARY_TYPE", "")).strip()
-            c_code = str(row.get("CHARGE_CREDIT_CODE", "")).strip()
-            desc = str(row.get("CRG_CRD_DESC", "")).strip()
+            c_type = str(row.get("CHARGE_CREDIT_TYPE")).strip() if row.get("CHARGE_CREDIT_TYPE") else ""
+            s_type = str(row.get("SUMMARY_TYPE")).strip() if row.get("SUMMARY_TYPE") else ""
+            c_code = str(row.get("CHARGE_CREDIT_CODE")).strip() if row.get("CHARGE_CREDIT_CODE") else ""
+            desc = str(row.get("CRG_CRD_DESC")).strip() if row.get("CRG_CRD_DESC") else ""
             
             # Increment summary count
             if s_type not in summary_counts:
@@ -420,8 +424,8 @@ async def preview_power_campus(
                 "student_name": student.name,
                 "pc_charge_credit_number": cc_num if cc_num else None,
                 "pc_receipt_number": rc_num if rc_num else None,
-                "entry_date": str(row.get("ENTRY_DATE", "")),
-                "term": str(row.get("ACADEMIC_TERM", "")),
+                "entry_date": str(row.get("ENTRY_DATE")) if row.get("ENTRY_DATE") else "",
+                "term": str(row.get("ACADEMIC_TERM")).strip() if row.get("ACADEMIC_TERM") else "",
                 "academic_year": int(row.get("ACADEMIC_YEAR", 0)) if pd.notna(row.get("ACADEMIC_YEAR")) else 0,
                 "summary_type": s_type,
                 "charge_credit_type": c_type,
