@@ -328,38 +328,44 @@ async def preview_power_campus(
     # Apply VOID_FLAG filter unconditionally
     df = df[df["VOID_FLAG"] != "Y"]
 
-    # Apply user filters
-    if filter_data.get("term"):
-        df = df[df["ACADEMIC_TERM"] == filter_data["term"]]
-    if filter_data.get("year"):
-        df = df[df["ACADEMIC_YEAR"] == int(filter_data["year"])]
-    if filter_data.get("chargeType"):
-        df = df[df["CHARGE_CREDIT_TYPE"] == filter_data["chargeType"]]
-    if filter_data.get("summaryType"):
-        df = df[df["SUMMARY_TYPE"] == filter_data["summaryType"]]
-    if filter_data.get("chargeCode"):
-        df = df[df["CHARGE_CREDIT_CODE"] == filter_data["chargeCode"]]
+    try:
+        # Apply user filters
+        if filter_data.get("term"):
+            df = df[df["ACADEMIC_TERM"].astype(str).str.strip() == str(filter_data["term"]).strip()]
+        if filter_data.get("year"):
+            df = df[df["ACADEMIC_YEAR"].astype(str).str.strip() == str(filter_data["year"]).strip()]
+        if filter_data.get("chargeType"):
+            df = df[df["CHARGE_CREDIT_TYPE"].astype(str).str.strip() == str(filter_data["chargeType"]).strip()]
+        if filter_data.get("summaryType"):
+            df = df[df["SUMMARY_TYPE"].astype(str).str.strip() == str(filter_data["summaryType"]).strip()]
+        if filter_data.get("chargeCode"):
+            df = df[df["CHARGE_CREDIT_CODE"].astype(str).str.strip() == str(filter_data["chargeCode"]).strip()]
 
-    if filter_data.get("startDate") and filter_data.get("endDate"):
-        try:
-            sd = pd.to_datetime(filter_data["startDate"]).date()
-            ed = pd.to_datetime(filter_data["endDate"]).date()
-            df["_parsed_date"] = pd.to_datetime(df["ENTRY_DATE"], errors="coerce").dt.date
-            df = df[(df["_parsed_date"] >= sd) & (df["_parsed_date"] <= ed)]
-        except Exception:
-            pass
+        if filter_data.get("startDate") and filter_data.get("endDate"):
+            try:
+                sd = pd.to_datetime(filter_data["startDate"]).date()
+                ed = pd.to_datetime(filter_data["endDate"]).date()
+                df["_parsed_date"] = pd.to_datetime(df["ENTRY_DATE"], errors="coerce").dt.date
+                df = df[(df["_parsed_date"] >= sd) & (df["_parsed_date"] <= ed)]
+            except Exception:
+                pass
 
-    # Fetch all students and scholarships mapping
-    students = {s.id: s for s in db.query(Student).all()}
-    scholarship_types = {s.name.strip().lower(): s.id for s in db.query(ScholarshipType).all()}
-    
-    # Extract unique CHARGECREDITNUMBERs and RECEIPT_NUMBERs already in DB to prevent duplicates
-    existing_ccs = set(r[0] for r in db.query(Transaction.pc_charge_credit_number).filter(Transaction.pc_charge_credit_number.isnot(None)).all())
-    existing_rcs = set(r[0] for r in db.query(Transaction.pc_receipt_number).filter(Transaction.pc_receipt_number.isnot(None)).all())
+        # Fetch all students and scholarships mapping
+        students = {s.id: s for s in db.query(Student).all()}
+        scholarship_types = {s.name.strip().lower(): s.id for s in db.query(ScholarshipType).all()}
+        
+        # Extract unique CHARGECREDITNUMBERs and RECEIPT_NUMBERs already in DB to prevent duplicates
+        existing_ccs = set(r[0] for r in db.query(Transaction.pc_charge_credit_number).filter(Transaction.pc_charge_credit_number.isnot(None)).all())
+        existing_rcs = set(r[0] for r in db.query(Transaction.pc_receipt_number).filter(Transaction.pc_receipt_number.isnot(None)).all())
 
-    # Pre-calculate TUIT sum per student in the CSV for scholarship percentage calculation
-    tuit_df = df[df["SUMMARY_TYPE"] == "TUIT"]
-    student_tuit_sums = tuit_df.groupby("PEOPLE_ORG_ID")["AMOUNT"].sum().to_dict()
+        # Clean amount column to be float before summing
+        df["_amount_clean"] = pd.to_numeric(df["AMOUNT"].astype(str).str.replace(',', ''), errors='coerce').fillna(0.0)
+
+        # Pre-calculate TUIT sum per student in the CSV for scholarship percentage calculation
+        tuit_df = df[df["SUMMARY_TYPE"].astype(str).str.strip() == "TUIT"]
+        student_tuit_sums = tuit_df.groupby("PEOPLE_ORG_ID")["_amount_clean"].sum().to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error in pre-processing rows: {str(e)}")
 
     valid_rows = []
     skipped_rows = []
