@@ -316,6 +316,9 @@ async def preview_power_campus(
             df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
         except Exception:
             df = pd.read_csv(io.BytesIO(contents), encoding='cp1252', encoding_errors='replace')
+            
+        # VERY IMPORTANT: JSON does not support NaN. Replace all NaNs with None so FastAPI doesn't crash on serialization.
+        df = df.where(pd.notnull(df), None)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
 
