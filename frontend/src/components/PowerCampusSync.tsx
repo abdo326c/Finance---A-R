@@ -201,7 +201,7 @@ export default function PowerCampusSync() {
               <label style={{ display: 'block', marginBottom: '5px' }}>Charge/Credit Type</label>
               <select value={filters.chargeType} onChange={e => handleFilterChange('chargeType', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
                 <option value="">All Types</option>
-                {dynamicOptions.chargeTypes.map(c => <option key={c} value={c}>{c === 'C' ? 'Charge (C)' : c === 'R' ? 'Credit (R)' : c}</option>)}
+                {dynamicOptions.chargeTypes.map(c => <option key={c} value={c}>{c === 'C' ? 'Charge (C)' : c === 'R' ? 'Receipt (R)' : c === 'D' ? 'Discount (D)' : c}</option>)}
               </select>
             </div>
 
