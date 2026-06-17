@@ -281,9 +281,9 @@ export default function PowerCampusSync() {
           <div style={{ marginBottom: '20px', padding: '15px', background: 'var(--surface-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
             <h4 style={{margin: '0 0 10px 0'}}>Summary Type Counts</h4>
             <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-              {Object.entries(previewData.summary_counts).map(([type, count]) => (
+              {Object.entries(previewData.summary_counts).map(([type, data]: [string, any]) => (
                 <span key={type} style={{ padding: '6px 12px', background: 'var(--primary-transparent)', color: 'var(--primary-color)', borderRadius: '15px', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {type}: {String(count)}
+                  {type}: {data.count} ({new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EGP' }).format(data.amount)})
                 </span>
               ))}
             </div>

@@ -388,7 +388,10 @@ async def preview_power_campus(
             desc = str(row.get("CRG_CRD_DESC", "")).strip()
             
             # Increment summary count
-            summary_counts[s_type] = summary_counts.get(s_type, 0) + 1
+            if s_type not in summary_counts:
+                summary_counts[s_type] = {"count": 0, "amount": 0.0}
+            summary_counts[s_type]["count"] += 1
+            summary_counts[s_type]["amount"] += float(amt)
 
             if cc_num and cc_num in existing_ccs:
                 orig["Error Reason"] = "Duplicate: CHARGECREDITNUMBER already exists in DB"
