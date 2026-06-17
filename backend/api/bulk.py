@@ -366,115 +366,120 @@ async def preview_power_campus(
     summary_counts = {}
 
     for i, row in df.iterrows():
-        orig = row.to_dict()
-        sid = int(row.get("PEOPLE_ORG_ID", 0)) if pd.notna(row.get("PEOPLE_ORG_ID")) else 0
-        cc_num = str(row.get("CHARGECREDITNUMBER", "")).strip()
-        rc_num = str(row.get("RECEIPT_NUMBER", "")).strip()
-        amt = float(row.get("AMOUNT", 0.0))
-        c_type = str(row.get("CHARGE_CREDIT_TYPE", "")).strip()
-        s_type = str(row.get("SUMMARY_TYPE", "")).strip()
-        c_code = str(row.get("CHARGE_CREDIT_CODE", "")).strip()
-        desc = str(row.get("CRG_CRD_DESC", "")).strip()
-        
-        # Increment summary count
-        summary_counts[s_type] = summary_counts.get(s_type, 0) + 1
-
-        if cc_num and cc_num in existing_ccs:
-            orig["Error Reason"] = "Duplicate: CHARGECREDITNUMBER already exists in DB"
-            skipped_rows.append(orig)
-            continue
-        if rc_num and rc_num in existing_rcs:
-            orig["Error Reason"] = "Duplicate: RECEIPT_NUMBER already exists in DB"
-            skipped_rows.append(orig)
-            continue
+        try:
+            orig = row.to_dict()
+            sid = int(row.get("PEOPLE_ORG_ID", 0)) if pd.notna(row.get("PEOPLE_ORG_ID")) else 0
+            cc_num = str(row.get("CHARGECREDITNUMBER", "")).strip()
+            rc_num = str(row.get("RECEIPT_NUMBER", "")).strip()
+            amt = _safe_float(row.get("AMOUNT", 0.0))
+            c_type = str(row.get("CHARGE_CREDIT_TYPE", "")).strip()
+            s_type = str(row.get("SUMMARY_TYPE", "")).strip()
+            c_code = str(row.get("CHARGE_CREDIT_CODE", "")).strip()
+            desc = str(row.get("CRG_CRD_DESC", "")).strip()
             
-        if sid not in students:
-            orig["Error Reason"] = f"Student ID {sid} not found in database"
-            skipped_rows.append(orig)
-            continue
+            # Increment summary count
+            summary_counts[s_type] = summary_counts.get(s_type, 0) + 1
 
-        student = students[sid]
-        
-        # Prepare valid row payload
-        valid_row = {
-            "csv_row_index": i,
-            "student_id": sid,
-            "student_name": student.name,
-            "pc_charge_credit_number": cc_num if cc_num else None,
-            "pc_receipt_number": rc_num if rc_num else None,
-            "entry_date": str(row.get("ENTRY_DATE", "")),
-            "term": str(row.get("ACADEMIC_TERM", "")),
-            "academic_year": int(row.get("ACADEMIC_YEAR", 0)) if pd.notna(row.get("ACADEMIC_YEAR")) else 0,
-            "summary_type": s_type,
-            "charge_credit_type": c_type,
-            "amount": amt,
-            "raw_desc": desc,
-            "charge_code": c_code,
-            "scholarship_type_id": None,
-            "scholarship_percentage": None
-        }
-
-        # TUIT Logic
-        if s_type == "TUIT":
-            if not student.price_per_hr or student.price_per_hr <= 0:
-                orig["Error Reason"] = f"Student missing price_per_hr in DB"
+            if cc_num and cc_num in existing_ccs:
+                orig["Error Reason"] = "Duplicate: CHARGECREDITNUMBER already exists in DB"
                 skipped_rows.append(orig)
                 continue
-            ch = round(amt / student.price_per_hr, 2)
-            valid_row["computed_desc"] = f"Tuition: {ch} CH @ {student.price_per_hr}"
-            valid_row["hours_change"] = ch
-            valid_row["transaction_type"] = "Invoice"
-
-        # BANK / Payment Logic
-        elif s_type == "BANK" or c_type == "R":
-            valid_row["computed_desc"] = f"Bank: {c_code} | Ref: {desc}"
-            valid_row["hours_change"] = 0.0
-            valid_row["transaction_type"] = "Payment Receipt"
-
-        # SCHL Logic
-        elif s_type == "SCHL":
-            # Map by matching charge code or description
-            matched_id = scholarship_types.get(c_code.lower()) or scholarship_types.get(desc.lower())
-            if not matched_id:
-                # Provide a generic fallback or skip. We will skip for safety.
-                orig["Error Reason"] = f"Unmapped Scholarship Code: {c_code} / {desc}"
+            if rc_num and rc_num in existing_rcs:
+                orig["Error Reason"] = "Duplicate: RECEIPT_NUMBER already exists in DB"
                 skipped_rows.append(orig)
                 continue
-            
-            valid_row["scholarship_type_id"] = matched_id
-            
-            # Calculate Percentage
-            csv_tuition = student_tuit_sums.get(sid, 0.0)
-            if csv_tuition > 0:
-                pct = round((amt / csv_tuition) * 100, 2)
-            else:
-                # Fallback to DB tuition (requires calculating from existing DB transactions for this term/year)
-                db_tuition = db.query(func.sum(Transaction.debit)).filter(
-                    Transaction.student_id == sid,
-                    Transaction.term == valid_row["term"],
-                    Transaction.academic_year == valid_row["academic_year"],
-                    Transaction.transaction_type.in_(["Invoice", "Bulk Invoices (Tuition)"])
-                ).scalar() or 0.0
                 
-                if db_tuition > 0:
-                    pct = round((amt / db_tuition) * 100, 2)
-                else:
-                    orig["Error Reason"] = f"Cannot calculate SCHL %: No tuition found in CSV or DB"
+            if sid not in students:
+                orig["Error Reason"] = f"Student ID {sid} not found in database"
+                skipped_rows.append(orig)
+                continue
+
+            student = students[sid]
+            
+            # Prepare valid row payload
+            valid_row = {
+                "csv_row_index": i,
+                "student_id": sid,
+                "student_name": student.name,
+                "pc_charge_credit_number": cc_num if cc_num else None,
+                "pc_receipt_number": rc_num if rc_num else None,
+                "entry_date": str(row.get("ENTRY_DATE", "")),
+                "term": str(row.get("ACADEMIC_TERM", "")),
+                "academic_year": int(row.get("ACADEMIC_YEAR", 0)) if pd.notna(row.get("ACADEMIC_YEAR")) else 0,
+                "summary_type": s_type,
+                "charge_credit_type": c_type,
+                "amount": amt,
+                "raw_desc": desc,
+                "charge_code": c_code,
+                "scholarship_type_id": None,
+                "scholarship_percentage": None
+            }
+
+            # TUIT Logic
+            if s_type == "TUIT":
+                if not student.price_per_hr or student.price_per_hr <= 0:
+                    orig["Error Reason"] = f"Student missing price_per_hr in DB"
                     skipped_rows.append(orig)
                     continue
+                ch = round(amt / student.price_per_hr, 2)
+                valid_row["computed_desc"] = f"Tuition: {ch} CH @ {student.price_per_hr}"
+                valid_row["hours_change"] = ch
+                valid_row["transaction_type"] = "Invoice"
 
-            valid_row["scholarship_percentage"] = min(pct, 100.0)
-            valid_row["computed_desc"] = desc
-            valid_row["hours_change"] = 0.0
-            valid_row["transaction_type"] = "Discount"
+            # BANK / Payment Logic
+            elif s_type == "BANK" or c_type == "R":
+                valid_row["computed_desc"] = f"Bank: {c_code} | Ref: {desc}"
+                valid_row["hours_change"] = 0.0
+                valid_row["transaction_type"] = "Payment Receipt"
 
-        # General/Other Logic
-        else:
-            valid_row["computed_desc"] = desc
-            valid_row["hours_change"] = 0.0
-            valid_row["transaction_type"] = "Invoice" if c_type == "C" else "Adjustment"
+            # SCHL Logic
+            elif s_type == "SCHL":
+                # Map by matching charge code or description
+                matched_id = scholarship_types.get(c_code.lower()) or scholarship_types.get(desc.lower())
+                if not matched_id:
+                    # Provide a generic fallback or skip. We will skip for safety.
+                    orig["Error Reason"] = f"Unmapped Scholarship Code: {c_code} / {desc}"
+                    skipped_rows.append(orig)
+                    continue
+                
+                valid_row["scholarship_type_id"] = matched_id
+                
+                # Calculate Percentage
+                csv_tuition = student_tuit_sums.get(sid, 0.0)
+                if csv_tuition > 0:
+                    pct = round((amt / csv_tuition) * 100, 2)
+                else:
+                    # Fallback to DB tuition (requires calculating from existing DB transactions for this term/year)
+                    db_tuition = db.query(func.sum(Transaction.debit)).filter(
+                        Transaction.student_id == sid,
+                        Transaction.term == valid_row["term"],
+                        Transaction.academic_year == valid_row["academic_year"],
+                        Transaction.transaction_type.in_(["Invoice", "Bulk Invoices (Tuition)"])
+                    ).scalar() or 0.0
+                    
+                    if db_tuition > 0:
+                        pct = round((amt / db_tuition) * 100, 2)
+                    else:
+                        orig["Error Reason"] = f"Cannot calculate SCHL %: No tuition found in CSV or DB"
+                        skipped_rows.append(orig)
+                        continue
 
-        valid_rows.append(valid_row)
+                valid_row["scholarship_percentage"] = min(pct, 100.0)
+                valid_row["computed_desc"] = desc
+                valid_row["hours_change"] = 0.0
+                valid_row["transaction_type"] = "Discount"
+
+            # General/Other Logic
+            else:
+                valid_row["computed_desc"] = desc
+                valid_row["hours_change"] = 0.0
+                valid_row["transaction_type"] = "Invoice" if c_type == "C" else "Adjustment"
+
+            valid_rows.append(valid_row)
+        except Exception as e:
+            orig = row.to_dict()
+            orig["Error Reason"] = f"Internal Error: {str(e)}"
+            skipped_rows.append(orig)
 
     return {
         "valid_rows": valid_rows,
