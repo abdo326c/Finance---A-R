@@ -40,9 +40,13 @@ TEMPLATES = {
 
 def _safe_float(val, default=0.0) -> float:
     try:
+        import math
         if pd.isna(val) or val is None:
             return default
-        return float(str(val).replace(",","").strip())
+        f = float(str(val).replace(",","").strip())
+        if math.isnan(f) or math.isinf(f):
+            return default
+        return f
     except Exception:
         return default
 
