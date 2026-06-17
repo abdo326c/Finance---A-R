@@ -376,7 +376,8 @@ async def preview_power_campus(
 
     for i, row in df.iterrows():
         try:
-            orig = row.to_dict()
+            # Cast all values to string to prevent numpy int64/float64 JSON serialization crashes
+            orig = {str(k): (str(v) if pd.notna(v) else None) for k, v in row.items()}
             sid = int(row.get("PEOPLE_ORG_ID", 0)) if pd.notna(row.get("PEOPLE_ORG_ID")) else 0
             cc_num = str(row.get("CHARGECREDITNUMBER", "")).strip()
             rc_num = str(row.get("RECEIPT_NUMBER", "")).strip()
@@ -486,7 +487,7 @@ async def preview_power_campus(
 
             valid_rows.append(valid_row)
         except Exception as e:
-            orig = row.to_dict()
+            orig = {str(k): (str(v) if pd.notna(v) else None) for k, v in row.items()}
             orig["Error Reason"] = f"Internal Error: {str(e)}"
             skipped_rows.append(orig)
 
