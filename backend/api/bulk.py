@@ -314,8 +314,8 @@ async def preview_power_campus(
     try:
         try:
             df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
-        except UnicodeDecodeError:
-            df = pd.read_csv(io.BytesIO(contents), encoding='cp1252')
+        except Exception:
+            df = pd.read_csv(io.BytesIO(contents), encoding='cp1252', encoding_errors='replace')
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
 
