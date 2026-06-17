@@ -408,7 +408,7 @@ async def preview_power_campus(
             
             # Prepare valid row payload
             valid_row = {
-                "csv_row_index": i,
+                "csv_row_index": int(i),
                 "student_id": sid,
                 "student_name": student.name,
                 "pc_charge_credit_number": cc_num if cc_num else None,
@@ -457,7 +457,7 @@ async def preview_power_campus(
                 # Calculate Percentage
                 csv_tuition = student_tuit_sums.get(sid, 0.0)
                 if csv_tuition > 0:
-                    pct = round((amt / csv_tuition) * 100, 2)
+                    pct = float(round((amt / csv_tuition) * 100, 2))
                 else:
                     # Fallback to DB tuition (requires calculating from existing DB transactions for this term/year)
                     db_tuition = db.query(func.sum(Transaction.debit)).filter(
@@ -468,13 +468,13 @@ async def preview_power_campus(
                     ).scalar() or 0.0
                     
                     if db_tuition > 0:
-                        pct = round((amt / db_tuition) * 100, 2)
+                        pct = float(round((amt / db_tuition) * 100, 2))
                     else:
                         orig["Error Reason"] = f"Cannot calculate SCHL %: No tuition found in CSV or DB"
                         skipped_rows.append(orig)
                         continue
 
-                valid_row["scholarship_percentage"] = min(pct, 100.0)
+                valid_row["scholarship_percentage"] = float(min(pct, 100.0))
                 valid_row["computed_desc"] = desc
                 valid_row["hours_change"] = 0.0
                 valid_row["transaction_type"] = "Discount"
