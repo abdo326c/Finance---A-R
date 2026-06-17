@@ -56,11 +56,11 @@ export default function PowerCampusSync() {
         const chargeCodes = new Set<string>();
 
         results.data.forEach((row: any) => {
-          if (row.ACADEMIC_TERM) terms.add(row.ACADEMIC_TERM);
-          if (row.ACADEMIC_YEAR) years.add(row.ACADEMIC_YEAR);
-          if (row.SUMMARY_TYPE) sumTypes.add(row.SUMMARY_TYPE);
-          if (row.CHARGE_CREDIT_TYPE) chargeTypes.add(row.CHARGE_CREDIT_TYPE);
-          if (row.CHARGE_CREDIT_CODE) chargeCodes.add(row.CHARGE_CREDIT_CODE);
+          if (row.ACADEMIC_TERM) terms.add(String(row.ACADEMIC_TERM).trim());
+          if (row.ACADEMIC_YEAR) years.add(String(row.ACADEMIC_YEAR).trim());
+          if (row.SUMMARY_TYPE) sumTypes.add(String(row.SUMMARY_TYPE).trim());
+          if (row.CHARGE_CREDIT_TYPE) chargeTypes.add(String(row.CHARGE_CREDIT_TYPE).trim());
+          if (row.CHARGE_CREDIT_CODE) chargeCodes.add(String(row.CHARGE_CREDIT_CODE).trim());
         });
 
         setDynamicOptions({
@@ -201,7 +201,7 @@ export default function PowerCampusSync() {
               <label style={{ display: 'block', marginBottom: '5px' }}>Charge/Credit Type</label>
               <select value={filters.chargeType} onChange={e => handleFilterChange('chargeType', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
                 <option value="">All Types</option>
-                {dynamicOptions.chargeTypes.map(c => <option key={c} value={c}>{c === 'C' ? 'Charge (C)' : 'Credit (R)'}</option>)}
+                {dynamicOptions.chargeTypes.map(c => <option key={c} value={c}>{c === 'C' ? 'Charge (C)' : c === 'R' ? 'Credit (R)' : c}</option>)}
               </select>
             </div>
 
