@@ -294,3 +294,297 @@ async def process_bulk_upload(
         "failed_rows": failed,
         "batch_id": batch_id
     }
+
+
+import json
+
+@router.post("/power-campus/preview")
+async def preview_power_campus(
+    file: UploadFile = File(...),
+    filters: str = Form(...),
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        filter_data = json.loads(filters)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid filters JSON")
+
+    contents = await file.read()
+    try:
+        df = pd.read_csv(io.BytesIO(contents))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse CSV: {str(e)}")
+
+    # Ensure required columns exist
+    required_cols = ["PEOPLE_ORG_ID", "AMOUNT", "SUMMARY_TYPE", "CHARGE_CREDIT_TYPE", "VOID_FLAG", "CRG_CRD_DESC", "CHARGE_CREDIT_CODE"]
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"CSV missing required columns: {', '.join(missing)}")
+
+    # Apply VOID_FLAG filter unconditionally
+    df = df[df["VOID_FLAG"] != "Y"]
+
+    # Apply user filters
+    if filter_data.get("term"):
+        df = df[df["ACADEMIC_TERM"] == filter_data["term"]]
+    if filter_data.get("year"):
+        df = df[df["ACADEMIC_YEAR"] == int(filter_data["year"])]
+    if filter_data.get("chargeType"):
+        df = df[df["CHARGE_CREDIT_TYPE"] == filter_data["chargeType"]]
+    if filter_data.get("summaryType"):
+        df = df[df["SUMMARY_TYPE"] == filter_data["summaryType"]]
+    if filter_data.get("chargeCode"):
+        df = df[df["CHARGE_CREDIT_CODE"] == filter_data["chargeCode"]]
+
+    if filter_data.get("startDate") and filter_data.get("endDate"):
+        try:
+            sd = pd.to_datetime(filter_data["startDate"]).date()
+            ed = pd.to_datetime(filter_data["endDate"]).date()
+            df["_parsed_date"] = pd.to_datetime(df["ENTRY_DATE"], errors="coerce").dt.date
+            df = df[(df["_parsed_date"] >= sd) & (df["_parsed_date"] <= ed)]
+        except Exception:
+            pass
+
+    # Fetch all students and scholarships mapping
+    students = {s.id: s for s in db.query(Student).all()}
+    scholarship_types = {s.name.strip().lower(): s.id for s in db.query(ScholarshipType).all()}
+    
+    # Extract unique CHARGECREDITNUMBERs and RECEIPT_NUMBERs already in DB to prevent duplicates
+    existing_ccs = set(r[0] for r in db.query(Transaction.pc_charge_credit_number).filter(Transaction.pc_charge_credit_number.isnot(None)).all())
+    existing_rcs = set(r[0] for r in db.query(Transaction.pc_receipt_number).filter(Transaction.pc_receipt_number.isnot(None)).all())
+
+    # Pre-calculate TUIT sum per student in the CSV for scholarship percentage calculation
+    tuit_df = df[df["SUMMARY_TYPE"] == "TUIT"]
+    student_tuit_sums = tuit_df.groupby("PEOPLE_ORG_ID")["AMOUNT"].sum().to_dict()
+
+    valid_rows = []
+    skipped_rows = []
+    summary_counts = {}
+
+    for i, row in df.iterrows():
+        orig = row.to_dict()
+        sid = int(row.get("PEOPLE_ORG_ID", 0)) if pd.notna(row.get("PEOPLE_ORG_ID")) else 0
+        cc_num = str(row.get("CHARGECREDITNUMBER", "")).strip()
+        rc_num = str(row.get("RECEIPT_NUMBER", "")).strip()
+        amt = float(row.get("AMOUNT", 0.0))
+        c_type = str(row.get("CHARGE_CREDIT_TYPE", "")).strip()
+        s_type = str(row.get("SUMMARY_TYPE", "")).strip()
+        c_code = str(row.get("CHARGE_CREDIT_CODE", "")).strip()
+        desc = str(row.get("CRG_CRD_DESC", "")).strip()
+        
+        # Increment summary count
+        summary_counts[s_type] = summary_counts.get(s_type, 0) + 1
+
+        if cc_num and cc_num in existing_ccs:
+            orig["Error Reason"] = "Duplicate: CHARGECREDITNUMBER already exists in DB"
+            skipped_rows.append(orig)
+            continue
+        if rc_num and rc_num in existing_rcs:
+            orig["Error Reason"] = "Duplicate: RECEIPT_NUMBER already exists in DB"
+            skipped_rows.append(orig)
+            continue
+            
+        if sid not in students:
+            orig["Error Reason"] = f"Student ID {sid} not found in database"
+            skipped_rows.append(orig)
+            continue
+
+        student = students[sid]
+        
+        # Prepare valid row payload
+        valid_row = {
+            "csv_row_index": i,
+            "student_id": sid,
+            "student_name": student.name,
+            "pc_charge_credit_number": cc_num if cc_num else None,
+            "pc_receipt_number": rc_num if rc_num else None,
+            "entry_date": str(row.get("ENTRY_DATE", "")),
+            "term": str(row.get("ACADEMIC_TERM", "")),
+            "academic_year": int(row.get("ACADEMIC_YEAR", 0)) if pd.notna(row.get("ACADEMIC_YEAR")) else 0,
+            "summary_type": s_type,
+            "charge_credit_type": c_type,
+            "amount": amt,
+            "raw_desc": desc,
+            "charge_code": c_code,
+            "scholarship_type_id": None,
+            "scholarship_percentage": None
+        }
+
+        # TUIT Logic
+        if s_type == "TUIT":
+            if not student.price_per_hr or student.price_per_hr <= 0:
+                orig["Error Reason"] = f"Student missing price_per_hr in DB"
+                skipped_rows.append(orig)
+                continue
+            ch = round(amt / student.price_per_hr, 2)
+            valid_row["computed_desc"] = f"Tuition: {ch} CH @ {student.price_per_hr}"
+            valid_row["hours_change"] = ch
+            valid_row["transaction_type"] = "Invoice"
+
+        # BANK / Payment Logic
+        elif s_type == "BANK" or c_type == "R":
+            valid_row["computed_desc"] = f"Bank: {c_code} | Ref: {desc}"
+            valid_row["hours_change"] = 0.0
+            valid_row["transaction_type"] = "Payment Receipt"
+
+        # SCHL Logic
+        elif s_type == "SCHL":
+            # Map by matching charge code or description
+            matched_id = scholarship_types.get(c_code.lower()) or scholarship_types.get(desc.lower())
+            if not matched_id:
+                # Provide a generic fallback or skip. We will skip for safety.
+                orig["Error Reason"] = f"Unmapped Scholarship Code: {c_code} / {desc}"
+                skipped_rows.append(orig)
+                continue
+            
+            valid_row["scholarship_type_id"] = matched_id
+            
+            # Calculate Percentage
+            csv_tuition = student_tuit_sums.get(sid, 0.0)
+            if csv_tuition > 0:
+                pct = round((amt / csv_tuition) * 100, 2)
+            else:
+                # Fallback to DB tuition (requires calculating from existing DB transactions for this term/year)
+                db_tuition = db.query(func.sum(Transaction.debit)).filter(
+                    Transaction.student_id == sid,
+                    Transaction.term == valid_row["term"],
+                    Transaction.academic_year == valid_row["academic_year"],
+                    Transaction.transaction_type.in_(["Invoice", "Bulk Invoices (Tuition)"])
+                ).scalar() or 0.0
+                
+                if db_tuition > 0:
+                    pct = round((amt / db_tuition) * 100, 2)
+                else:
+                    orig["Error Reason"] = f"Cannot calculate SCHL %: No tuition found in CSV or DB"
+                    skipped_rows.append(orig)
+                    continue
+
+            valid_row["scholarship_percentage"] = min(pct, 100.0)
+            valid_row["computed_desc"] = desc
+            valid_row["hours_change"] = 0.0
+            valid_row["transaction_type"] = "Discount"
+
+        # General/Other Logic
+        else:
+            valid_row["computed_desc"] = desc
+            valid_row["hours_change"] = 0.0
+            valid_row["transaction_type"] = "Invoice" if c_type == "C" else "Adjustment"
+
+        valid_rows.append(valid_row)
+
+    return {
+        "valid_rows": valid_rows,
+        "skipped_rows": skipped_rows,
+        "summary_counts": summary_counts
+    }
+
+
+from pydantic import BaseModel
+from typing import List, Optional
+
+class PCCommitRow(BaseModel):
+    student_id: int
+    pc_charge_credit_number: Optional[str]
+    pc_receipt_number: Optional[str]
+    entry_date: str
+    term: str
+    academic_year: int
+    charge_credit_type: str
+    amount: float
+    computed_desc: str
+    hours_change: float
+    transaction_type: str
+    summary_type: str
+    scholarship_type_id: Optional[int]
+    scholarship_percentage: Optional[float]
+
+class PCCommitRequest(BaseModel):
+    rows: List[PCCommitRow]
+
+@router.post("/power-campus/commit")
+async def commit_power_campus(
+    req: PCCommitRequest,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if not req.rows:
+        raise HTTPException(status_code=400, detail="No rows to commit")
+
+    batch_id = f"PC-BULK-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    # Get max ref for generating our own ref numbers
+    from sqlalchemy import func
+    max_id = db.query(func.max(Transaction.id)).scalar() or 0
+    start_ref = max_id + 100
+    
+    txns = []
+    scholarships_to_add = []
+    
+    for i, row in enumerate(req.rows):
+        # Determine PFX based on transaction type
+        if row.transaction_type == "Invoice": pfx = "INV"
+        elif row.transaction_type == "Payment Receipt": pfx = "PAY"
+        elif row.transaction_type == "Discount": pfx = "SCH"
+        else: pfx = "TXN"
+        
+        dr = row.amount if row.charge_credit_type == "C" else 0.0
+        cr = row.amount if row.charge_credit_type == "R" else 0.0
+        
+        entry_dt = pd.to_datetime(row.entry_date, errors="coerce").date() if row.entry_date else datetime.datetime.now().date()
+        
+        txn = Transaction(
+            reference_no=f"{pfx}-{(start_ref + i):06d}",
+            batch_id=batch_id,
+            student_id=row.student_id,
+            scholarship_type_id=row.scholarship_type_id,
+            transaction_type=row.transaction_type,
+            description=row.computed_desc,
+            hours_change=row.hours_change,
+            debit=dr,
+            credit=cr,
+            entry_date=entry_dt,
+            term=row.term,
+            academic_year=row.academic_year,
+            pc_charge_credit_number=row.pc_charge_credit_number,
+            pc_receipt_number=row.pc_receipt_number
+        )
+        txns.append(txn)
+        
+        if row.summary_type == "SCHL" and row.scholarship_type_id and row.scholarship_percentage:
+            # Check if student already has this scholarship active
+            existing_sch = db.query(StudentScholarship).filter_by(
+                student_id=row.student_id,
+                scholarship_type_id=row.scholarship_type_id,
+                term=row.term,
+                academic_year=row.academic_year
+            ).first()
+            
+            if existing_sch:
+                existing_sch.is_active = True
+                existing_sch.percentage = row.scholarship_percentage
+            else:
+                scholarships_to_add.append(
+                    StudentScholarship(
+                        student_id=row.student_id,
+                        scholarship_type_id=row.scholarship_type_id,
+                        percentage=row.scholarship_percentage,
+                        term=row.term,
+                        academic_year=row.academic_year,
+                        is_active=True,
+                        internal_note=f"Imported from {batch_id}"
+                    )
+                )
+
+    try:
+        db.bulk_save_objects(txns)
+        if scholarships_to_add:
+            db.bulk_save_objects(scholarships_to_add)
+            
+        write_audit(db, current_user.username, "BULK_PC_SYNC", batch_id, f"Synced {len(txns)} transactions")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Commit failed: {str(e)}")
+
+    return {"message": "Success", "batch_id": batch_id, "imported_count": len(txns)}

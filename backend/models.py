@@ -130,6 +130,10 @@ class Transaction(Base):
     # 🟢 حقل الـ Internal Note (للملاحظات المخفية عن الطالب في الـ PDF)
     internal_note    = Column(String, nullable=True)
     
+    # PC Integration specific
+    pc_charge_credit_number = Column(String, nullable=True)
+    pc_receipt_number       = Column(String, nullable=True)
+    
     hours_change     = Column(Float, default=0.0)
     debit            = Column(Float, default=0)
     credit           = Column(Float, default=0)
@@ -234,6 +238,14 @@ def run_migrations():
             if "internal_note" not in columns:
                 with engine.begin() as conn:
                     conn.execute(text("ALTER TABLE student_scholarships ADD COLUMN internal_note VARCHAR(1000) NULL"))
+                    
+        if "transactions" in inspector.get_table_names():
+            tx_cols = [c["name"] for c in inspector.get_columns("transactions")]
+            with engine.begin() as conn:
+                if "pc_charge_credit_number" not in tx_cols:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN pc_charge_credit_number VARCHAR NULL"))
+                if "pc_receipt_number" not in tx_cols:
+                    conn.execute(text("ALTER TABLE transactions ADD COLUMN pc_receipt_number VARCHAR NULL"))
             
             # Enable pg_trgm for fast ILIKE searches (if PostgreSQL)
             if "postgres" in DB_URL:

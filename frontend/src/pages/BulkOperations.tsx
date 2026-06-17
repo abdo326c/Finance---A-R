@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { UploadCloud, Download, AlertTriangle, CheckCircle, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, Download, AlertTriangle, CheckCircle, FileSpreadsheet, Server } from 'lucide-react';
 import './BulkOperations.css';
+import PowerCampusSync from '../components/PowerCampusSync';
 
 const BULK_TYPES = [
   "Bulk Payments",
@@ -18,6 +19,7 @@ export default function BulkOperations() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [activeTab, setActiveTab] = useState<'standard' | 'power-campus'>('power-campus');
 
   const handleDownloadTemplate = async () => {
     try {
@@ -71,10 +73,31 @@ export default function BulkOperations() {
     <div className="page-container bulk-page">
       <div className="page-header">
         <h1><FileSpreadsheet size={28} style={{ marginRight: '10px' }} /> Bulk Financial Operations</h1>
-        <p>Process hundreds of transactions simultaneously using Excel templates.</p>
+        <p>Process hundreds of transactions simultaneously using Excel templates or Power Campus sync.</p>
       </div>
 
-      <div className="bulk-container glass-panel">
+      <div className="tab-navigation" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <button 
+          className={`tab-btn ${activeTab === 'power-campus' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('power-campus')}
+          style={{ flex: 1, padding: '12px', fontSize: '1.05rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: 'none', background: activeTab === 'power-campus' ? 'var(--primary-color)' : 'var(--surface-color)', color: activeTab === 'power-campus' ? '#fff' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+        >
+          <Server size={20} /> Power Campus Sync
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'standard' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('standard')}
+          style={{ flex: 1, padding: '12px', fontSize: '1.05rem', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: 'none', background: activeTab === 'standard' ? 'var(--primary-color)' : 'var(--surface-color)', color: activeTab === 'standard' ? '#fff' : 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s' }}
+        >
+          <FileSpreadsheet size={20} /> Standard Bulk Imports
+        </button>
+      </div>
+
+      {activeTab === 'power-campus' ? (
+        <PowerCampusSync />
+      ) : (
+        <>
+          <div className="bulk-container glass-panel">
         <div className="bulk-form-section">
           <h3>1. Select Operation Type</h3>
           <div className="type-selector">
@@ -178,6 +201,8 @@ export default function BulkOperations() {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );
