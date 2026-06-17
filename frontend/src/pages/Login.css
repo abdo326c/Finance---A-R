@@ -28,13 +28,12 @@
   padding: 40px;
   margin: 20px;
   z-index: 10;
-  background: rgba(255, 255, 255, 0.85);
-}
-
-@media (prefers-color-scheme: dark) {
-  .login-card {
-    background: rgba(30, 41, 59, 0.85);
-  }
+  background: var(--glass-bg);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .login-header {
@@ -46,17 +45,11 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgba(0, 74, 153, 0.1);
+  background: var(--primary-transparent);
   display: flex;
   justify-content: center;
   align-items: center;
   margin: 0 auto 16px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .icon-circle {
-    background: rgba(59, 130, 246, 0.15);
-  }
 }
 
 .login-header h2 {
@@ -92,18 +85,11 @@
 
 .error-alert {
   background: rgba(239, 68, 68, 0.1);
-  border-left: 4px solid #ef4444;
-  color: #b91c1c;
+  border-left: 4px solid var(--danger);
+  color: var(--danger);
   padding: 12px 16px;
   border-radius: 6px;
   margin-bottom: 20px;
   font-size: 0.9rem;
   font-weight: 500;
-}
-
-@media (prefers-color-scheme: dark) {
-  .error-alert {
-    background: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-  }
 }
