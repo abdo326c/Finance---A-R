@@ -42,7 +42,7 @@ export default function Admin() {
       const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/admin/audit-logs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setLogs(res.data);
+      setLogs(res.data.items || res.data || []);
     } catch (e) {
       console.error(e);
     }

@@ -19,7 +19,7 @@ export default function BulkOperations() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'standard' | 'power-campus'>('power-campus');
+  const [activeTab, setActiveTab] = useState<'standard' | 'power-campus'>('standard');
 
   const handleDownloadTemplate = async () => {
     try {
