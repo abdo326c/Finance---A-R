@@ -9,14 +9,7 @@ export default function PowerCampusSync() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
-  // Dynamic filter options extracted from CSV
-  const [dynamicOptions, setDynamicOptions] = useState({
-    terms: [] as string[],
-    years: [] as string[],
-    summaryTypes: [] as string[],
-    chargeTypes: [] as string[],
-    chargeCodes: [] as string[]
-  });
+  const [csvData, setCsvData] = useState<any[]>([]);
 
   // Selected filters
   const [filters, setFilters] = useState({
@@ -49,34 +42,52 @@ export default function PowerCampusSync() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const terms = new Set<string>();
-        const years = new Set<string>();
-        const sumTypes = new Set<string>();
-        const chargeTypes = new Set<string>();
-        const chargeCodes = new Set<string>();
-
-        results.data.forEach((row: any) => {
-          if (row.ACADEMIC_TERM) terms.add(String(row.ACADEMIC_TERM).trim());
-          if (row.ACADEMIC_YEAR) years.add(String(row.ACADEMIC_YEAR).trim());
-          if (row.SUMMARY_TYPE) sumTypes.add(String(row.SUMMARY_TYPE).trim());
-          if (row.CHARGE_CREDIT_TYPE) chargeTypes.add(String(row.CHARGE_CREDIT_TYPE).trim());
-          if (row.CHARGE_CREDIT_CODE) chargeCodes.add(String(row.CHARGE_CREDIT_CODE).trim());
-        });
-
-        setDynamicOptions({
-          terms: Array.from(terms).sort(),
-          years: Array.from(years).sort(),
-          summaryTypes: Array.from(sumTypes).sort(),
-          chargeTypes: Array.from(chargeTypes).sort(),
-          chargeCodes: Array.from(chargeCodes).sort()
-        });
+        setCsvData(results.data);
       }
     });
   };
 
   const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
+    // When an upstream filter changes, we might want to clear downstream filters if their current value is no longer valid.
+    // For simplicity, we just set the filter and let the dropdown show it as invalid/empty if it's gone, 
+    // but the best UX is to reset downstream filters.
+    setFilters(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'year') { next.term = ''; next.chargeType = ''; next.summaryType = ''; next.chargeCode = ''; }
+      if (field === 'term') { next.chargeType = ''; next.summaryType = ''; next.chargeCode = ''; }
+      if (field === 'chargeType') { next.summaryType = ''; next.chargeCode = ''; }
+      if (field === 'summaryType') { next.chargeCode = ''; }
+      return next;
+    });
   };
+
+  // Compute smart cascading options
+  const getCascadedOptions = () => {
+    let filtered = csvData;
+    
+    // Year options are always all years
+    const years = Array.from(new Set(filtered.map(r => String(r.ACADEMIC_YEAR || '').trim()).filter(Boolean))).sort();
+    
+    // Term options depend on Year
+    if (filters.year) filtered = filtered.filter(r => String(r.ACADEMIC_YEAR || '').trim() === filters.year);
+    const terms = Array.from(new Set(filtered.map(r => String(r.ACADEMIC_TERM || '').trim()).filter(Boolean))).sort();
+    
+    // ChargeType options depend on Year + Term
+    if (filters.term) filtered = filtered.filter(r => String(r.ACADEMIC_TERM || '').trim() === filters.term);
+    const chargeTypes = Array.from(new Set(filtered.map(r => String(r.CHARGE_CREDIT_TYPE || '').trim()).filter(Boolean))).sort();
+    
+    // SummaryType options depend on Year + Term + ChargeType
+    if (filters.chargeType) filtered = filtered.filter(r => String(r.CHARGE_CREDIT_TYPE || '').trim() === filters.chargeType);
+    const summaryTypes = Array.from(new Set(filtered.map(r => String(r.SUMMARY_TYPE || '').trim()).filter(Boolean))).sort();
+    
+    // ChargeCode options depend on Year + Term + ChargeType + SummaryType
+    if (filters.summaryType) filtered = filtered.filter(r => String(r.SUMMARY_TYPE || '').trim() === filters.summaryType);
+    const chargeCodes = Array.from(new Set(filtered.map(r => String(r.CHARGE_CREDIT_CODE || '').trim()).filter(Boolean))).sort();
+
+    return { years, terms, chargeTypes, summaryTypes, chargeCodes };
+  };
+
+  const dynamicOptions = getCascadedOptions();
 
   const generatePreview = async () => {
     if (!file) return;
@@ -174,26 +185,18 @@ export default function PowerCampusSync() {
         {file && (
           <div className="filters-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginTop: '20px' }}>
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '5px' }}>Term</label>
-              <select value={filters.term} onChange={e => handleFilterChange('term', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
-                <option value="">All Terms</option>
-                {dynamicOptions.terms.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            
-            <div className="form-group">
               <label style={{ display: 'block', marginBottom: '5px' }}>Year</label>
               <select value={filters.year} onChange={e => handleFilterChange('year', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
                 <option value="">All Years</option>
                 {dynamicOptions.years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-
+            
             <div className="form-group">
-              <label style={{ display: 'block', marginBottom: '5px' }}>Summary Type</label>
-              <select value={filters.summaryType} onChange={e => handleFilterChange('summaryType', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
-                <option value="">All Summary Types</option>
-                {dynamicOptions.summaryTypes.map(s => <option key={s} value={s}>{s}</option>)}
+              <label style={{ display: 'block', marginBottom: '5px' }}>Term</label>
+              <select value={filters.term} onChange={e => handleFilterChange('term', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
+                <option value="">All Terms</option>
+                {dynamicOptions.terms.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
 
@@ -202,6 +205,14 @@ export default function PowerCampusSync() {
               <select value={filters.chargeType} onChange={e => handleFilterChange('chargeType', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
                 <option value="">All Types</option>
                 {dynamicOptions.chargeTypes.map(c => <option key={c} value={c}>{c === 'C' ? 'Charge (C)' : c === 'R' ? 'Receipt (R)' : c === 'D' ? 'Discount (D)' : c}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'block', marginBottom: '5px' }}>Summary Type</label>
+              <select value={filters.summaryType} onChange={e => handleFilterChange('summaryType', e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}>
+                <option value="">All Summary Types</option>
+                {dynamicOptions.summaryTypes.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
 
