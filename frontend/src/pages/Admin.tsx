@@ -621,14 +621,11 @@ export default function Admin() {
                 <Plus size={16} /> Add
               </button>
             </div>
-            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', maxHeight: '400px', overflowY: 'auto' }}>
               <DataTable
                 columns={createColumns('VALID_COLLEGES')}
                 data={(settings.VALID_COLLEGES || []).map((v: string) => ({ value: v }))}
                 customStyles={customStyles}
-                pagination
-                paginationPerPage={5}
-                paginationRowsPerPageOptions={[5, 10]}
                 noHeader
               />
             </div>
@@ -649,14 +646,11 @@ export default function Admin() {
                 <Plus size={16} /> Add
               </button>
             </div>
-            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', maxHeight: '400px', overflowY: 'auto' }}>
               <DataTable
                 columns={createColumns('VALID_TERMS')}
                 data={(settings.VALID_TERMS || []).map((v: string) => ({ value: v }))}
                 customStyles={customStyles}
-                pagination
-                paginationPerPage={5}
-                paginationRowsPerPageOptions={[5, 10]}
                 noHeader
               />
             </div>
@@ -677,14 +671,11 @@ export default function Admin() {
                 <Plus size={16} /> Add
               </button>
             </div>
-            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', maxHeight: '400px', overflowY: 'auto' }}>
               <DataTable
                 columns={createColumns('VALID_STATUSES')}
                 data={(settings.VALID_STATUSES || []).map((v: string) => ({ value: v }))}
                 customStyles={customStyles}
-                pagination
-                paginationPerPage={5}
-                paginationRowsPerPageOptions={[5, 10]}
                 noHeader
               />
             </div>
