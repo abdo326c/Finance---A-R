@@ -549,10 +549,8 @@ async def commit_power_campus(
 
     batch_id = f"PC-BULK-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    # Get max ref for generating our own ref numbers
-    from sqlalchemy import func
-    max_id = db.query(func.max(Transaction.id)).scalar() or 0
-    start_ref = max_id + 100
+    # Reserve a block of reference numbers atomically to prevent duplicates
+    start_ref = next_ref_block(db, len(req.rows))
     
     txns = []
     scholarships_to_add = []
@@ -587,7 +585,7 @@ async def commit_power_campus(
         )
         txns.append(txn)
         
-        if row.summary_type == "SCHL" and row.scholarship_type_id and row.scholarship_percentage:
+        if row.summary_type in ["SCHL", "SCHOLA", "SCHOLARSHIP"] and row.scholarship_type_id and row.scholarship_percentage:
             # Check if student already has this scholarship active
             existing_sch = db.query(StudentScholarship).filter_by(
                 student_id=row.student_id,
