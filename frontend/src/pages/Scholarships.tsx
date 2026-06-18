@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import DataTable from 'react-data-table-component';
-import { GraduationCap, Search, Plus, RefreshCw, Download, AlertTriangle, CheckCircle2, Info, Settings, Save, XCircle } from 'lucide-react';
+import { GraduationCap, Search, Plus, RefreshCw, Download, AlertTriangle, CheckCircle2, Info, Settings, Save, XCircle, Upload, Copy } from 'lucide-react';
 import './Scholarships.css';
 
 interface Scholarship {
@@ -371,6 +371,59 @@ function ToolsTab({ lookups, showFlash }: any) {
   const [year, setYear] = useState<number>(lookups?.years[0] || new Date().getFullYear());
   const [syncing, setSyncing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/bulk/template/Bulk%20Scholarships`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Template_Bulk_Scholarships.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error(err);
+      showFlash('Failed to download template.', 'error');
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('b_type', 'Bulk Scholarships');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/bulk/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`
+        }
+      });
+      showFlash(response.data.message || 'Import successful', 'success');
+      setFile(null);
+    } catch (err: any) {
+      showFlash(err.response?.data?.detail || 'An error occurred during upload.', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    showFlash(`Copied '${text}' to clipboard!`, 'success');
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -428,6 +481,43 @@ function ToolsTab({ lookups, showFlash }: any) {
   return (
     <div className="tools-tab">
       <div className="tools-grid">
+        <div className="tool-card">
+          <div className="tool-header">
+            <h3><Upload size={20} /> Bulk Scholarships Import</h3>
+          </div>
+          <div className="tool-body">
+            <p>Upload an Excel file to assign bulk scholarships. Make sure to use the exact scholarship names listed below.</p>
+            <button className="btn-secondary w-100 mt-2 mb-3" onClick={handleDownloadTemplate}>
+              📥 Download Template
+            </button>
+            <form onSubmit={handleUpload}>
+              <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mb-2" style={{width: '100%'}} />
+              <button type="submit" className="btn-primary w-100" disabled={uploading || !file}>
+                {uploading ? <div className="spinner-small"></div> : 'Process Bulk Upload'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div className="tool-card" style={{ gridRow: 'span 2' }}>
+          <div className="tool-header">
+            <h3><Info size={20} /> Valid Scholarship Names</h3>
+          </div>
+          <div className="tool-body">
+            <p style={{marginBottom: '10px'}}>Click any name below to copy it exactly as it must appear in your Excel file.</p>
+            <div style={{maxHeight: '300px', overflowY: 'auto', background: 'var(--bg-card)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)'}}>
+              {lookups?.scholarships ? Object.keys(lookups.scholarships).map(name => (
+                <div key={name} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px', borderBottom: '1px solid var(--border-color)'}}>
+                  <span style={{fontWeight: '500', fontSize: '13px'}}>{name}</span>
+                  <button onClick={() => copyToClipboard(name)} className="btn-icon" title="Copy to clipboard">
+                    <Copy size={16} />
+                  </button>
+                </div>
+              )) : <p>No scholarships found.</p>}
+            </div>
+          </div>
+        </div>
+
         <div className="tool-card">
           <div className="tool-header">
             <h3><RefreshCw size={20} /> Sync & Recalculate</h3>
