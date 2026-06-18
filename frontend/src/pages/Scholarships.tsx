@@ -247,12 +247,7 @@ function ManageTab({ lookups, isAdmin, showFlash }: any) {
                       
                       <div className="sch-item-actions">
                         {sch.is_active ? (
-                          <>
-                            <button className="btn-secondary" onClick={() => handleToggleActive(sch, false)}>Stop (future only)</button>
-                            {isAdmin && (
-                              <button className="btn-secondary text-danger" onClick={() => handleToggleActive(sch, false, true)}>Stop & Reverse Past</button>
-                            )}
-                          </>
+                          <button className="btn-secondary text-danger" onClick={() => handleToggleActive(sch, false)}>Deactivate</button>
                         ) : (
                           <button className="btn-primary" onClick={() => handleToggleActive(sch, true)}>Activate</button>
                         )}
