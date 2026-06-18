@@ -360,7 +360,6 @@ export default function Admin() {
         <button className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}><Users size={18} /> Manage Users</button>
         <button className={`admin-tab ${activeTab === 'fixes' ? 'active' : ''}`} onClick={() => setActiveTab('fixes')}><Wrench size={18} /> Database Fixes</button>
         <button className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><Settings size={18} /> System Settings</button>
-        <button className={`admin-tab ${activeTab === 'mappings' ? 'active' : ''}`} onClick={() => setActiveTab('mappings')}><FileText size={18} /> Mappings</button>
         <button className={`admin-tab ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}><FileText size={18} /> Audit Logs</button>
       </div>
 
@@ -607,7 +606,7 @@ export default function Admin() {
             </div>
           </section>
 
-          <section className="glass-panel" style={{ padding: '24px' }}>
+          <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <h3 style={{ margin: '0 0 20px 0' }}>Registered Colleges</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
@@ -635,7 +634,7 @@ export default function Admin() {
             </div>
           </section>
 
-          <section className="glass-panel" style={{ padding: '24px' }}>
+          <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <h3 style={{ margin: '0 0 20px 0' }}>Academic Terms</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
@@ -663,7 +662,7 @@ export default function Admin() {
             </div>
           </section>
 
-          <section className="glass-panel" style={{ padding: '24px' }}>
+          <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <h3 style={{ margin: '0 0 20px 0' }}>Student Statuses</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
