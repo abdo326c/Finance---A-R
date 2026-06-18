@@ -260,6 +260,14 @@ def run_migrations():
                     conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_name_trgm ON students USING gin (name gin_trgm_ops);"))
                     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_email_trgm ON students USING gin (email gin_trgm_ops);"))
+            
+            # Explicitly create indexes for all foreign keys (create_all ignores existing tables)
+            with engine.begin() as conn:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_student_id ON transactions (student_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_transactions_sch_type_id ON transactions (scholarship_type_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_sch_student_id ON student_scholarships (student_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_student_sch_type_id ON student_scholarships (scholarship_type_id);"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_fin_status_student_id ON financial_status_history (student_id);"))
     except Exception as e:
         print(f"Note: Database auto-migration alert: {e}")
 
