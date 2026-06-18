@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
-from models import get_db, Transaction, DeletedBatchLog, write_audit, Student
+from models import get_db, Transaction, DeletedBatchLog, write_audit, Student, StudentScholarship
 from api.auth import get_current_user
 
 router = APIRouter()
@@ -101,6 +101,11 @@ async def delete_batch(
         ))
         
         db.query(Transaction).filter(Transaction.batch_id == batch_id).delete()
+        
+        # Safely deactivate any student scholarships that were created/activated by this batch
+        db.query(StudentScholarship).filter(
+            StudentScholarship.internal_note == f"Imported from {batch_id}"
+        ).update({"is_active": False}, synchronize_session=False)
         
         write_audit(db, current_user.username, "DELETE_BATCH", batch_id, f"{total_records} records removed")
         db.commit()
