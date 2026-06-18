@@ -424,6 +424,14 @@ async def preview_power_campus(
 
             student = students[sid]
             
+            # Map Power Campus term shorthands to System standard terms
+            raw_term = str(row.get("ACADEMIC_TERM")).strip().upper() if pd.notna(row.get("ACADEMIC_TERM")) else ""
+            if "SPR" in raw_term: mapped_term = "Spring"
+            elif "FALL" in raw_term: mapped_term = "Fall"
+            elif "SUM" in raw_term or "SMM" in raw_term: mapped_term = "Summer"
+            elif "WIN" in raw_term or "WNT" in raw_term: mapped_term = "Winter"
+            else: mapped_term = raw_term
+
             # Prepare valid row payload
             valid_row = {
                 "csv_row_index": int(i),
@@ -432,7 +440,7 @@ async def preview_power_campus(
                 "pc_charge_credit_number": cc_num if cc_num else None,
                 "pc_receipt_number": rc_num if rc_num else None,
                 "entry_date": str(row.get("ENTRY_DATE")) if row.get("ENTRY_DATE") else "",
-                "term": str(row.get("ACADEMIC_TERM")).strip() if row.get("ACADEMIC_TERM") else "",
+                "term": mapped_term,
                 "academic_year": int(row.get("ACADEMIC_YEAR", 0)) if pd.notna(row.get("ACADEMIC_YEAR")) else 0,
                 "summary_type": s_type,
                 "charge_credit_type": c_type,
