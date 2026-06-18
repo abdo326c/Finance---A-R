@@ -109,23 +109,34 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
         sib_id = int(sib_raw) if pd.notna(sib_raw) and str(sib_raw).strip() != "" else None
         
         if sid in existing_students:
-            # Update existing student
             st = existing_students[sid]
-            st.name = str(row.get("Name", st.name))
-            st.college = college
-            st.program = str(row.get("Program", st.program))
-            st.price_per_hr = price
-            st.email = str(row.get("Email", st.email)) if pd.notna(row.get("Email")) else st.email
-            st.mobile = str(row.get("Mobile", st.mobile)) if pd.notna(row.get("Mobile")) else st.mobile
-            st.national_id = str(row.get("National ID", st.national_id)) if pd.notna(row.get("National ID")) else st.national_id
-            st.nationality = str(row.get("Nationality", st.nationality)) if pd.notna(row.get("Nationality")) else st.nationality
-            st.admit_year = int(row.get("Admit Year", st.admit_year)) if pd.notna(row.get("Admit Year")) else st.admit_year
-            if pd.notna(bd): st.birth_date = bd.date()
-            st.is_sponsored = is_sponsored
-            st.sponsor_name = sponsor
-            st.general_notes = notes
-            st.sibling_id = sib_id
-            updated_count += 1
+            changed = False
+            
+            def set_if_changed(obj, attr, new_val):
+                if getattr(obj, attr) != new_val:
+                    setattr(obj, attr, new_val)
+                    return True
+                return False
+
+            changed |= set_if_changed(st, "name", str(row.get("Name", st.name)))
+            changed |= set_if_changed(st, "college", college)
+            changed |= set_if_changed(st, "program", str(row.get("Program", st.program)))
+            changed |= set_if_changed(st, "price_per_hr", price)
+            
+            if pd.notna(row.get("Email")): changed |= set_if_changed(st, "email", str(row.get("Email")))
+            if pd.notna(row.get("Mobile")): changed |= set_if_changed(st, "mobile", str(row.get("Mobile")))
+            if pd.notna(row.get("National ID")): changed |= set_if_changed(st, "national_id", str(row.get("National ID")))
+            if pd.notna(row.get("Nationality")): changed |= set_if_changed(st, "nationality", str(row.get("Nationality")))
+            if pd.notna(row.get("Admit Year")): changed |= set_if_changed(st, "admit_year", int(row.get("Admit Year")))
+            if pd.notna(bd): changed |= set_if_changed(st, "birth_date", bd.date())
+            
+            changed |= set_if_changed(st, "is_sponsored", is_sponsored)
+            changed |= set_if_changed(st, "sponsor_name", sponsor)
+            changed |= set_if_changed(st, "general_notes", notes)
+            changed |= set_if_changed(st, "sibling_id", sib_id)
+            
+            if changed:
+                updated_count += 1
         else:
             # Create new student
             new_student = Student(
