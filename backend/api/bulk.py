@@ -4,6 +4,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, ScholarshipMapping, Transaction, FinancialStatusHistory, write_audit, next_ref_block, get_static_lookups
 from api.auth import get_current_user
