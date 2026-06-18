@@ -101,16 +101,19 @@ async def process_bulk_upload(
     success = 0
     
     if b_type == "Update Student Rates":
+        full_students = {s.id: s for s in db.query(Student).all()}
         for i, row in df_raw.iterrows():
             rid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
             orig = row.to_dict()
-            if rid <= 0 or rid not in all_students:
+            if rid <= 0 or rid not in full_students:
                 orig["Error Reason"] = "Invalid or unregistered ID"
                 failed.append(orig)
             else:
                 try:
-                    db.query(Student).filter(Student.id == rid).update({"price_per_hr": _safe_float(row.get("New_Price_Per_Hr"))})
-                    success += 1
+                    new_rate = _safe_float(row.get("New_Price_Per_Hr"))
+                    if full_students[rid].price_per_hr != new_rate:
+                        full_students[rid].price_per_hr = new_rate
+                        success += 1
                 except Exception as e:
                     orig["Error Reason"] = str(e)
                     failed.append(orig)
@@ -121,6 +124,28 @@ async def process_bulk_upload(
 
     elif b_type == "Bulk Academic Status":
         histories = []
+        
+        # Pre-group by term and year to execute bulk deletes and prevent N+1 performance issues
+        to_delete = {}
+        for i, row in df_raw.iterrows():
+            rid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
+            if rid > 0 and rid in all_students:
+                term_v = str(row.get("Term", VALID_TERMS[1]))
+                year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
+                key = (term_v, year_v)
+                if key not in to_delete: to_delete[key] = set()
+                to_delete[key].add(rid)
+
+        for (t, y), sids in to_delete.items():
+            sid_list = list(sids)
+            for chunk_idx in range(0, len(sid_list), 1000):
+                chunk = sid_list[chunk_idx:chunk_idx+1000]
+                db.query(StudentStatus).filter(
+                    StudentStatus.term == t,
+                    StudentStatus.academic_year == y,
+                    StudentStatus.student_id.in_(chunk)
+                ).delete(synchronize_session=False)
+        
         for i, row in df_raw.iterrows():
             rid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
             orig = row.to_dict()
@@ -132,8 +157,6 @@ async def process_bulk_upload(
                     term_v = str(row.get("Term", VALID_TERMS[1]))
                     year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
                     status_v = str(row.get("Academic_Status", "Active")).strip()
-                    
-                    db.query(StudentStatus).filter_by(student_id=rid, term=term_v, academic_year=year_v).delete()
                     
                     history = StudentStatus(
                         student_id=rid,
@@ -198,6 +221,21 @@ async def process_bulk_upload(
         ctr = start
         txns = []
         
+        # Pre-fetch latest financial holds to prevent N+1 queries during bulk invoices
+        latest_holds = {}
+        if b_type == "Bulk Invoices (Tuition)":
+            subq = db.query(
+                FinancialStatusHistory.student_id,
+                func.max(FinancialStatusHistory.created_at).label("max_date")
+            ).group_by(FinancialStatusHistory.student_id).subquery()
+            
+            holds = db.query(FinancialStatusHistory).join(
+                subq,
+                (FinancialStatusHistory.student_id == subq.c.student_id) & 
+                (FinancialStatusHistory.created_at == subq.c.max_date)
+            ).all()
+            latest_holds = {h.student_id: h for h in holds}
+            
         for i, row in df_raw.iterrows():
             sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
             orig = row.to_dict()
@@ -215,7 +253,7 @@ async def process_bulk_upload(
             dsc = b_type if not raw_desc or raw_desc in ("0", "0.0", "nan") else raw_desc
             
             if b_type == "Bulk Invoices (Tuition)":
-                latest_status = db.query(FinancialStatusHistory).filter_by(student_id=sid).order_by(FinancialStatusHistory.created_at.desc()).first()
+                latest_status = latest_holds.get(sid)
                 if latest_status and latest_status.status == "Financial Hold":
                     hold_rank = get_semester_rank(latest_status.term, latest_status.academic_year)
                     inv_rank = get_semester_rank(term_v, year_v)
@@ -566,6 +604,12 @@ async def commit_power_campus(
     txns = []
     scholarships_to_add = []
     
+    # Pre-fetch existing scholarships to prevent N+1 queries
+    all_schs = db.query(StudentScholarship).filter(
+        StudentScholarship.student_id.in_([r.student_id for r in req.rows])
+    ).all()
+    existing_schs = {(s.student_id, s.scholarship_type_id, s.term, s.academic_year): s for s in all_schs}
+    
     for i, row in enumerate(req.rows):
         # Determine PFX based on transaction type
         if row.transaction_type == "Invoice": pfx = "INV"
@@ -598,12 +642,7 @@ async def commit_power_campus(
         
         if row.summary_type in ["SCHL", "SCHOLA", "SCHOLARSHIP"] and row.scholarship_type_id and row.scholarship_percentage:
             # Check if student already has this scholarship active
-            existing_sch = db.query(StudentScholarship).filter_by(
-                student_id=row.student_id,
-                scholarship_type_id=row.scholarship_type_id,
-                term=row.term,
-                academic_year=row.academic_year
-            ).first()
+            existing_sch = existing_schs.get((row.student_id, row.scholarship_type_id, row.term, row.academic_year))
             
             if existing_sch:
                 existing_sch.is_active = True
