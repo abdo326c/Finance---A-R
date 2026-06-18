@@ -532,14 +532,18 @@ function BulkUploadTab({ lookups, showFlash }: any) {
           <div className="tool-header">
             <h3><Upload size={20} /> Bulk Scholarships Import</h3>
           </div>
-          <div className="tool-body">
+          <div className="tool-body bulk-upload-area">
             <p>Upload an Excel file to assign bulk scholarships. Make sure to use the exact scholarship names listed below.</p>
-            <button className="btn-secondary w-100 mt-2 mb-3" onClick={handleDownloadTemplate}>
-              📥 Download Template
+            <button className="download-template-btn" onClick={handleDownloadTemplate}>
+              <Download size={18} /> Download Template
             </button>
             <form onSubmit={handleUpload}>
-              <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="mb-2" style={{width: '100%'}} />
-              <button type="submit" className="btn-primary w-100" disabled={uploading || !file}>
+              <label className={`upload-btn-styled ${file ? 'file-selected' : ''} w-100 mb-3`}>
+                <input type="file" accept=".xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="hidden-file-input" />
+                <Upload size={24} />
+                <span>{file ? file.name : "Choose an Excel file (.xlsx)"}</span>
+              </label>
+              <button type="submit" className="process-upload-btn" disabled={uploading || !file}>
                 {uploading ? <div className="spinner-small"></div> : 'Process Bulk Upload'}
               </button>
             </form>
