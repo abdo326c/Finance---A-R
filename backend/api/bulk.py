@@ -308,8 +308,7 @@ def process_bulk_upload(
                             description=f"Assigned {s_n} ({pct}%) - No Retroactive Invoice",
                             term=term_v,
                             academic_year=year_v,
-                            entry_date=datetime.date.today(),
-                            status="Posted"
+                            entry_date=datetime.date.today()
                         ))
                         ctr += 1
                 success += 1
