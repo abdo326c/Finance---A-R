@@ -93,8 +93,8 @@ class ScholarshipMapping(Base):
 class StudentScholarship(Base):
     __tablename__ = "student_scholarships"
     id                 = Column(Integer, primary_key=True, autoincrement=True)
-    student_id         = Column(Integer, ForeignKey("students.id"), nullable=False)
-    scholarship_type_id= Column(Integer, ForeignKey("scholarship_types.id"), nullable=False)
+    student_id         = Column(Integer, ForeignKey("students.id"), nullable=False, index=True)
+    scholarship_type_id= Column(Integer, ForeignKey("scholarship_types.id"), nullable=False, index=True)
     # Always stored as 0–100 (percentage points, NOT a decimal fraction)
     percentage         = Column(Float, nullable=False)
     term               = Column(String, nullable=False, default="Spring")
@@ -115,7 +115,7 @@ class StudentStatus(Base):
 class FinancialStatusHistory(Base):
     __tablename__ = "financial_status_history"
     id            = Column(Integer, primary_key=True, autoincrement=True)
-    student_id    = Column(Integer, ForeignKey("students.id"), nullable=False)
+    student_id    = Column(Integer, ForeignKey("students.id"), nullable=False, index=True)
     status        = Column(String, nullable=False) # Good Standing, Financial Hold, Cleared
     comment       = Column(String, nullable=False)
     term          = Column(String, nullable=False)
@@ -129,8 +129,8 @@ class Transaction(Base):
     id               = Column(Integer, primary_key=True, autoincrement=True)
     reference_no     = Column(String, unique=True)
     batch_id         = Column(String, nullable=True)
-    student_id       = Column(Integer, ForeignKey("students.id"))
-    scholarship_type_id = Column(Integer, ForeignKey("scholarship_types.id"), nullable=True)
+    student_id       = Column(Integer, ForeignKey("students.id"), index=True)
+    scholarship_type_id = Column(Integer, ForeignKey("scholarship_types.id"), nullable=True, index=True)
     transaction_type = Column(String, nullable=False)
     description      = Column(String)
     

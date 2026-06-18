@@ -69,7 +69,7 @@ async def get_template(b_type: str, current_user = Depends(get_current_user)):
     )
 
 @router.post("/upload")
-async def process_bulk_upload(
+def process_bulk_upload(
     b_type: str = Form(...),
     file: UploadFile = File(...),
     current_user = Depends(get_current_user),
@@ -79,7 +79,7 @@ async def process_bulk_upload(
         raise HTTPException(status_code=400, detail="Invalid bulk type.")
         
     try:
-        contents = await file.read()
+        contents = file.file.read()
         df_raw = pd.read_excel(io.BytesIO(contents))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {e}")
@@ -436,7 +436,7 @@ async def preview_power_campus(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid filters JSON")
 
-    contents = await file.read()
+    contents = file.file.read()
     try:
         try:
             df = pd.read_csv(io.BytesIO(contents), encoding='utf-8')
