@@ -98,7 +98,22 @@ def process_bulk_upload(
     batch_id = f"BCH-{datetime.datetime.now().strftime('%y%m%d-%H%M%S')}"
     total = len(df_raw)
     
-    all_students = {s.id: s.price_per_hr for s in db.query(Student).all()}
+    student_ids_in_file = []
+    for col in ["ID", "id", "Student ID", "student id"]:
+        if col in df_raw.columns:
+            student_ids_in_file = df_raw[col].dropna().astype(int).unique().tolist()
+            break
+            
+    if student_ids_in_file:
+        # Chunk the IN clause to prevent Postgres parser performance issues if the file has 25,000 rows
+        all_students = {}
+        chunk_size = 5000
+        for i in range(0, len(student_ids_in_file), chunk_size):
+            chunk = student_ids_in_file[i:i+chunk_size]
+            chunk_students = {s.id: s.price_per_hr for s in db.query(Student).filter(Student.id.in_(chunk)).all()}
+            all_students.update(chunk_students)
+    else:
+        all_students = {}
     failed = []
     success = 0
     
@@ -222,10 +237,17 @@ def process_bulk_upload(
         start = next_ref_block(db, total * 2 + 100)
         ctr = start
         
-        # Pre-fetch existing scholarships
-        all_schs = db.query(StudentScholarship).filter(
-            StudentScholarship.student_id.in_(list(all_students.keys()))
-        ).all()
+        # Pre-fetch existing scholarships only for the students in the Excel file
+        all_schs = []
+        if student_ids_in_file:
+            chunk_size = 5000
+            for i in range(0, len(student_ids_in_file), chunk_size):
+                chunk = student_ids_in_file[i:i+chunk_size]
+                chunk_schs = db.query(StudentScholarship).filter(
+                    StudentScholarship.student_id.in_(chunk)
+                ).all()
+                all_schs.extend(chunk_schs)
+                
         existing_schs = {(s.student_id, s.scholarship_type_id, s.term, s.academic_year): s for s in all_schs}
 
         for i, row in df_raw.iterrows():
