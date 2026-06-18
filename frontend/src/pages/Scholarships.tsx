@@ -510,9 +510,9 @@ function BulkUploadTab({ lookups, showFlash }: any) {
           Authorization: `Bearer ${token}`
         }
       });
+      setResult(response.data);
       if (response.data.failed_count > 0) {
-        const firstErr = response.data.failed_rows[0]?.["Error Reason"] || "Unknown error";
-        showFlash(`Failed: ${response.data.failed_count} row(s) failed. Reason: ${firstErr}`, 'error');
+        showFlash(`Completed with ${response.data.failed_count} error(s). See report below.`, 'error');
       } else {
         showFlash(`Import successful! Assigned ${response.data.success_count} scholarship(s).`, 'success');
       }
@@ -559,6 +559,48 @@ function BulkUploadTab({ lookups, showFlash }: any) {
               </button>
             </form>
           </div>
+          {result && (
+            <div className="tool-body bulk-results-section animate-fade-in" style={{marginTop: '15px', borderTop: '1px solid var(--border-color)', paddingTop: '15px'}}>
+              <h4 style={{marginBottom: '10px'}}>Batch Results (ID: {result.batch_id})</h4>
+              <div style={{display: 'flex', gap: '15px', marginBottom: '15px'}}>
+                <div style={{flex: 1, background: 'rgba(39, 174, 96, 0.1)', color: '#27ae60', padding: '10px', borderRadius: '8px', textAlign: 'center'}}>
+                  <div style={{fontSize: '24px', fontWeight: 'bold'}}>{result.success_count}</div>
+                  <div style={{fontSize: '12px', textTransform: 'uppercase'}}>Successful</div>
+                </div>
+                <div style={{flex: 1, background: 'rgba(231, 76, 60, 0.1)', color: '#e74c3c', padding: '10px', borderRadius: '8px', textAlign: 'center'}}>
+                  <div style={{fontSize: '24px', fontWeight: 'bold'}}>{result.failed_count}</div>
+                  <div style={{fontSize: '12px', textTransform: 'uppercase'}}>Failed</div>
+                </div>
+              </div>
+
+              {result.failed_count > 0 && result.failed_rows && (
+                <div className="failed-rows-container">
+                  <h5 style={{color: '#e74c3c', marginBottom: '8px'}}><AlertTriangle size={14} style={{verticalAlign: 'middle'}}/> Failed Rows Details</h5>
+                  <div className="table-responsive" style={{maxHeight: '300px', overflowY: 'auto'}}>
+                    <table className="data-table" style={{fontSize: '13px'}}>
+                      <thead>
+                        <tr>
+                          <th>Row Data (JSON)</th>
+                          <th>Error Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.failed_rows.map((r: any, idx: number) => {
+                          const { "Error Reason": err, ...rowData } = r;
+                          return (
+                            <tr key={idx}>
+                              <td style={{fontFamily: 'monospace', maxWidth: '300px', overflowX: 'auto', whiteSpace: 'nowrap'}}>{JSON.stringify(rowData)}</td>
+                              <td style={{color: '#e74c3c', fontWeight: '500'}}>{err}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="tool-card" style={{ gridRow: 'span 2' }}>

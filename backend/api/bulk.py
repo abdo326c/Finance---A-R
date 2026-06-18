@@ -329,9 +329,6 @@ def process_bulk_upload(
             except Exception as e:
                 db.rollback()
                 raise HTTPException(status_code=500, detail=f"Database error during bulk save: {str(e)}")
-        elif len(failed) > 0:
-            first_err = failed[0].get("Error Reason", "Unknown error")
-            raise HTTPException(status_code=400, detail=f"0 records processed. First error: {first_err}")
 
     else:
         from sqlalchemy import func
