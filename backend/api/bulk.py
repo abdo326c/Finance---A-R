@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, Transaction, FinancialStatusHistory, write_audit, next_ref_block, get_static_lookups
+from models import get_db, Student, StudentStatus, StudentScholarship, ScholarshipType, ScholarshipMapping, Transaction, FinancialStatusHistory, write_audit, next_ref_block, get_static_lookups
 from api.auth import get_current_user
 from config import VALID_TERMS, DEFAULT_YEAR, MAX_BULK_ROWS
 from helpers import build_auto_discount_transactions, get_semester_rank
@@ -364,6 +364,7 @@ async def preview_power_campus(
         # Fetch all students and scholarships mapping
         students = {s.id: s for s in db.query(Student).all()}
         scholarship_types = {s.name.strip().lower(): s.id for s in db.query(ScholarshipType).all()}
+        scholarship_mappings = {m.charge_code.strip().lower(): m.scholarship_type_id for m in db.query(ScholarshipMapping).all()}
         
         # Extract unique CHARGECREDITNUMBERs and RECEIPT_NUMBERs already in DB to prevent duplicates
         existing_ccs = set(r[0] for r in db.query(Transaction.pc_charge_credit_number).filter(Transaction.pc_charge_credit_number.isnot(None)).all())
@@ -455,11 +456,11 @@ async def preview_power_campus(
 
             # SCHL Logic
             elif s_type == "SCHL":
-                # Map by matching charge code or description
-                matched_id = scholarship_types.get(c_code.lower()) or scholarship_types.get(desc.lower())
+                # Map by matching charge code using the strict ScholarshipMapping UI config
+                matched_id = scholarship_mappings.get(c_code.lower())
                 if not matched_id:
                     # Provide a generic fallback or skip. We will skip for safety.
-                    orig["Error Reason"] = f"Unmapped Scholarship Code: {c_code} / {desc}"
+                    orig["Error Reason"] = f"Unmapped Scholarship Code: '{c_code}'. Please add it in System Admin -> Mappings."
                     skipped_rows.append(orig)
                     continue
                 

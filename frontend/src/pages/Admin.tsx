@@ -18,10 +18,13 @@ export default function Admin() {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('User');
 
+  const [scholarshipMappings, setScholarshipMappings] = useState<any[]>([]);
+
   useEffect(() => {
     fetchUsers();
     fetchLogs();
     fetchSettings();
+    fetchMappings();
   }, []);
 
   const fetchUsers = async () => {
@@ -55,6 +58,18 @@ export default function Admin() {
   const [newTerm, setNewTerm] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [newScholarship, setNewScholarship] = useState('');
+
+  const fetchMappings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_mappings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setScholarshipMappings(res.data);
+    } catch (e) {
+      console.error("Failed to fetch mappings", e);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -239,10 +254,47 @@ export default function Admin() {
       });
       alert(res.data.message);
     } catch (e: any) {
-      alert(e.response?.data?.detail || 'Upload failed');
+      alert(e.response?.data?.detail || "Failed to upload file");
+    } finally {
+      e.target.value = '';
     }
-    // reset file input
-    e.target.value = '';
+  };
+
+  const handleUploadMappings = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_mappings/upload`, formData, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      alert(res.data.message);
+      fetchMappings();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || "Failed to upload file");
+    } finally {
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteMapping = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this mapping?")) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_mappings/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchMappings();
+    } catch (e) {
+      alert("Failed to delete mapping");
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -290,6 +342,7 @@ export default function Admin() {
         <button className={`admin-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}><Users size={18} /> Manage Users</button>
         <button className={`admin-tab ${activeTab === 'fixes' ? 'active' : ''}`} onClick={() => setActiveTab('fixes')}><Wrench size={18} /> Database Fixes</button>
         <button className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}><Settings size={18} /> System Settings</button>
+        <button className={`admin-tab ${activeTab === 'mappings' ? 'active' : ''}`} onClick={() => setActiveTab('mappings')}><FileText size={18} /> Mappings</button>
         <button className={`admin-tab ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}><FileText size={18} /> Audit Logs</button>
       </div>
 
@@ -426,6 +479,61 @@ export default function Admin() {
               accept=".xlsx" 
               style={{ display: 'none' }}
               onChange={handleBulkDimensions}
+            />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'mappings' && (
+        <div className="animate-fade-in">
+          <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ margin: '0 0 10px 0' }}>Scholarship Mappings</h3>
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Upload an Excel file mapping Power Campus charge codes to System Categories.</p>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <label htmlFor="mapping-upload" className="upload-zone btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 20px', borderRadius: '8px', background: 'var(--primary-color)', color: 'white' }}>
+                  <Upload size={18} />
+                  <span>Upload Mappings (.xlsx)</span>
+                </label>
+                <input 
+                  type="file" 
+                  id="mapping-upload" 
+                  accept=".xlsx, .xls" 
+                  style={{ display: 'none' }}
+                  onChange={handleUploadMappings}
+                />
+              </div>
+            </div>
+            
+            <DataTable
+              columns={[
+                { name: 'Charge Code', selector: (row: any) => row.charge_code, sortable: true },
+                { name: 'Scholarship Category', selector: (row: any) => row.scholarship_type_name, sortable: true },
+                { 
+                  name: 'Actions', 
+                  cell: (row: any) => (
+                    <button 
+                      onClick={() => handleDeleteMapping(row.id)}
+                      style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}
+                      title="Delete Mapping"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  ),
+                  width: '100px',
+                  center: true
+                }
+              ]}
+              data={scholarshipMappings}
+              pagination
+              paginationPerPage={15}
+              highlightOnHover
+              customStyles={{
+                headRow: { style: { backgroundColor: 'var(--bg-secondary)', fontWeight: 'bold' } },
+                cells: { style: { padding: '12px 16px' } }
+              }}
             />
           </div>
         </div>

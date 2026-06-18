@@ -83,6 +83,13 @@ class ScholarshipType(Base):
     name = Column(String, unique=True)
 
 
+class ScholarshipMapping(Base):
+    __tablename__ = "scholarship_mappings"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    charge_code = Column(String, unique=True, nullable=False, index=True)
+    scholarship_type_id = Column(Integer, ForeignKey("scholarship_types.id"), nullable=False)
+
+
 class StudentScholarship(Base):
     __tablename__ = "student_scholarships"
     id                 = Column(Integer, primary_key=True, autoincrement=True)
