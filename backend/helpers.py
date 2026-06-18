@@ -85,7 +85,7 @@ def build_auto_discount_transactions(
         credit_val = gross_amount * (actual_pct / 100.0)
         capped = actual_pct < requested_pct
         desc = (
-            f"Scholarship: {sch['name']} ({actual_pct:.1f}%)"
+            f"{sch['name']} ({actual_pct:.1f}%)"
             + (f" (Capped from {requested_pct:.1f}%)" if capped else "")
         )
         discount_txs.append(

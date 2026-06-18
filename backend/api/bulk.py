@@ -376,6 +376,7 @@ async def preview_power_campus(
         # Fetch all students and scholarships mapping
         students = {s.id: s for s in db.query(Student).all()}
         scholarship_types = {s.name.strip().lower(): s.id for s in db.query(ScholarshipType).all()}
+        scholarship_names_by_id = {s.id: s.name for s in db.query(ScholarshipType).all()}
         scholarship_mappings = {m.charge_code.strip().lower(): m.scholarship_type_id for m in db.query(ScholarshipMapping).all()}
         
         # Extract unique CHARGECREDITNUMBERs and RECEIPT_NUMBERs already in DB to prevent duplicates
@@ -501,7 +502,9 @@ async def preview_power_campus(
                         continue
 
                 valid_row["scholarship_percentage"] = float(min(pct, 100.0))
-                valid_row["computed_desc"] = desc
+                
+                sch_sys_name = scholarship_names_by_id.get(matched_id, desc)
+                valid_row["computed_desc"] = f"{sch_sys_name} ({valid_row['scholarship_percentage']}%)"
                 valid_row["hours_change"] = 0.0
                 valid_row["transaction_type"] = "Discount"
 
