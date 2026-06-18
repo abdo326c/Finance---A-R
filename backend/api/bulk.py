@@ -455,7 +455,7 @@ async def preview_power_campus(
                 valid_row["transaction_type"] = "Payment Receipt"
 
             # SCHL Logic
-            elif s_type == "SCHL":
+            elif s_type in ["SCHL", "SCHOLA", "SCHOLARSHIP"]:
                 # Map by matching charge code using the strict ScholarshipMapping UI config
                 matched_id = scholarship_mappings.get(c_code.lower())
                 if not matched_id:
