@@ -23,7 +23,7 @@ interface LookupData {
 }
 
 export default function Scholarships() {
-  const [activeTab, setActiveTab] = useState<'manage'|'assign'|'tools'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage'|'assign'|'bulk'|'tools'>('manage');
   const [flash, setFlash] = useState<{msg: string, type: 'success'|'error'} | null>(null);
   const [lookups, setLookups] = useState<LookupData | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -74,12 +74,14 @@ export default function Scholarships() {
       <div className="tabs-container">
         <button className={`tab-btn ${activeTab === 'manage' ? 'active' : ''}`} onClick={() => setActiveTab('manage')}>Search & Manage</button>
         <button className={`tab-btn ${activeTab === 'assign' ? 'active' : ''}`} onClick={() => setActiveTab('assign')}>Assign Scholarship</button>
+        <button className={`tab-btn ${activeTab === 'bulk' ? 'active' : ''}`} onClick={() => setActiveTab('bulk')}>Bulk Upload</button>
         <button className={`tab-btn ${activeTab === 'tools' ? 'active' : ''}`} onClick={() => setActiveTab('tools')}>Tools & Reports</button>
       </div>
 
       <div className="tab-content glass-panel">
         {activeTab === 'manage' && <ManageTab lookups={lookups} isAdmin={isAdmin} showFlash={showFlash} />}
         {activeTab === 'assign' && <AssignTab lookups={lookups} showFlash={showFlash} />}
+        {activeTab === 'bulk' && <BulkUploadTab lookups={lookups} showFlash={showFlash} />}
         {activeTab === 'tools' && <ToolsTab lookups={lookups} showFlash={showFlash} />}
       </div>
     </div>
@@ -371,6 +373,104 @@ function ToolsTab({ lookups, showFlash }: any) {
   const [year, setYear] = useState<number>(lookups?.years[0] || new Date().getFullYear());
   const [syncing, setSyncing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/sync`, {
+        term, year
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showFlash(res.data.message, 'success');
+    } catch (err) {
+      showFlash('Sync failed', 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleReport = async () => {
+    setDownloading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/report/data`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const data = res.data;
+      if (!data || !data.length) {
+        showFlash("No data found for report", "error");
+        return;
+      }
+      
+      const keys = Object.keys(data[0]);
+      const csv = [
+        keys.join(','),
+        ...data.map((row: any) => keys.map(k => `"${String(row[k]).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Scholarships_Report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      showFlash('Failed to generate report', 'error');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="tools-tab">
+      <div className="tools-grid">
+        <div className="tool-card">
+          <div className="tool-header">
+            <h3><RefreshCw size={20} /> Sync & Recalculate</h3>
+          </div>
+          <div className="tool-body">
+            <p>Scan a specific term and apply any missing retroactive discounts for currently active scholarships.</p>
+            <div className="form-row mt-3">
+              <div className="form-group flex-1">
+                <select value={term} onChange={e => setTerm(e.target.value)}>
+                  {lookups?.terms?.map((t: string) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="form-group flex-1">
+                <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} />
+              </div>
+            </div>
+            <button className="btn-primary w-100 mt-3" onClick={handleSync} disabled={syncing}>
+              {syncing ? <div className="spinner-small"></div> : 'Run Sync'}
+            </button>
+          </div>
+        </div>
+
+        <div className="tool-card">
+          <div className="tool-header">
+            <h3><Download size={20} /> Scholarships Report</h3>
+          </div>
+          <div className="tool-body">
+            <p>Generate a comprehensive CSV report comparing configured scholarship percentages against actual billed tuition and discounts.</p>
+            <button className="btn-secondary w-100 mt-4" onClick={handleReport} disabled={downloading}>
+              {downloading ? <div className="spinner-small"></div> : 'Generate Report'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// BULK UPLOAD TAB
+// -----------------------------------------------------------------------------
+function BulkUploadTab({ lookups, showFlash }: any) {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
@@ -425,59 +525,6 @@ function ToolsTab({ lookups, showFlash }: any) {
     showFlash(`Copied '${text}' to clipboard!`, 'success');
   };
 
-  const handleSync = async () => {
-    setSyncing(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/sync`, {
-        term, year
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      showFlash(res.data.message, 'success');
-    } catch (err) {
-      showFlash('Sync failed', 'error');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleReport = async () => {
-    setDownloading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/scholarships/report/data`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Simple CSV export
-      const data = res.data;
-      if (!data || !data.length) {
-        showFlash("No data found for report", "error");
-        return;
-      }
-      
-      const keys = Object.keys(data[0]);
-      const csv = [
-        keys.join(','),
-        ...data.map((row: any) => keys.map(k => `"${String(row[k]).replace(/"/g, '""')}"`).join(','))
-      ].join('\n');
-      
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Scholarships_Report_${new Date().toISOString().split('T')[0]}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      showFlash('Failed to generate report', 'error');
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   return (
     <div className="tools-tab">
       <div className="tools-grid">
@@ -515,40 +562,6 @@ function ToolsTab({ lookups, showFlash }: any) {
                 </div>
               )) : <p>No scholarships found.</p>}
             </div>
-          </div>
-        </div>
-
-        <div className="tool-card">
-          <div className="tool-header">
-            <h3><RefreshCw size={20} /> Sync & Recalculate</h3>
-          </div>
-          <div className="tool-body">
-            <p>Scan a specific term and apply any missing retroactive discounts for currently active scholarships.</p>
-            <div className="form-row mt-3">
-              <div className="form-group flex-1">
-                <select value={term} onChange={e => setTerm(e.target.value)}>
-                  {lookups?.terms?.map((t: string) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div className="form-group flex-1">
-                <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} />
-              </div>
-            </div>
-            <button className="btn-primary w-100 mt-3" onClick={handleSync} disabled={syncing}>
-              {syncing ? <div className="spinner-small"></div> : 'Run Sync'}
-            </button>
-          </div>
-        </div>
-
-        <div className="tool-card">
-          <div className="tool-header">
-            <h3><Download size={20} /> Scholarships Report</h3>
-          </div>
-          <div className="tool-body">
-            <p>Generate a comprehensive CSV report comparing configured scholarship percentages against actual billed tuition and discounts.</p>
-            <button className="btn-secondary w-100 mt-4" onClick={handleReport} disabled={downloading}>
-              {downloading ? <div className="spinner-small"></div> : 'Generate Report'}
-            </button>
           </div>
         </div>
       </div>
