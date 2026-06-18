@@ -376,7 +376,8 @@ async def preview_power_campus(
 
         # Pre-calculate TUIT sum per student in the CSV for scholarship percentage calculation
         tuit_df = df[df["SUMMARY_TYPE"].astype(str).str.strip() == "TUIT"]
-        student_tuit_sums = tuit_df.groupby("PEOPLE_ORG_ID")["_amount_clean"].sum().to_dict()
+        raw_sums = tuit_df.groupby("PEOPLE_ORG_ID")["_amount_clean"].sum().to_dict()
+        student_tuit_sums = {int(float(k)): v for k, v in raw_sums.items() if pd.notna(k) and str(k).strip() != ''}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error in pre-processing rows: {str(e)}")
 
