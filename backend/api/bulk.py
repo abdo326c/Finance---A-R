@@ -212,8 +212,8 @@ async def process_bulk_upload(
             db.commit()
 
     elif b_type == "Bulk Scholarships":
-        mappings = db.query(ScholarshipMapping).all()
-        sch_map = {str(m.system_name).lower().strip(): m.scholarship_type_id for m in mappings}
+        types = db.query(ScholarshipType).all()
+        sch_map = {str(t.name).lower().strip(): t.id for t in types}
         
         from helpers import get_retroactive_scholarship_tx
         new_schs = []
