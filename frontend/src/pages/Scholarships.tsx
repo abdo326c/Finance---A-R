@@ -473,6 +473,7 @@ function ToolsTab({ lookups, showFlash }: any) {
 function BulkUploadTab({ lookups, showFlash }: any) {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   const handleDownloadTemplate = async () => {
     try {
