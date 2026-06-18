@@ -343,18 +343,24 @@ def process_bulk_upload(
         
         # Pre-fetch latest financial holds to prevent N+1 queries during bulk invoices
         latest_holds = {}
-        if b_type == "Bulk Invoices (Tuition)":
-            subq = db.query(
-                FinancialStatusHistory.student_id,
-                func.max(FinancialStatusHistory.created_at).label("max_date")
-            ).group_by(FinancialStatusHistory.student_id).subquery()
-            
-            holds = db.query(FinancialStatusHistory).join(
-                subq,
-                (FinancialStatusHistory.student_id == subq.c.student_id) & 
-                (FinancialStatusHistory.created_at == subq.c.max_date)
-            ).all()
-            latest_holds = {h.student_id: h for h in holds}
+        if b_type == "Bulk Invoices (Tuition)" and student_ids_in_file:
+            chunk_size = 5000
+            for i in range(0, len(student_ids_in_file), chunk_size):
+                chunk = student_ids_in_file[i:i+chunk_size]
+                subq = db.query(
+                    FinancialStatusHistory.student_id,
+                    func.max(FinancialStatusHistory.created_at).label("max_date")
+                ).filter(
+                    FinancialStatusHistory.student_id.in_(chunk)
+                ).group_by(FinancialStatusHistory.student_id).subquery()
+                
+                holds = db.query(FinancialStatusHistory).join(
+                    subq,
+                    (FinancialStatusHistory.student_id == subq.c.student_id) & 
+                    (FinancialStatusHistory.created_at == subq.c.max_date)
+                ).all()
+                for h in holds:
+                    latest_holds[h.student_id] = h
             
         # Pre-fetch all active scholarships for students in this file to prevent N+1 queries
         pre_fetched_schs = {}
