@@ -141,6 +141,32 @@ def get_scholarship_mappings(current_user = Depends(get_current_user), db: Sessi
         })
     return res
 
+class ScholarshipMappingCreate(BaseModel):
+    charge_code: str
+    scholarship_type_id: int
+
+@router.post("/scholarship_mappings")
+def add_scholarship_mapping(data: ScholarshipMappingCreate, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role != "Admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    
+    charge_code = data.charge_code.strip()
+    if not charge_code:
+        raise HTTPException(status_code=400, detail="Charge code cannot be empty.")
+        
+    st = db.query(ScholarshipType).filter(ScholarshipType.id == data.scholarship_type_id).first()
+    if not st:
+        raise HTTPException(status_code=400, detail="Invalid scholarship type.")
+        
+    existing = db.query(ScholarshipMapping).filter(ScholarshipMapping.charge_code == charge_code).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="This charge code is already mapped.")
+        
+    new_map = ScholarshipMapping(charge_code=charge_code, scholarship_type_id=st.id)
+    db.add(new_map)
+    db.commit()
+    return {"message": "Mapping added"}
+
 @router.post("/scholarship_mappings/upload")
 async def upload_scholarship_mappings(file: UploadFile = File(...), current_user = Depends(get_current_user), db: Session = Depends(get_db)):
     if not file.filename.endswith(('.xlsx', '.xls')):

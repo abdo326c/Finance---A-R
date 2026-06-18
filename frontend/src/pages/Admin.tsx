@@ -58,6 +58,8 @@ export default function Admin() {
   const [newTerm, setNewTerm] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [newScholarship, setNewScholarship] = useState('');
+  const [newMappingCode, setNewMappingCode] = useState('');
+  const [newMappingType, setNewMappingType] = useState('');
 
   const fetchMappings = async () => {
     try {
@@ -284,6 +286,22 @@ export default function Admin() {
     }
   };
 
+  const handleAddMapping = async () => {
+    if (!newMappingCode.trim() || !newMappingType) return;
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/lookups/scholarship_mappings`, 
+        { charge_code: newMappingCode.trim(), scholarship_type_id: parseInt(newMappingType) },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNewMappingCode('');
+      setNewMappingType('');
+      fetchMappings();
+    } catch (e: any) {
+      alert(e.response?.data?.detail || "Failed to add mapping");
+    }
+  };
+
   const handleDeleteMapping = async (id: number) => {
     if (!window.confirm("Are you sure you want to delete this mapping?")) return;
     try {
@@ -484,61 +502,6 @@ export default function Admin() {
         </div>
       )}
 
-      {activeTab === 'mappings' && (
-        <div className="animate-fade-in">
-          <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-              <div>
-                <h3 style={{ margin: '0 0 10px 0' }}>Scholarship Mappings</h3>
-                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>Upload an Excel file mapping Power Campus charge codes to System Categories.</p>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <label htmlFor="mapping-upload" className="upload-zone btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '10px 20px', borderRadius: '8px', background: 'var(--primary-color)', color: 'white' }}>
-                  <Upload size={18} />
-                  <span>Upload Mappings (.xlsx)</span>
-                </label>
-                <input 
-                  type="file" 
-                  id="mapping-upload" 
-                  accept=".xlsx, .xls" 
-                  style={{ display: 'none' }}
-                  onChange={handleUploadMappings}
-                />
-              </div>
-            </div>
-            
-            <DataTable
-              columns={[
-                { name: 'Charge Code', selector: (row: any) => row.charge_code, sortable: true },
-                { name: 'Scholarship Category', selector: (row: any) => row.scholarship_type_name, sortable: true },
-                { 
-                  name: 'Actions', 
-                  cell: (row: any) => (
-                    <button 
-                      onClick={() => handleDeleteMapping(row.id)}
-                      style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}
-                      title="Delete Mapping"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  ),
-                  width: '100px',
-                  center: true
-                }
-              ]}
-              data={scholarshipMappings}
-              pagination
-              paginationPerPage={15}
-              highlightOnHover
-              customStyles={{
-                headRow: { style: { backgroundColor: 'var(--bg-secondary)', fontWeight: 'bold' } },
-                cells: { style: { padding: '12px 16px' } }
-              }}
-            />
-          </div>
-        </div>
-      )}
-
       {activeTab === 'settings' && settings && (
         <div className="animate-fade-in lookups-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
           
@@ -567,6 +530,78 @@ export default function Admin() {
                 pagination
                 paginationPerPage={5}
                 paginationRowsPerPageOptions={[5, 10, 20]}
+                noHeader
+              />
+            </div>
+          </section>
+
+          <section className="glass-panel" style={{ gridColumn: '1 / -1', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0 }}>Scholarship Mappings</h3>
+              <div>
+                <label htmlFor="mapping-upload" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px' }}>
+                  <Upload size={16} />
+                  <span>Bulk Upload (.xlsx)</span>
+                </label>
+                <input 
+                  type="file" 
+                  id="mapping-upload" 
+                  accept=".xlsx, .xls" 
+                  style={{ display: 'none' }}
+                  onChange={handleUploadMappings}
+                />
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <input 
+                type="text" 
+                placeholder="Charge Code (e.g. MeritHiScl)" 
+                value={newMappingCode} 
+                onChange={e => setNewMappingCode(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleAddMapping()}
+                style={{ flex: 1, maxWidth: '300px' }}
+              />
+              <select 
+                value={newMappingType} 
+                onChange={e => setNewMappingType(e.target.value)}
+                style={{ flex: 1, maxWidth: '400px', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'var(--bg-color)', color: 'var(--text-color)' }}
+              >
+                <option value="">-- Select Scholarship Category --</option>
+                {scholarshipTypes.map((st: any) => (
+                  <option key={st.id} value={st.id}>{st.name}</option>
+                ))}
+              </select>
+              <button className="btn-primary" onClick={handleAddMapping} style={{ padding: '0 20px' }}>
+                <Plus size={16} /> Add
+              </button>
+            </div>
+            
+            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+              <DataTable
+                columns={[
+                  { name: 'Charge Code', selector: (row: any) => row.charge_code, sortable: true },
+                  { name: 'Scholarship Category', selector: (row: any) => row.scholarship_type_name, sortable: true },
+                  { 
+                    name: 'Actions', 
+                    cell: (row: any) => (
+                      <button 
+                        onClick={() => handleDeleteMapping(row.id)}
+                        style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}
+                        title="Delete Mapping"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    ),
+                    width: '100px',
+                    center: true
+                  }
+                ]}
+                data={scholarshipMappings}
+                customStyles={customStyles}
+                pagination
+                paginationPerPage={10}
+                paginationRowsPerPageOptions={[10, 25, 50]}
                 noHeader
               />
             </div>
