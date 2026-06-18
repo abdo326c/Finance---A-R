@@ -75,18 +75,21 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
         raise HTTPException(status_code=400, detail="Invalid Excel file format")
         
     valid_colleges = get_db_config_list(db, "VALID_COLLEGES", VALID_COLLEGES)
-    existing_ids = {s[0] for s in db.query(Student.id).all()}
+    existing_students = {s.id: s for s in db.query(Student).all()}
     
     new_students = []
+    updated_count = 0
     failed = []
     
     for i, row in df.iterrows():
-        sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
+        # Support both 'ID' and 'Student ID' headers
+        raw_id = row.get("Student ID", row.get("ID", 0))
+        sid = int(raw_id) if pd.notna(raw_id) else 0
         orig = row.to_dict()
         college = str(row.get("College", "")).strip().upper()
         
-        if sid <= 0 or sid in existing_ids:
-            orig["Error Reason"] = "Invalid or duplicate ID"
+        if sid <= 0:
+            orig["Error Reason"] = "Invalid ID"
             failed.append(orig)
             continue
             
@@ -96,32 +99,65 @@ async def bulk_register(file: UploadFile = File(...), current_user = Depends(get
             continue
             
         bd = pd.to_datetime(row.get("Birth Date"), errors="coerce")
+        price = float(row.get("Price / Hr (EGP)", row.get("Price Per Hr", 0.0)))
+        is_sponsored_raw = row.get("Is Sponsored", False)
+        is_sponsored = str(is_sponsored_raw).strip().lower() in ["true", "yes", "1", "y"] if pd.notna(is_sponsored_raw) else False
+        sponsor = str(row.get("Sponsor Name", "")).strip() if pd.notna(row.get("Sponsor Name")) else None
+        notes = str(row.get("General Notes", "")).strip() if pd.notna(row.get("General Notes")) else None
         
-        new_student = Student(
-            id=sid,
-            name=str(row.get("Name", "Unknown")),
-            college=college,
-            program=str(row.get("Program", "")),
-            price_per_hr=float(row.get("Price Per Hr", 0.0)),
-            email=str(row.get("Email", "")),
-            mobile=str(row.get("Mobile", "")),
-            national_id=str(row.get("National ID", "")),
-            nationality=str(row.get("Nationality", "Egyptian")),
-            admit_year=int(row.get("Admit Year", DEFAULT_YEAR)),
-            birth_date=bd.date() if pd.notna(bd) else None
-        )
-        new_students.append(new_student)
-        existing_ids.add(sid) # Prevent duplicates within the same file
+        sib_raw = row.get("Sibling ID")
+        sib_id = int(sib_raw) if pd.notna(sib_raw) and str(sib_raw).strip() != "" else None
         
-    if new_students:
-        db.add_all(new_students)
-        write_audit(db, current_user.username, "BULK_REGISTER", "bulk", f"{len(new_students)} students")
+        if sid in existing_students:
+            # Update existing student
+            st = existing_students[sid]
+            st.name = str(row.get("Name", st.name))
+            st.college = college
+            st.program = str(row.get("Program", st.program))
+            st.price_per_hr = price
+            st.email = str(row.get("Email", st.email)) if pd.notna(row.get("Email")) else st.email
+            st.mobile = str(row.get("Mobile", st.mobile)) if pd.notna(row.get("Mobile")) else st.mobile
+            st.national_id = str(row.get("National ID", st.national_id)) if pd.notna(row.get("National ID")) else st.national_id
+            st.nationality = str(row.get("Nationality", st.nationality)) if pd.notna(row.get("Nationality")) else st.nationality
+            st.admit_year = int(row.get("Admit Year", st.admit_year)) if pd.notna(row.get("Admit Year")) else st.admit_year
+            if pd.notna(bd): st.birth_date = bd.date()
+            st.is_sponsored = is_sponsored
+            st.sponsor_name = sponsor
+            st.general_notes = notes
+            st.sibling_id = sib_id
+            updated_count += 1
+        else:
+            # Create new student
+            new_student = Student(
+                id=sid,
+                name=str(row.get("Name", "Unknown")),
+                college=college,
+                program=str(row.get("Program", "")),
+                price_per_hr=price,
+                email=str(row.get("Email", "")) if pd.notna(row.get("Email")) else None,
+                mobile=str(row.get("Mobile", "")) if pd.notna(row.get("Mobile")) else None,
+                national_id=str(row.get("National ID", "")) if pd.notna(row.get("National ID")) else None,
+                nationality=str(row.get("Nationality", "Egyptian")) if pd.notna(row.get("Nationality")) else "Egyptian",
+                admit_year=int(row.get("Admit Year", DEFAULT_YEAR)) if pd.notna(row.get("Admit Year")) else DEFAULT_YEAR,
+                birth_date=bd.date() if pd.notna(bd) else None,
+                is_sponsored=is_sponsored,
+                sponsor_name=sponsor,
+                general_notes=notes,
+                sibling_id=sib_id
+            )
+            new_students.append(new_student)
+            existing_students[sid] = new_student # Prevent duplicates within the same file from causing errors
+        
+    if new_students or updated_count > 0:
+        if new_students:
+            db.add_all(new_students)
+        write_audit(db, current_user.username, "BULK_UPSERT_STUDENTS", "bulk", f"{len(new_students)} new, {updated_count} updated")
         db.commit()
         get_static_lookups.cache_clear()
         
     return {
-        "message": f"Registered {len(new_students)} students.",
-        "success_count": len(new_students),
+        "message": f"Processed successfully: {len(new_students)} new, {updated_count} updated.",
+        "success_count": len(new_students) + updated_count,
         "failed_count": len(failed),
         "failed_rows": failed
     }
