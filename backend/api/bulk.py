@@ -260,7 +260,8 @@ def process_bulk_upload(
                         percentage=pct,
                         term=term_v,
                         academic_year=year_v,
-                        is_active=True
+                        is_active=True,
+                        internal_note=f"Imported from {batch_id}"
                     )
                     new_schs.append(new_sch)
                     
@@ -271,6 +272,20 @@ def process_bulk_upload(
                     )
                     if tx:
                         txns.append(tx)
+                        ctr += 1
+                    else:
+                        txns.append(Transaction(
+                            student_id=sid,
+                            reference_no=f"SCH-ASSIGN-{ctr}",
+                            batch_id=batch_id,
+                            scholarship_type_id=s_id,
+                            transaction_type="Bulk Scholarships",
+                            description=f"Assigned {s_n} ({pct}%) - No Retroactive Invoice",
+                            term=term_v,
+                            academic_year=year_v,
+                            entry_date=datetime.date.today(),
+                            status="Posted"
+                        ))
                         ctr += 1
                 success += 1
             except Exception as e:
