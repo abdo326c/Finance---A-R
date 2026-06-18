@@ -20,6 +20,7 @@ BULK_TYPES = [
     "Credit Hours Adjustments",
     "Update Student Rates",
     "General Adjustments",
+    "Bulk Scholarships",
     "Bulk Academic Status",
     "Bulk Financial Status",
     "Bulk Siblings",
@@ -33,6 +34,7 @@ TEMPLATES = {
     "Credit Hours Adjustments": {"ID":0,"Hours_Delta":3.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR},
     "Update Student Rates":     {"ID":0,"New_Price_Per_Hr":5500.0},
     "General Adjustments":      {"ID":0,"Debit":0.0,"Credit":0.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR,"Description":"note"},
+    "Bulk Scholarships":        {"ID":0,"Scholarship Name":"Merit High School","Percentage":10.0,"Date":"2026-04-17","Term":"Spring","Year":DEFAULT_YEAR},
     "Bulk Academic Status":     {"ID":0,"Academic_Status":"Active","Term":"Spring","Year":DEFAULT_YEAR},
     "Bulk Financial Status":    {"ID":0,"Financial_Status":"Financial Hold","Comment":"Missing tuition","Term":"Spring","Year":DEFAULT_YEAR},
     "Bulk Siblings":            {"ID":0,"Sibling_ID":26100123},
@@ -236,6 +238,12 @@ async def process_bulk_upload(
             ).all()
             latest_holds = {h.student_id: h for h in holds}
             
+        # Pre-fetch scholarship mappings to prevent N+1 queries during bulk scholarships
+        sch_map = {}
+        if b_type == "Bulk Scholarships":
+            mappings = db.query(ScholarshipMapping).all()
+            sch_map = {str(m.system_name).lower().strip(): m.scholarship_type_id for m in mappings}
+            
         for i, row in df_raw.iterrows():
             sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
             orig = row.to_dict()
@@ -247,6 +255,7 @@ async def process_bulk_upload(
                 
             rt = all_students[sid]
             dr = cr = h_change = 0.0
+            s_id = None
             term_v = str(row.get("Term", VALID_TERMS[1]))
             year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
             raw_desc = str(row.get("Description", "")).strip()
@@ -285,6 +294,19 @@ async def process_bulk_upload(
                 pfx = "TXN"
                 dr = _safe_float(row.get("Debit"))
                 cr = _safe_float(row.get("Credit"))
+            elif b_type == "Bulk Scholarships":
+                pfx = "SCH"
+                s_n = str(row.get("Scholarship Name", "")).strip()
+                s_id = sch_map.get(s_n.lower())
+                pct = _safe_float(row.get("Percentage"))
+                
+                if not s_id:
+                    orig["Error Reason"] = f"Unknown Scholarship Name: {s_n}"
+                    failed.append(orig)
+                    continue
+                    
+                cr = (15 * rt) * (pct / 100.0)
+                dsc = f"Scholarship: {s_n} ({pct}%)"
                 
             entry_date = pd.to_datetime(row.get("Date", datetime.datetime.now()), errors="coerce")
             entry_date = entry_date.date() if pd.notna(entry_date) else datetime.datetime.now().date()
@@ -294,6 +316,7 @@ async def process_bulk_upload(
                     reference_no=f"{pfx}-{ctr:06d}",
                     batch_id=batch_id,
                     student_id=sid,
+                    scholarship_type_id=s_id,
                     transaction_type=b_type,
                     description=dsc,
                     debit=dr, credit=cr,

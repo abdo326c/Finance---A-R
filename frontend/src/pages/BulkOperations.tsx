@@ -11,6 +11,7 @@ const BULK_TYPES = [
   "Credit Hours Adjustments",
   "Update Student Rates",
   "General Adjustments",
+  "Bulk Scholarships",
 ];
 
 export default function BulkOperations() {
