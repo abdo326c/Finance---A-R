@@ -211,6 +211,73 @@ async def process_bulk_upload(
             write_audit(db, current_user.username, "BULK_FIN_STATUS_UPDATE", "batch", f"{success} financial statuses updated")
             db.commit()
 
+    elif b_type == "Bulk Scholarships":
+        mappings = db.query(ScholarshipMapping).all()
+        sch_map = {str(m.system_name).lower().strip(): m.scholarship_type_id for m in mappings}
+        
+        from helpers import get_retroactive_scholarship_tx
+        new_schs = []
+        txns = []
+        
+        # Pre-fetch existing scholarships
+        all_schs = db.query(StudentScholarship).filter(
+            StudentScholarship.student_id.in_(all_students.keys())
+        ).all()
+        existing_schs = {(s.student_id, s.scholarship_type_id, s.term, s.academic_year): s for s in all_schs}
+
+        for i, row in df_raw.iterrows():
+            sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
+            orig = row.to_dict()
+            if sid <= 0 or sid not in all_students:
+                orig["Error Reason"] = "Invalid or unregistered ID"
+                failed.append(orig)
+                continue
+                
+            s_n = str(row.get("Scholarship Name", "")).strip()
+            s_id = sch_map.get(s_n.lower())
+            pct = _safe_float(row.get("Percentage"))
+            
+            if not s_id:
+                orig["Error Reason"] = f"Unknown Scholarship Name: {s_n}"
+                failed.append(orig)
+                continue
+                
+            term_v = str(row.get("Term", VALID_TERMS[1]))
+            year_v = int(row.get("Year", DEFAULT_YEAR)) if pd.notnull(row.get("Year")) else DEFAULT_YEAR
+            
+            try:
+                existing = existing_schs.get((sid, s_id, term_v, year_v))
+                if existing:
+                    existing.percentage = pct
+                    existing.is_active = True
+                else:
+                    new_sch = StudentScholarship(
+                        student_id=sid,
+                        scholarship_type_id=s_id,
+                        percentage=pct,
+                        term=term_v,
+                        academic_year=year_v,
+                        is_active=True
+                    )
+                    new_schs.append(new_sch)
+                    # For newly added scholarships, compute retroactive transactions
+                    tx = get_retroactive_scholarship_tx(db, sid, s_id, term_v, year_v, batch_id=batch_id)
+                    if tx:
+                        txns.append(tx)
+                success += 1
+            except Exception as e:
+                orig["Error Reason"] = str(e)
+                failed.append(orig)
+                
+        if success > 0:
+            if new_schs:
+                db.add_all(new_schs)
+            if txns:
+                db.bulk_save_objects(txns)
+            write_audit(db, current_user.username, "BULK_SCHOLARSHIP_ASSIGN", batch_id, f"{success} scholarships assigned")
+            db.commit()
+            get_static_lookups.cache_clear()
+
     else:
         from sqlalchemy import func
         max_schs = db.query(func.count(StudentScholarship.id)).filter(
@@ -237,12 +304,6 @@ async def process_bulk_upload(
                 (FinancialStatusHistory.created_at == subq.c.max_date)
             ).all()
             latest_holds = {h.student_id: h for h in holds}
-            
-        # Pre-fetch scholarship mappings to prevent N+1 queries during bulk scholarships
-        sch_map = {}
-        if b_type == "Bulk Scholarships":
-            mappings = db.query(ScholarshipMapping).all()
-            sch_map = {str(m.system_name).lower().strip(): m.scholarship_type_id for m in mappings}
             
         for i, row in df_raw.iterrows():
             sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
@@ -294,19 +355,6 @@ async def process_bulk_upload(
                 pfx = "TXN"
                 dr = _safe_float(row.get("Debit"))
                 cr = _safe_float(row.get("Credit"))
-            elif b_type == "Bulk Scholarships":
-                pfx = "SCH"
-                s_n = str(row.get("Scholarship Name", "")).strip()
-                s_id = sch_map.get(s_n.lower())
-                pct = _safe_float(row.get("Percentage"))
-                
-                if not s_id:
-                    orig["Error Reason"] = f"Unknown Scholarship Name: {s_n}"
-                    failed.append(orig)
-                    continue
-                    
-                cr = (15 * rt) * (pct / 100.0)
-                dsc = f"Scholarship: {s_n} ({pct}%)"
                 
             entry_date = pd.to_datetime(row.get("Date", datetime.datetime.now()), errors="coerce")
             entry_date = entry_date.date() if pd.notna(entry_date) else datetime.datetime.now().date()

@@ -507,14 +507,20 @@ function BulkUploadTab({ lookups, showFlash }: any) {
       const token = localStorage.getItem('token');
       const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/bulk/upload`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${token}`
         }
       });
       showFlash(response.data.message || 'Import successful', 'success');
       setFile(null);
     } catch (err: any) {
-      showFlash(err.response?.data?.detail || 'An error occurred during upload.', 'error');
+      let errMsg = 'An error occurred during upload.';
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        errMsg = detail.map((d: any) => d.msg).join(', ');
+      } else if (typeof detail === 'string') {
+        errMsg = detail;
+      }
+      showFlash(errMsg, 'error');
     } finally {
       setUploading(false);
     }
