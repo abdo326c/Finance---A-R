@@ -340,13 +340,18 @@ async def preview_power_campus(
     # Apply VOID_FLAG filter unconditionally
     df = df[df["VOID_FLAG"] != "Y"]
 
-    # Pre-calculate TUIT sum per student in the CSV BEFORE applying user filters
-    df["_amount_clean"] = pd.to_numeric(df["AMOUNT"].astype(str).str.replace(',', ''), errors='coerce').fillna(0.0)
-    tuit_df = df[df["SUMMARY_TYPE"].astype(str).str.strip() == "TUIT"]
-    raw_sums = tuit_df.groupby("PEOPLE_ORG_ID")["_amount_clean"].sum().to_dict()
-    student_tuit_sums = {int(float(k)): v for k, v in raw_sums.items() if pd.notna(k) and str(k).strip() != ''}
-
     try:
+        # Pre-calculate TUIT sum per student in the CSV BEFORE applying user filters
+        df["_amount_clean"] = pd.to_numeric(df["AMOUNT"].astype(str).str.replace(',', ''), errors='coerce').fillna(0.0)
+        tuit_df = df[df["SUMMARY_TYPE"].astype(str).str.strip() == "TUIT"]
+        raw_sums = tuit_df.groupby("PEOPLE_ORG_ID")["_amount_clean"].sum().to_dict()
+        student_tuit_sums = {}
+        for k, v in raw_sums.items():
+            if pd.notna(k) and str(k).strip() != '':
+                try:
+                    student_tuit_sums[int(float(k))] = v
+                except ValueError:
+                    pass
         # Apply user filters
         if filter_data.get("term"):
             df = df[df["ACADEMIC_TERM"].astype(str).str.strip() == str(filter_data["term"]).strip()]
