@@ -488,15 +488,15 @@ async def preview_power_campus(
                     # Fallback to DB tuition (requires calculating from existing DB transactions for this term/year)
                     db_tuition = db.query(func.sum(Transaction.debit)).filter(
                         Transaction.student_id == sid,
-                        Transaction.term == valid_row["term"],
-                        Transaction.academic_year == valid_row["academic_year"],
-                        Transaction.transaction_type.in_(["Invoice", "Bulk Invoices (Tuition)"])
+                        Transaction.term.ilike(f"%{valid_row['term'].strip()}%"),
+                        Transaction.academic_year == int(valid_row["academic_year"]),
+                        Transaction.transaction_type.ilike("%Invoice%")
                     ).scalar() or 0.0
                     
                     if db_tuition > 0:
                         pct = float(round((amt / db_tuition) * 100, 2))
                     else:
-                        orig["Error Reason"] = f"Cannot calculate SCHL %: No tuition found in CSV or DB"
+                        orig["Error Reason"] = f"No tuition found in DB for sid={sid}, term='{valid_row['term']}', year={valid_row['academic_year']}"
                         skipped_rows.append(orig)
                         continue
 
