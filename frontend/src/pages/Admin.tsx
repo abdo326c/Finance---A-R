@@ -503,38 +503,38 @@ export default function Admin() {
 
       {activeTab === 'settings' && settings && (
         <div className="animate-fade-in lookups-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
-          
-          <section className="glass-panel" style={{ gridColumn: '1 / -1', padding: '24px' }}>
-            <div className="page-header" style={{ marginBottom: '20px' }}>
-              <h3 style={{ margin: 0 }}>Scholarship Types</h3>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <input 
-                type="text" 
-                placeholder="New Scholarship Type (e.g. SCH: Excellence %)" 
-                value={newScholarship} 
-                onChange={e => setNewScholarship(e.target.value)} 
-                onKeyDown={e => e.key === 'Enter' && handleAddScholarship()}
-                style={{ flex: 1, maxWidth: '400px' }}
-              />
-              <button className="btn-primary" onClick={handleAddScholarship} style={{ padding: '0 20px' }}>
-                <Plus size={16} /> Add
-              </button>
-            </div>
-            <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-              <DataTable
-                columns={schColumns}
-                data={scholarshipTypes}
-                customStyles={customStyles}
-                pagination
-                paginationPerPage={5}
-                paginationRowsPerPageOptions={[5, 10, 20]}
-                noHeader
-              />
-            </div>
-          </section>
+          <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+            <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div className="page-header" style={{ marginBottom: '20px' }}>
+                <h3 style={{ margin: 0 }}>Scholarship Types</h3>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <input 
+                  type="text" 
+                  placeholder="New Scholarship Type (e.g. SCH: Excellence %)" 
+                  value={newScholarship} 
+                  onChange={e => setNewScholarship(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && handleAddScholarship()}
+                  style={{ flex: 1, maxWidth: '400px' }}
+                />
+                <button className="btn-primary" onClick={handleAddScholarship} style={{ padding: '0 20px' }}>
+                  <Plus size={16} /> Add
+                </button>
+              </div>
+              <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                <DataTable
+                  columns={schColumns}
+                  data={scholarshipTypes}
+                  customStyles={customStyles}
+                  pagination
+                  paginationPerPage={5}
+                  paginationRowsPerPageOptions={[5, 10, 20]}
+                  noHeader
+                />
+              </div>
+            </section>
 
-          <section className="glass-panel" style={{ gridColumn: '1 / -1', padding: '24px' }}>
+            <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0 }}>Scholarship Mappings</h3>
               <div>
@@ -599,14 +599,15 @@ export default function Admin() {
                 data={scholarshipMappings}
                 customStyles={customStyles}
                 pagination
-                paginationPerPage={10}
-                paginationRowsPerPageOptions={[10, 25, 50]}
+                paginationPerPage={5}
+                paginationRowsPerPageOptions={[5, 10, 20]}
                 noHeader
               />
             </div>
           </section>
+        </div>
 
-          <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <section className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%' }}>
             <h3 style={{ margin: '0 0 20px 0' }}>Registered Colleges</h3>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <input 
