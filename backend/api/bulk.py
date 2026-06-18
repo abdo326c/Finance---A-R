@@ -80,7 +80,10 @@ def process_bulk_upload(
         
     try:
         contents = file.file.read()
-        df_raw = pd.read_excel(io.BytesIO(contents))
+        # Cap reading at MAX_BULK_ROWS + 1 to prevent 7-minute hangs on 1M-row formatted Excel files
+        df_raw = pd.read_excel(io.BytesIO(contents), nrows=MAX_BULK_ROWS + 1)
+        # Drop completely empty rows caused by Excel formatting
+        df_raw.dropna(how='all', inplace=True)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {e}")
         
