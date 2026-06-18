@@ -219,9 +219,12 @@ async def process_bulk_upload(
         new_schs = []
         txns = []
         
+        start = next_ref_block(db, total * 2 + 100)
+        ctr = start
+        
         # Pre-fetch existing scholarships
         all_schs = db.query(StudentScholarship).filter(
-            StudentScholarship.student_id.in_(all_students.keys())
+            StudentScholarship.student_id.in_(list(all_students.keys()))
         ).all()
         existing_schs = {(s.student_id, s.scholarship_type_id, s.term, s.academic_year): s for s in all_schs}
 
@@ -260,23 +263,32 @@ async def process_bulk_upload(
                         is_active=True
                     )
                     new_schs.append(new_sch)
-                    # For newly added scholarships, compute retroactive transactions
-                    tx = get_retroactive_scholarship_tx(db, sid, s_id, term_v, year_v, batch_id=batch_id)
+                    
+                    tx = get_retroactive_scholarship_tx(
+                        db, sid, term_v, year_v,
+                        s_id, s_n, pct, ctr,
+                        batch_id=batch_id
+                    )
                     if tx:
                         txns.append(tx)
+                        ctr += 1
                 success += 1
             except Exception as e:
                 orig["Error Reason"] = str(e)
                 failed.append(orig)
                 
         if success > 0:
-            if new_schs:
-                db.add_all(new_schs)
-            if txns:
-                db.bulk_save_objects(txns)
-            write_audit(db, current_user.username, "BULK_SCHOLARSHIP_ASSIGN", batch_id, f"{success} scholarships assigned")
-            db.commit()
-            get_static_lookups.cache_clear()
+            try:
+                if new_schs:
+                    db.add_all(new_schs)
+                if txns:
+                    db.bulk_save_objects(txns)
+                write_audit(db, current_user.username, "BULK_SCHOLARSHIP_ASSIGN", batch_id, f"{success} scholarships assigned")
+                db.commit()
+                get_static_lookups.cache_clear()
+            except Exception as e:
+                db.rollback()
+                raise HTTPException(status_code=500, detail=f"Database error during bulk save: {str(e)}")
 
     else:
         from sqlalchemy import func
