@@ -67,9 +67,14 @@ def get_student_scholarships(db, student_id, term, academic_year):
 # ── Build discount transactions for a new invoice ──
 def build_auto_discount_transactions(
     db, student_id, gross_amount, term, academic_year,
-    entry_date, ref_start: int, batch_id=None
+    entry_date, ref_start: int, batch_id=None,
+    pre_fetched_scholarships=None
 ):
-    scholarships = get_student_scholarships(db, student_id, term, academic_year)
+    if pre_fetched_scholarships is not None:
+        scholarships = pre_fetched_scholarships
+    else:
+        scholarships = get_student_scholarships(db, student_id, term, academic_year)
+        
     if not scholarships:
         return []
 

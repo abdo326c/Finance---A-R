@@ -356,6 +356,26 @@ def process_bulk_upload(
             ).all()
             latest_holds = {h.student_id: h for h in holds}
             
+        # Pre-fetch all active scholarships for students in this file to prevent N+1 queries
+        pre_fetched_schs = {}
+        if b_type in ("Bulk Invoices (Tuition)", "Credit Hours Adjustments") and student_ids_in_file:
+            chunk_size = 5000
+            for i in range(0, len(student_ids_in_file), chunk_size):
+                chunk = student_ids_in_file[i:i+chunk_size]
+                rows = db.query(StudentScholarship, ScholarshipType).join(ScholarshipType).filter(
+                    StudentScholarship.student_id.in_(chunk),
+                    StudentScholarship.is_active == True
+                ).all()
+                for ss, st_type in rows:
+                    key = (ss.student_id, str(ss.term), int(ss.academic_year))
+                    if key not in pre_fetched_schs:
+                        pre_fetched_schs[key] = []
+                    pre_fetched_schs[key].append({
+                        "scholarship_type_id": ss.scholarship_type_id,
+                        "name": st_type.name,
+                        "percentage": ss.percentage
+                    })
+            
         for i, row in df_raw.iterrows():
             sid = int(row.get("ID", 0)) if pd.notnull(row.get("ID")) else 0
             orig = row.to_dict()
@@ -430,9 +450,13 @@ def process_bulk_upload(
                 
                 if b_type in ("Bulk Invoices (Tuition)", "Credit Hours Adjustments"):
                     inv_amt = dr if b_type == "Bulk Invoices (Tuition)" else abs(h_change * rt)
+                    
+                    student_schs = pre_fetched_schs.get((sid, term_v, year_v), [])
+                    
                     discounts = build_auto_discount_transactions(
                         db, sid, inv_amt, term_v, year_v, entry_date,
                         ref_start=ctr, batch_id=batch_id,
+                        pre_fetched_scholarships=student_schs
                     )
                     if b_type == "Credit Hours Adjustments" and h_change < 0:
                         for t in discounts:
