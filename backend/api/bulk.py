@@ -571,7 +571,7 @@ async def commit_power_campus(
         else: pfx = "TXN"
         
         dr = row.amount if row.charge_credit_type == "C" else 0.0
-        cr = row.amount if row.charge_credit_type == "R" else 0.0
+        cr = row.amount if row.charge_credit_type in ["R", "D"] else 0.0
         
         entry_dt = pd.to_datetime(row.entry_date, errors="coerce").date() if row.entry_date else datetime.datetime.now().date()
         
