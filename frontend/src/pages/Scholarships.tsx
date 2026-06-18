@@ -510,7 +510,12 @@ function BulkUploadTab({ lookups, showFlash }: any) {
           Authorization: `Bearer ${token}`
         }
       });
-      showFlash(response.data.message || 'Import successful', 'success');
+      if (response.data.failed_count > 0) {
+        const firstErr = response.data.failed_rows[0]?.["Error Reason"] || "Unknown error";
+        showFlash(`Failed: ${response.data.failed_count} row(s) failed. Reason: ${firstErr}`, 'error');
+      } else {
+        showFlash(`Import successful! Assigned ${response.data.success_count} scholarship(s).`, 'success');
+      }
       setFile(null);
     } catch (err: any) {
       let errMsg = 'An error occurred during upload.';
