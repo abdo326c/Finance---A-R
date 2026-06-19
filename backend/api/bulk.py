@@ -483,10 +483,27 @@ def process_bulk_upload(
                 db.rollback()
                 raise HTTPException(status_code=500, detail=f"Database error during bulk save: {str(e)}")
                 
+    safe_failed = []
+    for r in failed:
+        safe_row = {}
+        for k, v in r.items():
+            if pd.isna(v):
+                safe_row[k] = None
+            elif hasattr(v, "isoformat"):
+                safe_row[k] = v.isoformat()
+            elif hasattr(v, "item"):
+                try:
+                    safe_row[k] = v.item()
+                except:
+                    safe_row[k] = str(v)
+            else:
+                safe_row[k] = v
+        safe_failed.append(safe_row)
+
     return {
         "success_count": success,
-        "failed_count": len(failed),
-        "failed_rows": failed,
+        "failed_count": len(safe_failed),
+        "failed_rows": safe_failed,
         "batch_id": batch_id
     }
 
