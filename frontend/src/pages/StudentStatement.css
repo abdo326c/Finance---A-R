@@ -191,10 +191,10 @@
   letter-spacing: 0.05em;
 }
 
-.badge.invoice { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.badge.payment-receipt { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-.badge.discount { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.badge.other-fees { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+.badge.invoice { background: rgba(59, 130, 246, 0.15); color: #1d4ed8; }
+.badge.payment-receipt { background: rgba(16, 185, 129, 0.15); color: #047857; }
+.badge.discount { background: rgba(239, 68, 68, 0.15); color: #b91c1c; }
+.badge.other-fees { background: rgba(245, 158, 11, 0.15); color: #b45309; }
 
 .text-right {
   text-align: right;
