@@ -181,15 +181,15 @@ export default function StudentStatement() {
             <div className="metrics-row">
               <div className="metric-box glass-panel">
                 <p>Total Debit</p>
-                <h3 style={{color: '#ef4444'}}>{formatCurrency(metrics.total_debit)}</h3>
+                <h3 style={{color: '#dc2626', fontWeight: 800}}>{formatCurrency(metrics.total_debit)}</h3>
               </div>
               <div className="metric-box glass-panel">
                 <p>Total Credit</p>
-                <h3 style={{color: '#10b981'}}>{formatCurrency(metrics.total_credit)}</h3>
+                <h3 style={{color: '#059669', fontWeight: 800}}>{formatCurrency(metrics.total_credit)}</h3>
               </div>
               <div className="metric-box glass-panel highlight">
                 <p>Net Balance Due</p>
-                <h3>{formatCurrency(metrics.net_balance)}</h3>
+                <h3 style={{fontWeight: 800}}>{formatCurrency(metrics.net_balance)}</h3>
               </div>
               
               <div className="action-buttons">
@@ -225,10 +225,10 @@ export default function StudentStatement() {
                       <td>{t.Term} {t.Year}</td>
                       <td><span className={`badge ${getBadgeClass(t.Type)}`}>{t.Type}</span></td>
                       <td>{t.Description}</td>
-                      <td className="text-right" style={{color: t.Debit > 0 ? '#ef4444' : ''}}>
+                      <td className="text-right" style={{color: t.Debit > 0 ? '#dc2626' : '', fontWeight: t.Debit > 0 ? 700 : 'normal'}}>
                         {t.Debit > 0 ? formatCurrency(t.Debit) : '—'}
                       </td>
-                      <td className="text-right" style={{color: t.Credit > 0 ? '#10b981' : ''}}>
+                      <td className="text-right" style={{color: t.Credit > 0 ? '#059669' : '', fontWeight: t.Credit > 0 ? 700 : 'normal'}}>
                         {t.Credit > 0 ? formatCurrency(t.Credit) : '—'}
                       </td>
                     </tr>
