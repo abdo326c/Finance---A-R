@@ -109,7 +109,7 @@
   align-items: center;
   gap: 16px;
   border-left: 4px solid transparent;
-  min-width: 0; /* allows text truncation if absolutely needed */
+  container-type: inline-size;
 }
 
 .kpi-blue { border-left-color: #3b82f6; }
@@ -117,40 +117,23 @@
 .kpi-teal { border-left-color: #14b8a6; }
 .kpi-purple { border-left-color: #8b5cf6; }
 
-.kpi-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: var(--surface-hover);
-  color: var(--text-primary);
-  flex-shrink: 0;
-}
-
 .kpi-card > div {
-  min-width: 0;
-  overflow: hidden;
+  width: 100%;
 }
 
 .kpi-label {
-  font-size: 0.85rem;
+  font-size: clamp(0.7rem, 4cqw, 0.95rem);
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 4px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .kpi-value {
-  font-size: clamp(1.1rem, 1.8vw, 1.5rem);
+  font-size: clamp(1rem, 9.5cqw, 2rem);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .charts-grid {

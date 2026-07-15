@@ -131,28 +131,24 @@ export default function Dashboard() {
           <>
             <div className="kpi-grid animate-fade-in">
               <div className="kpi-card kpi-blue glass-panel">
-                <div className="kpi-icon"><TrendingUp /></div>
                 <div>
                   <p className="kpi-label">Gross Billed</p>
                   <h3 className="kpi-value">{formatCurrency(data.metrics.gross_billed)}</h3>
                 </div>
               </div>
               <div className="kpi-card kpi-red glass-panel">
-                <div className="kpi-icon"><DollarSign /></div>
                 <div>
                   <p className="kpi-label">Total Scholarships</p>
                   <h3 className="kpi-value">{formatCurrency(data.metrics.total_discounts)}</h3>
                 </div>
               </div>
               <div className="kpi-card kpi-teal glass-panel">
-                <div className="kpi-icon"><Activity /></div>
                 <div>
                   <p className="kpi-label">Total Payments</p>
                   <h3 className="kpi-value">{formatCurrency(data.metrics.total_payments)}</h3>
                 </div>
               </div>
               <div className="kpi-card kpi-purple glass-panel">
-                <div className="kpi-icon"><Users /></div>
                 <div>
                   <p className="kpi-label">Net Balance Due</p>
                   <h3 className="kpi-value">{formatCurrency(data.metrics.net_balance)}</h3>
